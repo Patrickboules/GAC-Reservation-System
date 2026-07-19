@@ -89,8 +89,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 6,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added app/login (page + server action), app/signup (page + server action), and app/logout (server action) using lib/supabase/server's cookie-based client; home page (app/page.tsx) now checks auth.getUser() and shows Log in/Sign up links or a Signed-in-as + Log out form. Added shadcn Input/Label/Card components for the forms. Invalid credentials redirect back to /login?error=... and render a role=alert message. Verified end-to-end against local Supabase (db reset applied) with a Playwright script driving a real browser: signup -> signed-in home, session persists across reload, logout -> /login, invalid login shows error, valid login signs in. npx tsc --noEmit and npm run lint both pass."
     },
     {
       "id": "US-007",
