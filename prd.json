@@ -1,0 +1,259 @@
+{
+  "project": "GAC Reservations",
+  "branchName": "ralph/gac-reservations-v1",
+  "description": "GAC Reservations v1 — a mobile-first, auth-gated room/hall booking system for Gawargious & Ava Antonious. Members browse room schedules, check availability, and submit booking requests; admins approve/reject from a queue. Next.js 15 (App Router) + TypeScript + Tailwind + shadcn/ui, backed by Supabase (Postgres, Auth, RLS) via supabase-js and raw SQL migrations.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Scaffold Next.js 15 app with Tailwind and shadcn/ui",
+      "description": "As a developer, I need the base app scaffold so every feature has somewhere to live.",
+      "acceptanceCriteria": [
+        "Next.js 15 App Router project created with TypeScript",
+        "Tailwind CSS configured and applied to a global stylesheet",
+        "shadcn/ui initialized (components.json present, at least Button component installed)",
+        "Root layout renders a placeholder home page that builds",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Wire up Supabase client and environment variables",
+      "description": "As a developer, I need browser and server Supabase clients so the app can talk to Postgres and Auth.",
+      "acceptanceCriteria": [
+        "Add .env.local.example with NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and server-only SUPABASE_SERVICE_ROLE_KEY",
+        "Create a browser supabase client helper and a server supabase client helper using supabase-js / @supabase/ssr",
+        "Service role key is only ever read in server-side code, never exposed to the client bundle",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-003",
+      "title": "SQL migration for rooms, bookings, and profiles tables",
+      "description": "As a developer, I need the core schema so bookings can be stored.",
+      "acceptanceCriteria": [
+        "Version-controlled SQL migration file creates rooms (id, name, capacity, amenities, location, rules, created_at)",
+        "Creates bookings (id, room_id FK, user_id FK, date, start_time, end_time, service, notes, status, reject_reason, created_at, updated_at)",
+        "Creates profiles (id FK auth.users, display_name, role default 'member', created_at)",
+        "bookings.status constrained to 'pending' | 'approved' | 'rejected' | 'cancelled' via enum or CHECK",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-004",
+      "title": "SQL migration for Row-Level Security policies",
+      "description": "As a developer, I need RLS so data access is enforced at the database layer, not just the UI.",
+      "acceptanceCriteria": [
+        "RLS enabled on rooms, bookings, and profiles",
+        "rooms: any authenticated user may SELECT; no member INSERT/UPDATE/DELETE",
+        "bookings: members SELECT/UPDATE only their own rows; INSERT only where user_id = auth.uid() and status = 'pending'; only role='admin' may set status to 'approved'/'rejected'",
+        "profiles: a user may read/update only their own profile; role is not self-service editable",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Profile-on-signup trigger and seed script",
+      "description": "As a developer, I need a profiles row auto-created on signup and sample data for local testing.",
+      "acceptanceCriteria": [
+        "SQL trigger inserts a profiles row with default role 'member' when a new auth user is created",
+        "Seed script inserts at least 3 sample rooms",
+        "Seed script creates (or promotes) at least 1 admin profile for testing",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Login, signup, and logout with Supabase Auth",
+      "description": "As a member, I want to log in and out so I can access the app.",
+      "acceptanceCriteria": [
+        "Login and signup pages authenticate against Supabase Auth (email/password)",
+        "Successful login persists the session across a page refresh",
+        "A logout action ends the session and returns to the login page",
+        "Invalid credentials show a clear error message",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Session gating middleware and admin route guard",
+      "description": "As a member, I want every page to require login, and admin pages to reject non-admins.",
+      "acceptanceCriteria": [
+        "Middleware redirects unauthenticated users to the login page for all app routes",
+        "Admin-only routes reject members with role checked from profiles (server-side, not just UI hiding)",
+        "An authenticated member is allowed through to member routes",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Shared booking conflict-check utility",
+      "description": "As a developer, I need one overlap-check function reused across availability, request, approval, and edit.",
+      "acceptanceCriteria": [
+        "Function detects overlap as same room_id and date with start_time < existing.end_time AND end_time > existing.start_time",
+        "Considers only bookings in status 'approved' or 'pending'",
+        "Exposed as a single reusable module imported by other features",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "View rooms schedule (calendar + list toggle)",
+      "description": "As a member, I want a calendar/list of room schedules so I can find an open slot.",
+      "acceptanceCriteria": [
+        "Schedule page defaults to a calendar view with a toggle to a list view",
+        "Filter controls for room and for date/date-range; selecting a room shows only that room's bookings",
+        "pending and approved bookings are visually distinguished (e.g. amber vs green badge)",
+        "Read-only: shows only room, time, and status of others' bookings — no member identity or notes",
+        "Usable on a mobile viewport with no horizontal scroll",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "View room details",
+      "description": "As a member, I want to see a room's capacity, amenities, location, and rules before requesting it.",
+      "acceptanceCriteria": [
+        "Clicking a room card/row opens a detail page or modal",
+        "Detail shows name, capacity, amenities, location, and usage rules/notes",
+        "Any empty field renders 'Not specified' rather than blank",
+        "Reachable from both the schedule view and any room list",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Check room availability search",
+      "description": "As a member, I want to search by date/time range to find which rooms are free.",
+      "acceptanceCriteria": [
+        "Search form with date, start time, end time, and optional capacity filter",
+        "Results list rooms available for the requested slot using the shared conflict-check utility",
+        "A room with an overlapping approved booking is excluded from results",
+        "A room with an overlapping pending booking is shown as 'Requested — pending approval'",
+        "Empty-state message when no rooms are available for the slot",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Request a room/hall",
+      "description": "As a member, I want to request a room for a date/time and service so an admin can review it.",
+      "acceptanceCriteria": [
+        "Form fields: room, date, start time, end time, service/purpose (fixed dropdown constant), optional notes",
+        "Client-side conflict check warns before submit if the slot overlaps an approved or pending booking",
+        "Server-side conflict check re-validates before insert and blocks conflicts with no row written",
+        "Server-side check rejects the request if the member already holds 5 open pending requests",
+        "A valid request inserts a bookings row with status 'pending' linked to the user, then redirects/confirms to View My Bookings",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-013",
+      "title": "Admin approval queue",
+      "description": "As an admin, I want to approve or reject pending requests so schedules stay conflict-free.",
+      "acceptanceCriteria": [
+        "Admin-only route lists all pending requests (room, requester, date/time, service)",
+        "Approve sets status to 'approved'; reject sets status to 'rejected' and stores an optional reason",
+        "On approve, a fresh server-side conflict check runs and blocks approval if a conflict now exists",
+        "Approving one of two pending requests for the same slot prevents the other from being approved",
+        "Non-admins cannot reach the route or invoke its actions (server-side + RLS)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 13,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-014",
+      "title": "Cancel a booking",
+      "description": "As a member, I want to cancel my own booking so the slot frees up.",
+      "acceptanceCriteria": [
+        "Cancel action available for pending and future approved bookings owned by the user",
+        "Cancelling sets status to 'cancelled' after a confirmation step",
+        "Cancel action is not available for past bookings",
+        "A cancelled slot immediately shows as available in schedule and availability views",
+        "A user cannot cancel another user's booking (enforced via RLS)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 14,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-015",
+      "title": "Modify/reschedule a booking",
+      "description": "As a member, I want to change the date/time/room of my request without recreating it.",
+      "acceptanceCriteria": [
+        "Edit action available for pending and future approved bookings owned by the user",
+        "Editing date, time, or room reverts status to 'pending' and re-runs the conflict check",
+        "A modification conflicting with another approved or pending booking is blocked with a clear error",
+        "A previously approved booking that is edited requires re-approval by an admin",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 15,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-016",
+      "title": "View my bookings",
+      "description": "As a member, I want to see my upcoming, pending, past, and cancelled bookings in one place.",
+      "acceptanceCriteria": [
+        "Tabbed or filterable list with buckets: Upcoming / Pending / Past / Cancelled",
+        "Bookings are bucketed correctly by date and status",
+        "Each row links to a detail view exposing cancel/edit actions where applicable",
+        "Only the logged-in user's own bookings are returned (enforced via Supabase RLS, not just UI filtering)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": ""
+    }
+  ]
+}
