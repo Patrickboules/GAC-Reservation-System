@@ -1,3 +1,4 @@
 # Ralph Progress Log
 Started: Sun Jul 19 12:02:39 EEST 2026
 ---
+US-001: Scaffolded Next.js 15.5.20 App Router + TypeScript + Tailwind v4 + shadcn/ui (Button installed) at repo root; placeholder home page builds. Verification: npx tsc --noEmit clean, npm run lint clean, npm run build succeeds, dev server manually curl-checked (200, renders Button).

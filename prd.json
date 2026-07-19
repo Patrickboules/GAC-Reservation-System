@@ -1,7 +1,7 @@
 {
   "project": "GAC Reservations",
   "branchName": "ralph/gac-reservations-v1",
-  "description": "GAC Reservations v1 — a mobile-first, auth-gated room/hall booking system for Gawargious & Ava Antonious. Members browse room schedules, check availability, and submit booking requests; admins approve/reject from a queue. Next.js 15 (App Router) + TypeScript + Tailwind + shadcn/ui, backed by Supabase (Postgres, Auth, RLS) via supabase-js and raw SQL migrations.",
+  "description": "GAC Reservations v1 \u2014 a mobile-first, auth-gated room/hall booking system for Gawargious & Ava Antonious. Members browse room schedules, check availability, and submit booking requests; admins approve/reject from a queue. Next.js 15 (App Router) + TypeScript + Tailwind + shadcn/ui, backed by Supabase (Postgres, Auth, RLS) via supabase-js and raw SQL migrations.",
   "userStories": [
     {
       "id": "US-001",
@@ -15,8 +15,8 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Scaffolded Next.js 15.5.20 (App Router, TS) with Tailwind v4 and shadcn/ui (base-nova style, Button installed) via create-next-app + shadcn init; placeholder home page renders Button; npx tsc --noEmit, npm run lint, and npm run build all pass; verified dev server serves 200 with expected markup."
     },
     {
       "id": "US-002",
@@ -130,7 +130,7 @@
         "Schedule page defaults to a calendar view with a toggle to a list view",
         "Filter controls for room and for date/date-range; selecting a room shows only that room's bookings",
         "pending and approved bookings are visually distinguished (e.g. amber vs green badge)",
-        "Read-only: shows only room, time, and status of others' bookings — no member identity or notes",
+        "Read-only: shows only room, time, and status of others' bookings \u2014 no member identity or notes",
         "Usable on a mobile viewport with no horizontal scroll",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
@@ -163,7 +163,7 @@
         "Search form with date, start time, end time, and optional capacity filter",
         "Results list rooms available for the requested slot using the shared conflict-check utility",
         "A room with an overlapping approved booking is excluded from results",
-        "A room with an overlapping pending booking is shown as 'Requested — pending approval'",
+        "A room with an overlapping pending booking is shown as 'Requested \u2014 pending approval'",
         "Empty-state message when no rooms are available for the slot",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"

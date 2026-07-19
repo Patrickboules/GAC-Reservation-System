@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Current state of this repo
 
-**No application code exists yet.** This directory currently contains only planning artifacts and an autonomous-agent ("Ralph Wiggum") execution harness. The actual Next.js app has not been scaffolded — that is itself the first user story (US-001) in `prd.json`. Do not assume a `package.json`, `src/`, or any build tooling exists until you've checked; if it's missing, build/lint/test commands described in this file don't apply yet and the first task is to scaffold the app per US-001.
+US-001 is complete: a Next.js 15 (App Router, TypeScript, Tailwind, shadcn/ui) app is scaffolded at the repo root (`app/`, `components/`, `lib/`, `package.json`). No Supabase wiring, schema, auth, or feature UI exists yet — those are US-002 onward in `prd.json`. Check `prd.json` for the next `passes: false` story before assuming any later capability exists.
 
 ## What this project is
 
@@ -47,4 +47,12 @@ When working on a story from `prd.json` directly (rather than via the `ralph.sh`
 
 ## Commands
 
-None yet — no scaffold exists. Once US-001 completes, this section should be updated with the real `npm`/`pnpm` scripts (dev, build, lint, typecheck, test) from the generated `package.json`, plus how to run a single test and how to apply Supabase SQL migrations locally.
+- `npm run dev` — start the dev server (Turbopack) at http://localhost:3000
+- `npm run build` — production build (also type-checks and lints)
+- `npm run start` — serve the production build
+- `npm run lint` — ESLint (flat config, `eslint-config-next`)
+- `npx tsc --noEmit` — typecheck only
+- No test runner is configured yet; add one when a story first needs "Tests pass" (US-008 is the first).
+
+npx skills add supabase/agent-skills
+npm install @supabase/supabase-js @supabase/ssr
