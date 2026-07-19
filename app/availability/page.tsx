@@ -20,7 +20,10 @@ export default async function AvailabilityPage() {
             Search a date and time range to see which rooms are free.
           </p>
         </div>
-        <Button variant="outline" render={<Link href="/schedule">Schedule</Link>} />
+        <div className="flex gap-2">
+          <Button variant="outline" render={<Link href="/schedule">Schedule</Link>} />
+          <Button variant="outline" render={<Link href="/bookings/new">Request</Link>} />
+        </div>
       </div>
       <AvailabilitySearch rooms={rooms ?? []} />
     </div>

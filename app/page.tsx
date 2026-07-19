@@ -23,6 +23,8 @@ export default async function Home() {
           </p>
           <Button render={<Link href="/schedule">View schedule</Link>} />
           <Button variant="outline" render={<Link href="/availability">Check availability</Link>} />
+          <Button variant="outline" render={<Link href="/bookings/new">Request a room</Link>} />
+          <Button variant="outline" render={<Link href="/bookings">My bookings</Link>} />
           <form action={logout}>
             <Button type="submit" variant="outline">
               Log out

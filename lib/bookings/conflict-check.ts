@@ -55,16 +55,19 @@ export function hasConflict(
 }
 
 /**
- * Server-side helper: fetches the candidate slot's room/date bookings from Supabase
- * (RLS-visible rows are enough — status/time are readable by all authenticated members)
- * and runs them through the same overlap logic used everywhere else.
+ * Server-side helper: fetches the candidate slot's room/date bookings and runs them
+ * through the same overlap logic used everywhere else. Queries `bookings_schedule`
+ * (not the base `bookings` table) because bookings' own RLS policy only lets a member
+ * read their own rows — the schedule view exposes every member's pending/approved
+ * room_id/date/start_time/end_time/status so conflicts against other members' requests
+ * are actually detected.
  */
 export async function fetchConflictingBookings(
   supabase: SupabaseClient,
   candidate: ConflictCandidate
 ): Promise<BookingTimeSlot[]> {
   const { data, error } = await supabase
-    .from("bookings")
+    .from("bookings_schedule")
     .select("id, room_id, date, start_time, end_time, status")
     .eq("room_id", candidate.room_id)
     .eq("date", candidate.date)

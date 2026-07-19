@@ -44,6 +44,12 @@ export function formatDateLabel(dateStr: string): string {
   });
 }
 
+/** <input type="time"> yields "HH:MM"; normalize to "HH:MM:SS" so string
+ * comparisons against Postgres `time` values (conflict-check, storage) are exact. */
+export function normalizeTimeString(time: string): string {
+  return time.length === 5 ? `${time}:00` : time;
+}
+
 export function formatTimeLabel(timeStr: string): string {
   const [hourStr, minuteStr] = timeStr.split(":");
   const hour = Number(hourStr);
