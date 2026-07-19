@@ -59,8 +59,8 @@
         "Typecheck passes"
       ],
       "priority": 4,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added supabase/migrations/20260719000100_add_rls_policies.sql: enables RLS on rooms/bookings/profiles; rooms readable by any authenticated user with no member write policies; bookings select/insert/update scoped to user_id = auth.uid() with insert requiring status='pending' and member updates blocked from setting approved/rejected; a security-definer is_admin() plus an admin-only update policy lets only role='admin' transition status to approved/rejected; profiles select/update scoped to own id, with a BEFORE UPDATE trigger blocking role self-edits unless done via the service_role key. Typecheck passes (SQL-only story, no TS changes)."
     },
     {
       "id": "US-005",
