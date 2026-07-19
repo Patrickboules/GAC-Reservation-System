@@ -3,3 +3,4 @@ Started: Sun Jul 19 12:02:39 EEST 2026
 ---
 US-001: Scaffolded Next.js 15.5.20 App Router + TypeScript + Tailwind v4 + shadcn/ui (Button installed) at repo root; placeholder home page builds. Verification: npx tsc --noEmit clean, npm run lint clean, npm run build succeeds, dev server manually curl-checked (200, renders Button).
 US-002: Wired up Supabase clients (browser, server, admin) and .env.local.example; installed @supabase/supabase-js, @supabase/ssr, server-only. Verification: npx tsc --noEmit clean, npm run lint clean.
+US-003: Added supabase/migrations/20260719000000_create_core_schema.sql with booking_status enum and rooms/profiles/bookings tables (FKs, status CHECK via enum, end_time>start_time check, indexes). Verification: npx tsc --noEmit clean (SQL-only change).

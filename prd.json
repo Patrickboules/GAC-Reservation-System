@@ -44,8 +44,8 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added supabase/migrations/20260719000000_create_core_schema.sql creating booking_status enum, rooms, profiles, and bookings (with FKs to auth.users, end_time>start_time check, and room/date + user_id indexes). Typecheck passes (no TS changes; SQL-only story)."
     },
     {
       "id": "US-004",
