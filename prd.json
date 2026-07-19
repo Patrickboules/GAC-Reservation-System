@@ -203,8 +203,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 13,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added app/admin/page.tsx (lists pending bookings with room/requester/date-time/service/notes, sorted by date+start_time) + app/admin/actions.ts (approveBooking/rejectBooking server actions, each re-checking admin role server-side via requireAdmin() before mutating). Added supabase/migrations/20260719000500_add_admin_select_policies.sql (admin-only select policies on bookings/profiles via is_admin(), since the existing select policies only let a user read their own rows) and supabase/migrations/20260719000600_grant_service_role_table_privileges.sql (service_role lacked base table grants entirely — same class of bug as US-007's authenticated-grant fix — so any server-side use of the service-role client 403'd; not on the approval queue's own path, but a real gap worth closing). Found and fixed a real bug in lib/bookings/conflict-check.ts: fetchConflictingBookings' approval re-check reused the default pending+approved status filter, so two pending requests for the same slot always blocked the FIRST approval too (the sibling still-pending request looked like a conflict). Added an optional `statuses` param (default unchanged) and had approveBooking pass `['approved']` only, matching the PRD's description of the approval re-check as a race guard against another already-approved booking. Verified end-to-end with a Playwright script against a fresh `supabase db reset` (two members, two directly-seeded overlapping pending bookings simulating the race scenario, one admin): non-admin redirected from /admin, admin sees both pending cards with room/service and no raw email leak, approving the first succeeds, approving the still-pending conflicting sibling is blocked with a clear conflict error and leaves it pending, rejecting it with a reason stores the reason, and each member's own /bookings page reflects the final approved/rejected status. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
     },
     {
       "id": "US-014",

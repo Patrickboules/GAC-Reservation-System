@@ -61,17 +61,23 @@ export function hasConflict(
  * read their own rows — the schedule view exposes every member's pending/approved
  * room_id/date/start_time/end_time/status so conflicts against other members' requests
  * are actually detected.
+ *
+ * `statuses` defaults to both pending and approved (creation/edit/availability: any
+ * held slot blocks a new one). Admin approval passes `['approved']` only, since its
+ * re-check is a race guard against another *already-approved* booking for the same
+ * slot — a sibling still-pending request must not itself block the first approval.
  */
 export async function fetchConflictingBookings(
   supabase: SupabaseClient,
-  candidate: ConflictCandidate
+  candidate: ConflictCandidate,
+  statuses: readonly BookingStatus[] = CONFLICTING_STATUSES
 ): Promise<BookingTimeSlot[]> {
   const { data, error } = await supabase
     .from("bookings_schedule")
     .select("id, room_id, date, start_time, end_time, status")
     .eq("room_id", candidate.room_id)
     .eq("date", candidate.date)
-    .in("status", CONFLICTING_STATUSES);
+    .in("status", statuses);
 
   if (error) {
     throw error;
