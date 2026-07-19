@@ -73,8 +73,8 @@
         "Typecheck passes"
       ],
       "priority": 5,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added supabase/migrations/20260719000200_profile_on_signup_trigger.sql (handle_new_user() + on_auth_user_created trigger inserting a profiles row with default role 'member'). Added supabase/seed.sql seeding 4 sample rooms and one admin user (admin@gac-reservations.local) inserted directly into auth.users/auth.identities and promoted to role='admin'. Also added supabase/config.toml and supabase/.gitignore (local Supabase CLI project init). Verified end-to-end with `npx supabase db reset` against local Docker Postgres: 4 rooms present, admin profile promoted correctly, and a freshly inserted auth.users row confirms the trigger defaults new signups to role='member'. npx tsc --noEmit passes."
     },
     {
       "id": "US-006",
