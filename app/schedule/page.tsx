@@ -18,6 +18,7 @@ export default async function SchedulePage() {
           </p>
         </div>
         <div className="flex gap-2">
+          <Button variant="outline" render={<Link href="/availability">Availability</Link>} />
           <Button variant="outline" render={<Link href="/rooms">Rooms</Link>} />
           <Button variant="outline" render={<Link href="/">Home</Link>} />
         </div>

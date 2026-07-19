@@ -22,6 +22,7 @@ export default async function Home() {
             Signed in as {user.email}
           </p>
           <Button render={<Link href="/schedule">View schedule</Link>} />
+          <Button variant="outline" render={<Link href="/availability">Check availability</Link>} />
           <form action={logout}>
             <Button type="submit" variant="outline">
               Log out

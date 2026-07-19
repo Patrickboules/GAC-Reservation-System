@@ -169,8 +169,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 11,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added app/availability/page.tsx (server component, fetches rooms with capacity/location) + components/availability/availability-search.tsx (client component: date/start-time/end-time/optional-capacity search form). On search it queries the bookings_schedule view (already scoped to pending/approved, no identity/notes) for the chosen date, then runs the shared findConflictingBookings util per room to decide inclusion: rooms with an overlapping approved booking are excluded, rooms with only an overlapping pending booking are shown with a 'Requested — pending approval' badge, and rooms with no conflict are shown as 'Available'; capacity filter drops rooms with null/insufficient capacity. Linked from home page and schedule page nav. Verified end-to-end with a Playwright script against local Supabase (db reset + two seeded bookings — one approved, one pending): approved-conflict room excluded, pending-conflict room shown with the pending badge, unaffected rooms shown available, capacity filter narrows correctly, empty-state message shows when no rooms qualify, a non-overlapping time slot shows the previously-excluded room as available again, and 375px viewport has zero horizontal overflow. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
     },
     {
       "id": "US-012",
