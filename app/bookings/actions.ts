@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 
 import { fetchConflictingBookings } from "@/lib/bookings/conflict-check";
 import { isBookingService } from "@/lib/bookings/services";
-import { normalizeTimeString } from "@/lib/dates";
+import { isBookingPast, normalizeTimeString } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/server";
 
 const MAX_OPEN_PENDING_BOOKINGS = 5;
@@ -87,6 +87,53 @@ export async function requestBooking(
 
   if (insertError) {
     return { error: insertError.message };
+  }
+
+  redirect("/bookings");
+}
+
+export async function cancelBooking(formData: FormData) {
+  const bookingId = (formData.get("booking_id") as string | null) ?? "";
+  if (!bookingId) {
+    redirect("/bookings?error=" + encodeURIComponent("Missing booking id."));
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: booking, error: fetchError } = await supabase
+    .from("bookings")
+    .select("id, user_id, date, end_time, status")
+    .eq("id", bookingId)
+    .single();
+
+  if (fetchError || !booking || booking.user_id !== user.id) {
+    redirect("/bookings?error=" + encodeURIComponent("Booking not found."));
+  }
+  if (booking.status !== "pending" && booking.status !== "approved") {
+    redirect(
+      "/bookings?error=" +
+        encodeURIComponent("Only pending or approved bookings can be cancelled.")
+    );
+  }
+  if (isBookingPast(booking.date, booking.end_time)) {
+    redirect("/bookings?error=" + encodeURIComponent("Past bookings can't be cancelled."));
+  }
+
+  const { error: updateError } = await supabase
+    .from("bookings")
+    .update({ status: "cancelled" })
+    .eq("id", bookingId)
+    .eq("user_id", user.id);
+
+  if (updateError) {
+    redirect("/bookings?error=" + encodeURIComponent(updateError.message));
   }
 
   redirect("/bookings");

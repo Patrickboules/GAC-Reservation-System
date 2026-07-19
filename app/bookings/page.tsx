@@ -1,9 +1,10 @@
 import Link from "next/link";
 
 import { BookingStatusBadge } from "@/components/schedule/booking-status-badge";
+import { CancelBookingButton } from "@/components/bookings/cancel-booking-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDateLabel, formatTimeLabel } from "@/lib/dates";
+import { formatDateLabel, formatTimeLabel, isBookingPast } from "@/lib/dates";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
 import { createClient } from "@/lib/supabase/server";
 
@@ -22,7 +23,19 @@ function roomName(rooms: MyBooking["rooms"]): string {
   return Array.isArray(rooms) ? (rooms[0]?.name ?? "Unknown room") : rooms.name;
 }
 
-export default async function MyBookingsPage() {
+function isCancellable(booking: MyBooking): boolean {
+  if (booking.status !== "pending" && booking.status !== "approved") {
+    return false;
+  }
+  return !isBookingPast(booking.date, booking.end_time);
+}
+
+export default async function MyBookingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -50,6 +63,12 @@ export default async function MyBookingsPage() {
         </div>
       </div>
 
+      {error ? (
+        <p role="alert" className="text-sm text-destructive">
+          {error}
+        </p>
+      ) : null}
+
       {myBookings.length === 0 ? (
         <p className="text-sm text-muted-foreground">
           You haven&apos;t requested any rooms yet.
@@ -63,9 +82,16 @@ export default async function MyBookingsPage() {
                   <CardTitle>{roomName(booking.rooms)}</CardTitle>
                   <BookingStatusBadge status={booking.status} />
                 </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  {formatDateLabel(booking.date)} · {formatTimeLabel(booking.start_time)}–
-                  {formatTimeLabel(booking.end_time)} · {booking.service}
+                <CardContent className="flex flex-col gap-3 text-sm text-muted-foreground">
+                  <div>
+                    {formatDateLabel(booking.date)} · {formatTimeLabel(booking.start_time)}–
+                    {formatTimeLabel(booking.end_time)} · {booking.service}
+                  </div>
+                  {isCancellable(booking) ? (
+                    <div>
+                      <CancelBookingButton bookingId={booking.id} />
+                    </div>
+                  ) : null}
                 </CardContent>
               </Card>
             </li>

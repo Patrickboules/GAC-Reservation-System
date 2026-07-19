@@ -50,6 +50,14 @@ export function normalizeTimeString(time: string): string {
   return time.length === 5 ? `${time}:00` : time;
 }
 
+/** True once a booking's end has passed relative to now (local time). */
+export function isBookingPast(date: string, endTime: string): boolean {
+  const [hour, minute, second] = endTime.split(":").map(Number);
+  const end = parseDateString(date);
+  end.setHours(hour, minute, second ?? 0, 0);
+  return end.getTime() <= Date.now();
+}
+
 export function formatTimeLabel(timeStr: string): string {
   const [hourStr, minuteStr] = timeStr.split(":");
   const hour = Number(hourStr);

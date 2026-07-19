@@ -220,8 +220,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 14,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added components/bookings/cancel-booking-button.tsx (shadcn alert-dialog confirmation) and app/bookings/actions.ts#cancelBooking, wired into app/bookings/page.tsx for bookings that are pending/approved and not past (lib/dates.ts#isBookingPast). cancelBooking re-verifies ownership/status/not-past server-side before updating status to 'cancelled'; RLS's existing bookings_update_own policy (user_id = auth.uid(), status not in approved/rejected) independently blocks cross-user cancellation and self-approval bypass. No new migration needed: bookings_schedule and the conflict-check utility already filter to pending/approved only, so a cancelled booking is immediately excluded from schedule/availability views and conflict checks. Verified end-to-end with a Playwright + supabase-js script against a fresh `supabase db reset`: a future pending and a future approved booking both show a Cancel button and cancel successfully after confirming the dialog; a past approved booking shows no Cancel button and is left untouched; after cancelling, bookings_schedule no longer returns either id; a second user's own signed-in client attempting to update the first user's booking is blocked with 0 rows affected. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
     },
     {
       "id": "US-015",
