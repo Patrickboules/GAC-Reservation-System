@@ -104,8 +104,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 7,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added middleware.ts + lib/supabase/middleware.ts (session refresh, redirects unauthenticated users to /login for all routes except /login and /signup, and redirects authenticated users away from those two). Added app/admin/layout.tsx (server-side role check against profiles, redirects non-admins to /) and a placeholder app/admin/page.tsx for US-013 to fill in later. Also fixed a real blocking bug found while verifying this: the US-004 RLS migration enabled RLS and added policies but never granted base table privileges to the authenticated role, so every RLS-permitted query still failed with 'permission denied for table' — added supabase/migrations/20260719000300_grant_table_privileges.sql (select on rooms; select/update on profiles; select/insert/update on bookings). Verified end-to-end via Playwright against a fresh `supabase db reset`: unauthenticated hits to / and /admin both redirect to /login; a freshly signed-up member reaches / but is bounced from /admin back to /; the seeded admin account reaches /admin and sees its placeholder heading. npx tsc --noEmit and npm run lint both pass."
     },
     {
       "id": "US-008",
