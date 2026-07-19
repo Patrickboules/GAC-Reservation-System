@@ -1,7 +1,7 @@
 {
   "project": "GAC Reservations",
   "branchName": "ralph/gac-reservations-v1",
-  "description": "GAC Reservations v1 — a mobile-first, auth-gated room/hall booking system for Gawargious & Ava Antonious. Members browse room schedules, check availability, and submit booking requests; admins approve/reject from a queue. Next.js 15 (App Router) + TypeScript + Tailwind + shadcn/ui, backed by Supabase (Postgres, Auth, RLS) via supabase-js and raw SQL migrations.",
+  "description": "GAC Reservations v1 \u2014 a mobile-first, auth-gated room/hall booking system for Gawargious & Ava Antonious. Members browse room schedules, check availability, and submit booking requests; admins approve/reject from a queue. Next.js 15 (App Router) + TypeScript + Tailwind + shadcn/ui, backed by Supabase (Postgres, Auth, RLS) via supabase-js and raw SQL migrations.",
   "userStories": [
     {
       "id": "US-001",
@@ -105,7 +105,7 @@
       ],
       "priority": 7,
       "passes": true,
-      "notes": "Added middleware.ts + lib/supabase/middleware.ts (session refresh, redirects unauthenticated users to /login for all routes except /login and /signup, and redirects authenticated users away from those two). Added app/admin/layout.tsx (server-side role check against profiles, redirects non-admins to /) and a placeholder app/admin/page.tsx for US-013 to fill in later. Also fixed a real blocking bug found while verifying this: the US-004 RLS migration enabled RLS and added policies but never granted base table privileges to the authenticated role, so every RLS-permitted query still failed with 'permission denied for table' — added supabase/migrations/20260719000300_grant_table_privileges.sql (select on rooms; select/update on profiles; select/insert/update on bookings). Verified end-to-end via Playwright against a fresh `supabase db reset`: unauthenticated hits to / and /admin both redirect to /login; a freshly signed-up member reaches / but is bounced from /admin back to /; the seeded admin account reaches /admin and sees its placeholder heading. npx tsc --noEmit and npm run lint both pass."
+      "notes": "Added middleware.ts + lib/supabase/middleware.ts (session refresh, redirects unauthenticated users to /login for all routes except /login and /signup, and redirects authenticated users away from those two). Added app/admin/layout.tsx (server-side role check against profiles, redirects non-admins to /) and a placeholder app/admin/page.tsx for US-013 to fill in later. Also fixed a real blocking bug found while verifying this: the US-004 RLS migration enabled RLS and added policies but never granted base table privileges to the authenticated role, so every RLS-permitted query still failed with 'permission denied for table' \u2014 added supabase/migrations/20260719000300_grant_table_privileges.sql (select on rooms; select/update on profiles; select/insert/update on bookings). Verified end-to-end via Playwright against a fresh `supabase db reset`: unauthenticated hits to / and /admin both redirect to /login; a freshly signed-up member reaches / but is bounced from /admin back to /; the seeded admin account reaches /admin and sees its placeholder heading. npx tsc --noEmit and npm run lint both pass."
     },
     {
       "id": "US-008",
@@ -120,7 +120,7 @@
       ],
       "priority": 8,
       "passes": true,
-      "notes": "Added lib/bookings/conflict-check.ts exposing findConflictingBookings/hasConflict (pure overlap logic over room_id+date+start/end time, filtered to pending/approved, with an excludeBookingId option for edit-in-place re-checks) plus fetchConflictingBookings, a Supabase-backed wrapper that queries bookings for the candidate room/date and runs them through the same pure function — the single implementation future stories (US-011/012/013/015) will import. First story needing a test runner, so added vitest (vitest.config.ts, npm run test) and lib/bookings/conflict-check.test.ts covering overlap, containment, boundary-touching (non-overlap), different room/date, non-conflicting statuses, and the exclude-id case. npx tsc --noEmit, npm run lint, and npm run test all pass (10/10 tests)."
+      "notes": "Added lib/bookings/conflict-check.ts exposing findConflictingBookings/hasConflict (pure overlap logic over room_id+date+start/end time, filtered to pending/approved, with an excludeBookingId option for edit-in-place re-checks) plus fetchConflictingBookings, a Supabase-backed wrapper that queries bookings for the candidate room/date and runs them through the same pure function \u2014 the single implementation future stories (US-011/012/013/015) will import. First story needing a test runner, so added vitest (vitest.config.ts, npm run test) and lib/bookings/conflict-check.test.ts covering overlap, containment, boundary-touching (non-overlap), different room/date, non-conflicting statuses, and the exclude-id case. npx tsc --noEmit, npm run lint, and npm run test all pass (10/10 tests)."
     },
     {
       "id": "US-009",
@@ -130,14 +130,14 @@
         "Schedule page defaults to a calendar view with a toggle to a list view",
         "Filter controls for room and for date/date-range; selecting a room shows only that room's bookings",
         "pending and approved bookings are visually distinguished (e.g. amber vs green badge)",
-        "Read-only: shows only room, time, and status of others' bookings — no member identity or notes",
+        "Read-only: shows only room, time, and status of others' bookings \u2014 no member identity or notes",
         "Usable on a mobile viewport with no horizontal scroll",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
       "priority": 9,
       "passes": true,
-      "notes": "Added supabase/migrations/20260719000400_add_bookings_schedule_view.sql: a security-invoker=false view (public.bookings_schedule) exposing only id/room_id/date/start_time/end_time/status for pending+approved bookings, granted to authenticated — needed because the existing bookings RLS policy only allows a member to read their own rows, but the schedule must show everyone's slots without leaking user_id/notes/service. Added app/schedule/page.tsx (server component, fetches rooms) + components/schedule/schedule-view.tsx (client component: room select + From/To date inputs, Calendar/List tabs via shadcn Tabs, day-grouped cards in calendar view vs a flat sorted list in list view, amber/green BookingStatusBadge). Added shadcn badge/select/tabs components and lib/dates.ts (local-timezone date helpers). Linked from the home page. Verified with Playwright against the local Supabase instance: signed up a fresh member, confirmed calendar view groups seeded bookings by day with correct amber/green badges, list view shows the same bookings flat, room filter narrows correctly (fixed a bug where the Select showed the raw room id instead of its name), no member email/identity appears anywhere, and 375px viewport has zero horizontal overflow (scrollWidth === clientWidth). npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
+      "notes": "Added supabase/migrations/20260719000400_add_bookings_schedule_view.sql: a security-invoker=false view (public.bookings_schedule) exposing only id/room_id/date/start_time/end_time/status for pending+approved bookings, granted to authenticated \u2014 needed because the existing bookings RLS policy only allows a member to read their own rows, but the schedule must show everyone's slots without leaking user_id/notes/service. Added app/schedule/page.tsx (server component, fetches rooms) + components/schedule/schedule-view.tsx (client component: room select + From/To date inputs, Calendar/List tabs via shadcn Tabs, day-grouped cards in calendar view vs a flat sorted list in list view, amber/green BookingStatusBadge). Added shadcn badge/select/tabs components and lib/dates.ts (local-timezone date helpers). Linked from the home page. Verified with Playwright against the local Supabase instance: signed up a fresh member, confirmed calendar view groups seeded bookings by day with correct amber/green badges, list view shows the same bookings flat, room filter narrows correctly (fixed a bug where the Select showed the raw room id instead of its name), no member email/identity appears anywhere, and 375px viewport has zero horizontal overflow (scrollWidth === clientWidth). npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
     },
     {
       "id": "US-010",
@@ -152,8 +152,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 10,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added app/rooms (list) and app/rooms/[id] (detail) pages showing capacity/amenities/location/rules with lib/rooms.ts formatting empty fields as \"Not specified\"; made room names in schedule-view.tsx (calendar + list tabs) link to the detail page, and added a Rooms nav button on /schedule. Verified end-to-end with Playwright against local Supabase: schedule booking row and rooms list card both navigate to the same detail page, all four fields render, and a room with null capacity/amenities/location/rules shows \"Not specified\" for each. npx tsc --noEmit, npm run lint, npm run test (10/10) all pass."
     },
     {
       "id": "US-011",
@@ -163,7 +163,7 @@
         "Search form with date, start time, end time, and optional capacity filter",
         "Results list rooms available for the requested slot using the shared conflict-check utility",
         "A room with an overlapping approved booking is excluded from results",
-        "A room with an overlapping pending booking is shown as 'Requested — pending approval'",
+        "A room with an overlapping pending booking is shown as 'Requested \u2014 pending approval'",
         "Empty-state message when no rooms are available for the slot",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"

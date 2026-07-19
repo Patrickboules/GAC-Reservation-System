@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 import { BookingStatusBadge } from "@/components/schedule/booking-status-badge";
@@ -185,9 +186,12 @@ export function ScheduleView({ rooms }: { rooms: ScheduleRoom[] }) {
                             className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/50 px-2.5 py-2 text-sm"
                           >
                             <div className="flex min-w-0 flex-col">
-                              <span className="truncate font-medium">
+                              <Link
+                                href={`/rooms/${booking.room_id}`}
+                                className="truncate font-medium underline-offset-2 hover:underline"
+                              >
                                 {roomsById.get(booking.room_id) ?? "Unknown room"}
-                              </span>
+                              </Link>
                               <span className="text-muted-foreground">
                                 {formatTimeLabel(booking.start_time)} – {formatTimeLabel(booking.end_time)}
                               </span>
@@ -220,9 +224,12 @@ export function ScheduleView({ rooms }: { rooms: ScheduleRoom[] }) {
                   className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3 text-sm"
                 >
                   <div className="flex min-w-0 flex-col">
-                    <span className="truncate font-medium">
+                    <Link
+                      href={`/rooms/${booking.room_id}`}
+                      className="truncate font-medium underline-offset-2 hover:underline"
+                    >
                       {roomsById.get(booking.room_id) ?? "Unknown room"}
-                    </span>
+                    </Link>
                     <span className="text-muted-foreground">
                       {formatDateLabel(booking.date)} · {formatTimeLabel(booking.start_time)} –{" "}
                       {formatTimeLabel(booking.end_time)}

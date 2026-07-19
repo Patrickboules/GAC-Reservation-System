@@ -17,7 +17,10 @@ export default async function SchedulePage() {
             Room, time, and status only — pending and approved requests.
           </p>
         </div>
-        <Button variant="outline" render={<Link href="/">Home</Link>} />
+        <div className="flex gap-2">
+          <Button variant="outline" render={<Link href="/rooms">Rooms</Link>} />
+          <Button variant="outline" render={<Link href="/">Home</Link>} />
+        </div>
       </div>
       <ScheduleView rooms={rooms ?? []} />
     </div>
