@@ -29,8 +29,8 @@
         "Typecheck passes"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Installed @supabase/supabase-js, @supabase/ssr, server-only. Added .env.local.example (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY). Added lib/supabase/client.ts (browser), lib/supabase/server.ts (per-request server client via @supabase/ssr + next/headers cookies), and lib/supabase/admin.ts (service-role client guarded by the 'server-only' import so it can't land in a client bundle). Typecheck and lint pass."
     },
     {
       "id": "US-003",
