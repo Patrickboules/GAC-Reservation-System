@@ -119,8 +119,8 @@
         "Tests pass"
       ],
       "priority": 8,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added lib/bookings/conflict-check.ts exposing findConflictingBookings/hasConflict (pure overlap logic over room_id+date+start/end time, filtered to pending/approved, with an excludeBookingId option for edit-in-place re-checks) plus fetchConflictingBookings, a Supabase-backed wrapper that queries bookings for the candidate room/date and runs them through the same pure function — the single implementation future stories (US-011/012/013/015) will import. First story needing a test runner, so added vitest (vitest.config.ts, npm run test) and lib/bookings/conflict-check.test.ts covering overlap, containment, boundary-touching (non-overlap), different room/date, non-conflicting statuses, and the exclude-id case. npx tsc --noEmit, npm run lint, and npm run test all pass (10/10 tests)."
     },
     {
       "id": "US-009",
