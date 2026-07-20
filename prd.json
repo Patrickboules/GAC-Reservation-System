@@ -252,8 +252,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 16,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Rewrote app/bookings/page.tsx into a shadcn Tabs view (Upcoming/Pending/Past/Cancelled, each with a live count) with rows now linking to a new app/bookings/[id]/page.tsx detail view instead of exposing Edit/Cancel inline. Added lib/bookings/status.ts#bucketForBooking: cancelled and rejected bookings are always terminal (never 'upcoming'), everything else moves to 'past' once its end time has elapsed regardless of status, otherwise pending/approved map to their matching bucket. Upcoming/Pending sort soonest-first, Past/Cancelled sort most-recent-first. The detail page fetches the single booking (RLS's existing bookings_select_own policy already scopes it to the caller, so a foreign id 404s via redirect), shows date/time/service/notes/reject_reason (rejected only), and reuses isBookingModifiable + CancelBookingButton/Edit link, matching US-014/015's existing modifiability rules. Verified end-to-end with a Playwright + supabase-js script against a fresh `supabase db reset`: seeded one user with 4 bookings (approved future, pending future, approved past, cancelled future) plus a second user's booking in the same room set; tab counts read Upcoming(1)/Pending(1)/Past(1)/Cancelled(1) with the correct booking in each and the second user's booking not appearing anywhere (RLS-enforced, not just UI filtering); clicking into the upcoming (approved, future) booking's detail page shows Edit + Cancel; clicking into the past booking's detail page shows neither; 375px viewport has zero horizontal overflow. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
     }
   ]
 }
