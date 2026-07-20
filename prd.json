@@ -236,8 +236,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 15,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added app/bookings/[id]/edit/page.tsx (server component: loads booking, verifies ownership + isBookingModifiable, redirects to /bookings?error=... otherwise, passes rooms + booking to the form) + components/bookings/edit-booking-form.tsx (client form pre-filled with current values, room/date/start/end/service/notes fields, client-side conflict-check warning via bookings_schedule + findConflictingBookings excluding the booking's own id) + app/bookings/actions.ts#updateBooking server action (re-verifies ownership/modifiability, re-runs fetchConflictingBookings excluding the booking id and blocks with a clear error on conflict, sets status back to 'pending' if room/date/start/end changed from the stored values, otherwise leaves status unchanged, then redirects to /bookings). Added lib/bookings/status.ts#isBookingModifiable (shared pending/approved-and-not-past check) and reused it from both app/bookings/page.tsx (replacing its local isCancellable) and the new edit page, and added an Edit link/button next to Cancel on modifiable rows in app/bookings/page.tsx. Verified end-to-end with a Playwright + supabase-js script against a fresh `supabase db reset`: edit form pre-fills correctly; rescheduling an approved booking into a slot conflicting with another user's pending booking is blocked with a clear inline error and leaves the original booking untouched; rescheduling into a free slot succeeds, reverts status to 'pending', and updates the stored time; navigating directly to a past booking's edit URL redirects away; a second user cannot reach the first user's edit page (redirected). Also confirmed zero horizontal overflow at 375px. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
     },
     {
       "id": "US-016",

@@ -4,8 +4,9 @@ import { BookingStatusBadge } from "@/components/schedule/booking-status-badge";
 import { CancelBookingButton } from "@/components/bookings/cancel-booking-button";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatDateLabel, formatTimeLabel, isBookingPast } from "@/lib/dates";
+import { formatDateLabel, formatTimeLabel } from "@/lib/dates";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
+import { isBookingModifiable } from "@/lib/bookings/status";
 import { createClient } from "@/lib/supabase/server";
 
 interface MyBooking {
@@ -23,11 +24,8 @@ function roomName(rooms: MyBooking["rooms"]): string {
   return Array.isArray(rooms) ? (rooms[0]?.name ?? "Unknown room") : rooms.name;
 }
 
-function isCancellable(booking: MyBooking): boolean {
-  if (booking.status !== "pending" && booking.status !== "approved") {
-    return false;
-  }
-  return !isBookingPast(booking.date, booking.end_time);
+function isModifiable(booking: MyBooking): boolean {
+  return isBookingModifiable(booking.status, booking.date, booking.end_time);
 }
 
 export default async function MyBookingsPage({
@@ -87,8 +85,13 @@ export default async function MyBookingsPage({
                     {formatDateLabel(booking.date)} · {formatTimeLabel(booking.start_time)}–
                     {formatTimeLabel(booking.end_time)} · {booking.service}
                   </div>
-                  {isCancellable(booking) ? (
-                    <div>
+                  {isModifiable(booking) ? (
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        render={<Link href={`/bookings/${booking.id}/edit`}>Edit</Link>}
+                      />
                       <CancelBookingButton bookingId={booking.id} />
                     </div>
                   ) : null}
