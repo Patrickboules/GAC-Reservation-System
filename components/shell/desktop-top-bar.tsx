@@ -1,3 +1,4 @@
+import { getRecentNotifications, type NotificationListItem } from "@/lib/notifications";
 import { createClient } from "@/lib/supabase/server";
 import { TopBar, type TopBarProfile } from "@/components/shell/top-bar";
 
@@ -13,6 +14,8 @@ export async function DesktopTopBar() {
   } = await supabase.auth.getUser();
 
   let profile: TopBarProfile = FALLBACK_PROFILE;
+  let notifications: NotificationListItem[] = [];
+  let unreadCount = 0;
 
   if (user) {
     const { data } = await supabase
@@ -25,7 +28,19 @@ export async function DesktopTopBar() {
       displayName: data?.display_name || user.email || FALLBACK_PROFILE.displayName,
       role: data?.role === "admin" ? "admin" : "member",
     };
+
+    const recent = await getRecentNotifications(supabase, user.id);
+    notifications = recent.notifications;
+    unreadCount = recent.unreadCount;
   }
 
-  return <TopBar profile={profile} variant="desktop" className="hidden lg:flex" />;
+  return (
+    <TopBar
+      profile={profile}
+      notifications={notifications}
+      unreadCount={unreadCount}
+      variant="desktop"
+      className="hidden lg:flex"
+    />
+  );
 }

@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import { Bell, Search } from "lucide-react";
+import { useState, useTransition } from "react";
+import Link from "next/link";
+import { Bell, Search, CalendarClock, CheckCircle2, UserPlus, XCircle, CircleSlash } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { formatRelativeTime } from "@/lib/dates";
+import type { NotificationListItem } from "@/lib/notifications";
 import { logout } from "@/app/logout/actions";
+import { markNotificationsRead } from "@/app/(app)/notifications/actions";
 import { Avatar } from "@/components/kit/avatar";
 import { IconButton } from "@/components/kit/icon-button";
 import { RoleBadge, type MemberRole } from "@/components/kit/role-badge";
@@ -30,9 +34,19 @@ interface TopBarProfile {
   role: MemberRole;
 }
 
+const NOTIFICATION_ICONS = {
+  reminder: { icon: CalendarClock, className: "text-sky-600" },
+  approved: { icon: CheckCircle2, className: "text-status-approved-fg" },
+  rejected: { icon: XCircle, className: "text-status-rejected-fg" },
+  cancelled: { icon: CircleSlash, className: "text-status-cancelled-fg" },
+  admin_new_request: { icon: UserPlus, className: "text-sky-600" },
+} as const;
+
 interface TopBarProps {
   profile: TopBarProfile;
-  /** Unread notification count. Real data is wired in US-025 — defaults to 0. */
+  /** Most recent notifications (US-025), newest first. Defaults to empty. */
+  notifications?: NotificationListItem[];
+  /** Total unread notification count, may exceed `notifications.length`. */
   unreadCount?: number;
   /** Left-side slot populated by calendar pages (US-027/US-028); blank until then. */
   dateContext?: React.ReactNode;
@@ -42,13 +56,33 @@ interface TopBarProps {
 
 export function TopBar({
   profile,
+  notifications = [],
   unreadCount = 0,
   dateContext,
   variant = "desktop",
   className,
 }: TopBarProps) {
   const [searchOpen, setSearchOpen] = useState(false);
+  const [items, setItems] = useState(notifications);
+  const [unread, setUnread] = useState(unreadCount);
+  const [, startTransition] = useTransition();
   const compact = variant === "mobile";
+
+  function handleNotificationsOpenChange(open: boolean) {
+    if (!open) return;
+    const unreadIds = items.filter((item) => !item.readAt).map((item) => item.id);
+    if (unreadIds.length === 0) return;
+
+    setItems((current) =>
+      current.map((item) =>
+        unreadIds.includes(item.id) ? { ...item, readAt: new Date().toISOString() } : item
+      )
+    );
+    setUnread(0);
+    startTransition(() => {
+      void markNotificationsRead(unreadIds);
+    });
+  }
 
   return (
     <header
@@ -78,7 +112,7 @@ export function TopBar({
           <Search className={compact ? "size-4" : "size-5"} />
         </IconButton>
 
-        <DropdownMenu>
+        <DropdownMenu onOpenChange={handleNotificationsOpenChange}>
           {/* No tooltip prop here: IconButton wraps tooltipped triggers in
               Tooltip.Root, which breaks DropdownMenuTrigger's render merge. */}
           <DropdownMenuTrigger
@@ -90,7 +124,7 @@ export function TopBar({
                 className="relative"
               >
                 <Bell className={compact ? "size-4" : "size-5"} />
-                {unreadCount > 0 && (
+                {unread > 0 && (
                   <span
                     aria-hidden="true"
                     className="absolute top-1.5 right-1.5 size-2 rounded-full bg-status-rejected-fg"
@@ -99,12 +133,56 @@ export function TopBar({
               </IconButton>
             }
           />
-          <DropdownMenuContent className="w-72">
+          <DropdownMenuContent className="w-80">
             <DropdownMenuGroup>
               <DropdownMenuGroupLabel>Notifications</DropdownMenuGroupLabel>
-              <div className="px-2 py-6 text-center text-small text-ink-500">
-                You&apos;re all caught up.
-              </div>
+              {items.length === 0 ? (
+                <div className="px-2 py-6 text-center text-small text-ink-500">
+                  You&apos;re all caught up.
+                </div>
+              ) : (
+                <div className="max-h-80 overflow-y-auto">
+                  {items.map((item) => {
+                    const { icon: Icon, className: iconClassName } = NOTIFICATION_ICONS[item.type];
+                    const content = (
+                      <>
+                        <Icon className={cn("mt-0.5 size-4 shrink-0", iconClassName)} />
+                        <div className="min-w-0 flex-1">
+                          <p
+                            className={cn(
+                              "text-small text-ink-700",
+                              !item.readAt && "font-medium text-ink-900"
+                            )}
+                          >
+                            {item.message}
+                          </p>
+                          <p className="mt-0.5 text-caption text-ink-500">
+                            {formatRelativeTime(item.createdAt)}
+                          </p>
+                        </div>
+                        {!item.readAt && (
+                          <span
+                            aria-hidden="true"
+                            className="mt-1.5 size-1.5 shrink-0 rounded-full bg-sky-600"
+                          />
+                        )}
+                      </>
+                    );
+
+                    return (
+                      <DropdownMenuItem
+                        key={item.id}
+                        className="items-start gap-2 whitespace-normal"
+                        render={
+                          item.bookingId ? <Link href={`/bookings/${item.bookingId}`} /> : <div />
+                        }
+                      >
+                        {content}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </div>
+              )}
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>

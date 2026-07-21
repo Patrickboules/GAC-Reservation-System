@@ -1,3 +1,4 @@
+import { getRecentNotifications, type NotificationListItem } from "@/lib/notifications";
 import { createClient } from "@/lib/supabase/server";
 import { MobileTopBar } from "@/components/shell/mobile-top-bar";
 import { MobileTabBar } from "@/components/shell/mobile-tab-bar";
@@ -17,6 +18,8 @@ export async function MobileShell() {
 
   let isAdmin = false;
   let profile: TopBarProfile = FALLBACK_PROFILE;
+  let notifications: NotificationListItem[] = [];
+  let unreadCount = 0;
 
   if (user) {
     const { data } = await supabase
@@ -30,11 +33,15 @@ export async function MobileShell() {
       displayName: data?.display_name || user.email || FALLBACK_PROFILE.displayName,
       role: isAdmin ? "admin" : "member",
     };
+
+    const recent = await getRecentNotifications(supabase, user.id);
+    notifications = recent.notifications;
+    unreadCount = recent.unreadCount;
   }
 
   return (
     <>
-      <MobileTopBar profile={profile} />
+      <MobileTopBar profile={profile} notifications={notifications} unreadCount={unreadCount} />
       <MobileTabBar isAdmin={isAdmin} />
     </>
   );

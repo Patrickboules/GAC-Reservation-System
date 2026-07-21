@@ -35,6 +35,49 @@ export function formatAdminNewRequestMessage(slot: BookingSlotSummary, requester
   return `${requesterName} requested ${formatSlot(slot)}.`;
 }
 
+export interface NotificationListItem {
+  id: string;
+  type: NotificationType;
+  message: string;
+  bookingId: string | null;
+  readAt: string | null;
+  createdAt: string;
+}
+
+const RECENT_NOTIFICATIONS_LIMIT = 10;
+
+/** Fetches the caller's most recent notifications plus their total unread
+ * count, using the caller's own session client (RLS-scoped to their rows). */
+export async function getRecentNotifications(
+  supabase: SupabaseClient,
+  userId: string
+): Promise<{ notifications: NotificationListItem[]; unreadCount: number }> {
+  const [{ data }, { count }] = await Promise.all([
+    supabase
+      .from("notifications")
+      .select("id, type, message, booking_id, read_at, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(RECENT_NOTIFICATIONS_LIMIT),
+    supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .is("read_at", null),
+  ]);
+
+  const notifications: NotificationListItem[] = (data ?? []).map((row) => ({
+    id: row.id,
+    type: row.type,
+    message: row.message,
+    bookingId: row.booking_id,
+    readAt: row.read_at,
+    createdAt: row.created_at,
+  }));
+
+  return { notifications, unreadCount: count ?? 0 };
+}
+
 interface NotifyBookingParams {
   bookingId: string;
   userId: string;
