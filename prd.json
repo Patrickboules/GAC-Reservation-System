@@ -328,8 +328,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 22,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added components/shell/mobile-shell.tsx (server component, checks profiles.role server-side, mirrors US-021's sidebar.tsx), mobile-top-bar.tsx (compact placeholder top bar, full contents land in US-023), and mobile-tab-bar.tsx (client component): a fixed bottom nav with Schedule/Book/My Bookings tabs (sky-600 active, ink-500 inactive) plus a More button that opens the US-008 kit Modal as a bottom sheet listing Rooms and, only when isAdmin is true (computed server-side, passed as a prop), an Admin group (Dashboard/Requests/Manage Rooms/Reports). Not wired into app/layout.tsx yet -- that's US-024, same as US-021's sidebar. typecheck/lint clean; verified against the real dev server (linked remote Supabase) with Playwright at a 375x700 viewport, MobileShell temporarily mounted in layout then reverted, using a temporary admin test user created/deleted via the service-role admin API -- confirmed all 4 tab bar items render, active-tab styling, More sheet opens with Rooms + Admin group for an admin user, sheet links navigate via real anchor clicks (confirmed reaching /admin/requests, which 404s since that route doesn't exist until a later story -- not a regression), and no horizontal scroll at 375px on /bookings (the /schedule page's pre-existing overflow is unrelated to this story and out of scope)."
     },
     {
       "id": "US-023",
