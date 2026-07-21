@@ -194,8 +194,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 13,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added components/kit/room-card.tsx (RoomCard): whole-card Next Link (tap target) rendering a color header (headerColorClassName prop), room name + font-mono code, capacity (Users icon), up to 4 amenity icons (keyword-to-lucide-icon map with a Tag fallback) plus a '+n' overflow, a location line (MapPin), and a live availability dot (status-approved-fg green for 'free' / status-pending-fg amber for 'busy'). Supports grid (vertical, color banner + content) and list (horizontal, color stripe + content) density variants. Verified: npx tsc --noEmit, npm run lint, and npm run build all clean; drove a temporary /kit-probe route (added to middleware PUBLIC_PATHS, then fully reverted) with Playwright — confirmed grid/list rendering, amenity overflow '+1', availability dot labels, missing-data fallback ('–' for capacity), whole-card <a> tap target, no horizontal scroll at 375px, and (after ruling out a transition-timing artifact in the test itself, since the card has `transition-shadow`) confirmed the focus-visible ring renders correctly once the box-shadow transition settles."
     },
     {
       "id": "US-014",
