@@ -222,8 +222,8 @@
         "Typecheck passes"
       ],
       "priority": 15,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added notifications table migration (type check constraint, nullable booking_id FK, read_at) with RLS: select/update own rows only, no insert policy for authenticated. Verified via supabase db reset + psql inspection of pg_policies and grants."
     },
     {
       "id": "US-016",
