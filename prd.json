@@ -60,8 +60,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 4,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added components/kit/button.tsx (Button, cva variants primary/secondary/ghost/danger, sizes sm/md/lg per spec heights 32/40/48, rounded-md, focus-visible:ring-2 ring-sky-300, active:scale-[.98] pressed feedback, loading prop that swaps the label for a centered LoaderCircle spinner while keeping the invisible label in-flow so width never shifts, aria-busy on loading) and components/kit/icon-button.tsx (IconButton, same variant/size vocabulary at square sm/md/lg, required `label` for aria-label, optional `tooltip` composed via @base-ui/react/tooltip's Root/Trigger(render)/Portal/Positioner/Popup). Verified: npx tsc --noEmit and npm run lint clean; npm run build succeeds (all 13 routes). No dev-browser skill available in this environment, so verified in-browser via a temporary /kit-probe route (added to middleware's public paths only for the check, then fully reverted) rendering every variant/size/loading/disabled/tooltip combination — confirmed correct data-slot attributes, the Tooltip.Trigger's data-base-ui-tooltip-trigger wiring, and cross-checked the compiled CSS chunk for .bg-sky-600, .bg-status-rejected-bg/.text-status-rejected-fg, .rounded-md (12px), .ring-sky-300/.focus-visible\\:ring-sky-300, and .animate-spin all resolving to the expected values."
     },
     {
       "id": "US-005",
