@@ -179,8 +179,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 12,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added components/kit/avatar.tsx (Base UI Avatar with initials-from-name fallback, sm/md/lg sizes) and role-badge.tsx (member/servant/scout/guide/admin pill, distinct role-*-bg/fg tokens added to globals.css). Verified with a temporary /kit-probe route + Playwright (reverted); typecheck/lint clean."
     },
     {
       "id": "US-013",

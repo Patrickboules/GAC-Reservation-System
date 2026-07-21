@@ -80,6 +80,17 @@
   --color-status-cancelled-fg: #64707d;
   --color-status-cancelled-bg: #eef1f5;
 
+  --color-role-member-fg: #1b4fb0;
+  --color-role-member-bg: #dcebff;
+  --color-role-servant-fg: #6d28d9;
+  --color-role-servant-bg: #ede9fe;
+  --color-role-scout-fg: #b45309;
+  --color-role-scout-bg: #fef3c7;
+  --color-role-guide-fg: #0f766e;
+  --color-role-guide-bg: #ccfbf1;
+  --color-role-admin-fg: #ffffff;
+  --color-role-admin-bg: #1b2430;
+
   --shadow-sm: 0 1px 2px rgba(16, 32, 64, 0.06);
   --shadow-md: 0 4px 16px rgba(23, 54, 109, 0.08);
   --shadow-lg: 0 12px 32px rgba(23, 54, 109, 0.1);
