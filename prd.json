@@ -1,7 +1,7 @@
 {
   "project": "GAC Reservations",
   "branchName": "ralph/ui-redesign-v2",
-  "description": "UI Redesign v2 — full visual and navigational redesign of GAC Reservations on top of the working v1 app: bright baby-blue/beige identity, a persistent app shell, a mobile-first resource-day calendar with a progressive desktop grid, one consistent component kit, and three additive subsystems (notifications, room-management CRUD, usage reports). Source: tasks/prd-ui-redesign-v2.md and prd_plans/UI-Redesign-Spec.md.",
+  "description": "UI Redesign v2 \u2014 full visual and navigational redesign of GAC Reservations on top of the working v1 app: bright baby-blue/beige identity, a persistent app shell, a mobile-first resource-day calendar with a progressive desktop grid, one consistent component kit, and three additive subsystems (notifications, room-management CRUD, usage reports). Source: tasks/prd-ui-redesign-v2.md and prd_plans/UI-Redesign-Spec.md.",
   "userStories": [
     {
       "id": "US-001",
@@ -61,7 +61,7 @@
       ],
       "priority": 4,
       "passes": true,
-      "notes": "Added components/kit/button.tsx (Button, cva variants primary/secondary/ghost/danger, sizes sm/md/lg per spec heights 32/40/48, rounded-md, focus-visible:ring-2 ring-sky-300, active:scale-[.98] pressed feedback, loading prop that swaps the label for a centered LoaderCircle spinner while keeping the invisible label in-flow so width never shifts, aria-busy on loading) and components/kit/icon-button.tsx (IconButton, same variant/size vocabulary at square sm/md/lg, required `label` for aria-label, optional `tooltip` composed via @base-ui/react/tooltip's Root/Trigger(render)/Portal/Positioner/Popup). Verified: npx tsc --noEmit and npm run lint clean; npm run build succeeds (all 13 routes). No dev-browser skill available in this environment, so verified in-browser via a temporary /kit-probe route (added to middleware's public paths only for the check, then fully reverted) rendering every variant/size/loading/disabled/tooltip combination — confirmed correct data-slot attributes, the Tooltip.Trigger's data-base-ui-tooltip-trigger wiring, and cross-checked the compiled CSS chunk for .bg-sky-600, .bg-status-rejected-bg/.text-status-rejected-fg, .rounded-md (12px), .ring-sky-300/.focus-visible\\:ring-sky-300, and .animate-spin all resolving to the expected values."
+      "notes": "Added components/kit/button.tsx (Button, cva variants primary/secondary/ghost/danger, sizes sm/md/lg per spec heights 32/40/48, rounded-md, focus-visible:ring-2 ring-sky-300, active:scale-[.98] pressed feedback, loading prop that swaps the label for a centered LoaderCircle spinner while keeping the invisible label in-flow so width never shifts, aria-busy on loading) and components/kit/icon-button.tsx (IconButton, same variant/size vocabulary at square sm/md/lg, required `label` for aria-label, optional `tooltip` composed via @base-ui/react/tooltip's Root/Trigger(render)/Portal/Positioner/Popup). Verified: npx tsc --noEmit and npm run lint clean; npm run build succeeds (all 13 routes). No dev-browser skill available in this environment, so verified in-browser via a temporary /kit-probe route (added to middleware's public paths only for the check, then fully reverted) rendering every variant/size/loading/disabled/tooltip combination \u2014 confirmed correct data-slot attributes, the Tooltip.Trigger's data-base-ui-tooltip-trigger wiring, and cross-checked the compiled CSS chunk for .bg-sky-600, .bg-status-rejected-bg/.text-status-rejected-fg, .rounded-md (12px), .ring-sky-300/.focus-visible\\:ring-sky-300, and .animate-spin all resolving to the expected values."
     },
     {
       "id": "US-005",
@@ -75,8 +75,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 5,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added components/kit/status-badge.tsx (approved/pending/rejected/cancelled fg/bg tokens, always-visible label, optional leading dot), filter-chip.tsx (idle/selected via base-ui Toggle, optional count badge, removable X as sibling button to avoid nested-button HTML), and segmented-control.tsx (base-ui ToggleGroup+Toggle, 2-4 segments, pressed segment gets bg-white/shadow indicator)."
     },
     {
       "id": "US-006",
@@ -234,7 +234,7 @@
         "Rejecting a booking inserts a 'rejected' notification (including the reject reason) for the requester",
         "Cancelling a booking, by the owning member or by an admin, inserts a 'cancelled' notification for the requester",
         "Creating a new pending booking request inserts an 'admin_new_request' notification for every profile with role='admin'",
-        "These inserts happen inside the existing approve/reject/cancel/create server actions using the service-role or an admin-scoped insert path (no client insert, matching US-015's RLS) — no duplicate business logic is introduced",
+        "These inserts happen inside the existing approve/reject/cancel/create server actions using the service-role or an admin-scoped insert path (no client insert, matching US-015's RLS) \u2014 no duplicate business logic is introduced",
         "Typecheck passes",
         "Tests pass"
       ],
