@@ -3,7 +3,11 @@
 import { useActionState, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { requestBooking, type RequestBookingState } from "@/app/bookings/actions";
+import {
+  requestBooking,
+  updateBooking,
+  type RequestBookingState,
+} from "@/app/bookings/actions";
 import { Button } from "@/components/kit/button";
 import { BookingCard } from "@/components/kit/booking-card";
 import { DatePicker } from "@/components/kit/date-picker";
@@ -38,6 +42,17 @@ interface ScheduleBooking {
   status: BookingStatus;
 }
 
+export interface BookingSheetBooking {
+  id: string;
+  room_id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  service: string;
+  notes: string | null;
+  status: BookingStatus;
+}
+
 const initialState: RequestBookingState = {};
 
 const DEFAULT_START_TIME = "09:00";
@@ -45,6 +60,8 @@ const DEFAULT_END_TIME = "10:00";
 
 export interface BookingSheetProps {
   rooms: BookingSheetRoom[];
+  /** When supplied, the sheet edits this existing booking instead of creating a new one. */
+  booking?: BookingSheetBooking;
   defaultRoomId?: string;
   defaultDate?: string;
   defaultStartTime?: string;
@@ -53,25 +70,42 @@ export interface BookingSheetProps {
 
 export function BookingSheet({
   rooms,
+  booking,
   defaultRoomId,
   defaultDate,
   defaultStartTime,
   defaultEndTime,
 }: BookingSheetProps) {
+  const isEdit = !!booking;
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const toast = useToast();
-  const [state, formAction, pending] = useActionState(requestBooking, initialState);
+  const [state, formAction, pending] = useActionState(
+    isEdit ? updateBooking : requestBooking,
+    initialState
+  );
 
   const [open, setOpen] = useState(true);
-  const [roomId, setRoomId] = useState(defaultRoomId ?? "");
-  const [date, setDate] = useState(defaultDate ?? todayDateString());
-  const [startTime, setStartTime] = useState(defaultStartTime ?? DEFAULT_START_TIME);
-  const [endTime, setEndTime] = useState(defaultEndTime ?? DEFAULT_END_TIME);
-  const [service, setService] = useState("");
-  const [notes, setNotes] = useState("");
+  const [roomId, setRoomId] = useState(booking?.room_id ?? defaultRoomId ?? "");
+  const [date, setDate] = useState(booking?.date ?? defaultDate ?? todayDateString());
+  const [startTime, setStartTime] = useState(
+    booking ? booking.start_time.slice(0, 5) : (defaultStartTime ?? DEFAULT_START_TIME)
+  );
+  const [endTime, setEndTime] = useState(
+    booking ? booking.end_time.slice(0, 5) : (defaultEndTime ?? DEFAULT_END_TIME)
+  );
+  const [service, setService] = useState(booking?.service ?? "");
+  const [notes, setNotes] = useState(booking?.notes ?? "");
   const [warning, setWarning] = useState<string | null>(null);
   const [showOptimistic, setShowOptimistic] = useState(false);
+
+  const willRevertToPending =
+    isEdit &&
+    booking!.status === "approved" &&
+    (roomId !== booking!.room_id ||
+      date !== booking!.date ||
+      normalizeTimeString(startTime) !== booking!.start_time ||
+      normalizeTimeString(endTime) !== booking!.end_time);
 
   useEffect(() => {
     let cancelled = false;
@@ -96,6 +130,7 @@ export function BookingSheet({
           date,
           start_time: normalizeTimeString(startTime),
           end_time: normalizeTimeString(endTime),
+          excludeBookingId: booking?.id,
         },
         (data ?? []) as ScheduleBooking[]
       );
@@ -113,7 +148,7 @@ export function BookingSheet({
     return () => {
       cancelled = true;
     };
-  }, [roomId, date, startTime, endTime, supabase]);
+  }, [roomId, date, startTime, endTime, supabase, booking?.id]);
 
   useEffect(() => {
     if (state.error) {
@@ -129,6 +164,7 @@ export function BookingSheet({
   }
 
   function handleSubmit() {
+    if (isEdit) return;
     setShowOptimistic(true);
     toast.success({
       title: "Request submitted",
@@ -142,9 +178,13 @@ export function BookingSheet({
     <Modal open={open} onOpenChange={handleOpenChange}>
       <ModalContent>
         <ModalHeader>
-          <ModalTitle>Request a room</ModalTitle>
+          <ModalTitle>{isEdit ? "Edit request" : "Request a room"}</ModalTitle>
           <ModalDescription>
-            Submit a request for review — an admin will approve or reject it.
+            {isEdit
+              ? booking!.status === "approved"
+                ? "Changing the room, date, or time reverts this to pending and requires re-approval."
+                : "Update your request details below."
+              : "Submit a request for review — an admin will approve or reject it."}
           </ModalDescription>
         </ModalHeader>
 
@@ -162,6 +202,7 @@ export function BookingSheet({
           </div>
         ) : (
           <form action={formAction} onSubmit={handleSubmit} className="flex flex-col gap-4">
+            {isEdit && <input type="hidden" name="booking_id" value={booking!.id} />}
             <input type="hidden" name="room_id" value={roomId} />
             <input type="hidden" name="date" value={date} />
             <input type="hidden" name="start_time" value={startTime} />
@@ -211,6 +252,15 @@ export function BookingSheet({
               onChange={(e) => setNotes(e.target.value)}
             />
 
+            {willRevertToPending && (
+              <p
+                role="status"
+                className="text-small font-medium text-status-pending-fg"
+              >
+                This will revert the booking to pending and require re-approval.
+              </p>
+            )}
+
             {state.error && (
               <p role="alert" className="text-small font-medium text-status-rejected-fg">
                 {state.error}
@@ -219,7 +269,7 @@ export function BookingSheet({
 
             <ModalFooter>
               <Button type="submit" loading={pending} disabled={pending}>
-                Submit request
+                {isEdit ? "Save changes" : "Submit request"}
               </Button>
             </ModalFooter>
           </form>

@@ -284,8 +284,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 19,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Extended components/bookings/booking-sheet.tsx with an optional `booking` prop that switches it into edit mode: pre-fills room/date/time/service/notes from the existing booking, submits via the existing updateBooking server action (unchanged) instead of requestBooking, includes excludeBookingId in the live conflict check so a booking doesn't conflict with itself, and shows a dynamic inline 'This will revert the booking to pending and require re-approval' note (status-pending-fg) whenever room/date/start/end differs from the stored values on an approved booking. Rewrote app/bookings/[id]/edit/page.tsx to render <BookingSheet booking={...} /> instead of the old EditBookingForm, and deleted the now-unused components/bookings/edit-booking-form.tsx (zero remaining imports). Existing revert-to-pending logic in updateBooking (app/bookings/actions.ts) is untouched. Verified: npx tsc --noEmit, npm run lint, npm run build all clean (13 routes unchanged). No dev-browser skill in this environment, so drove the real flow with Playwright against the dev server using a temporary confirmed test user with a seeded pending booking and a seeded approved booking (both fully deleted after, along with the test user) — confirmed the pending booking's edit sheet shows 'Update your request details' with no re-approval note and a notes-only edit saves without changing status; the approved booking's edit sheet shows the static re-approval description, shows no dynamic note until a value changes, shows the note immediately after picking a different date, and saving then reverted that booking's status to 'pending' in the database (confirmed via a direct query) while keeping the new date/time."
     },
     {
       "id": "US-020",
