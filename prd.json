@@ -165,8 +165,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 11,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added components/kit/table.tsx (generic Table<T>: sticky header, sortable columns with aria-sort, row hover bg-sky-50, status rendered via caller-supplied StatusBadge column, trailing kebab row-actions via US-010 DropdownMenu, skeleton loading rows and EmptyState via US-010 primitives, pagination footer). typecheck/lint/build pass; verified via temporary /kit-probe route with Playwright (sort toggle+aria-sort, hover bg rgb(240,246,255)=sky-50, kebab menu items, pagination next/prev, loading skeleton count, empty state), then reverted the probe route and middleware change."
     },
     {
       "id": "US-012",
