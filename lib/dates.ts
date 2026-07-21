@@ -65,3 +65,22 @@ export function formatTimeLabel(timeStr: string): string {
   const displayHour = hour % 12 === 0 ? 12 : hour % 12;
   return `${displayHour}:${minuteStr} ${period}`;
 }
+
+/** "HH:MM" (or "HH:MM:SS") -> minutes since midnight. */
+export function timeToMinutes(time: string): number {
+  const [hour, minute] = time.split(":").map(Number);
+  return hour * 60 + minute;
+}
+
+/** Minutes since midnight -> "HH:MM", clamped to a single day (0–1439). */
+export function minutesToTime(totalMinutes: number): string {
+  const clamped = Math.min(Math.max(totalMinutes, 0), 23 * 60 + 59);
+  const hour = Math.floor(clamped / 60);
+  const minute = clamped % 60;
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+/** Rounds minutes-since-midnight to the nearest multiple of `stepMinutes`. */
+export function snapMinutesToStep(totalMinutes: number, stepMinutes: number): number {
+  return Math.round(totalMinutes / stepMinutes) * stepMinutes;
+}

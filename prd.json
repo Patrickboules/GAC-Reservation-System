@@ -104,8 +104,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 7,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added components/kit/date-picker.tsx (inline + popover modes via @base-ui/react/popover, month grid, sky-600 selected fill, sky-300 today ring, muted unclickable disabled dates) and components/kit/time-range-picker.tsx (two font-mono steppers snapping to lib/bookings/time-granularity.ts BOOKING_TIME_STEP_MINUTES=30, live \"duration: Xh Ym\" readout, hasConflict prop rendering an inline soft warning). Added timeToMinutes/minutesToTime/snapMinutesToStep helpers to lib/dates.ts. Verified via a temporary /kit-probe route (added to PUBLIC_PATHS, then reverted) driven with Playwright: selected/today/disabled date styling, popover open/select/close, stepper increment updating duration, and conflict warning all confirmed by screenshot + DOM assertions."
     },
     {
       "id": "US-008",
