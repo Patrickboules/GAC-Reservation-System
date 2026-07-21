@@ -1,10 +1,7 @@
 import Link from "next/link";
 
-import { BookingStatusBadge } from "@/components/schedule/booking-status-badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatDateLabel, formatTimeLabel } from "@/lib/dates";
+import { MyBookingsTabs, type MyBookingCardData } from "@/components/bookings/my-bookings-tabs";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
 import { bucketForBooking, type BookingBucket } from "@/lib/bookings/status";
 import { createClient } from "@/lib/supabase/server";
@@ -24,12 +21,7 @@ function roomName(rooms: MyBooking["rooms"]): string {
   return Array.isArray(rooms) ? (rooms[0]?.name ?? "Unknown room") : rooms.name;
 }
 
-const BUCKETS: { value: BookingBucket; label: string }[] = [
-  { value: "upcoming", label: "Upcoming" },
-  { value: "pending", label: "Pending" },
-  { value: "past", label: "Past" },
-  { value: "cancelled", label: "Cancelled" },
-];
+const BUCKETS: BookingBucket[] = ["upcoming", "pending", "past", "cancelled"];
 
 function sortBookings(bookings: MyBooking[], bucket: BookingBucket): MyBooking[] {
   const sorted = [...bookings].sort((a, b) =>
@@ -71,6 +63,24 @@ export default async function MyBookingsPage({
     grouped[bucketForBooking(booking.status, booking.date, booking.end_time)].push(booking);
   }
 
+  const buckets: Record<BookingBucket, MyBookingCardData[]> = {
+    upcoming: [],
+    pending: [],
+    past: [],
+    cancelled: [],
+  };
+  for (const bucket of BUCKETS) {
+    buckets[bucket] = sortBookings(grouped[bucket], bucket).map((booking) => ({
+      id: booking.id,
+      roomName: roomName(booking.rooms),
+      date: booking.date,
+      startTime: booking.start_time,
+      endTime: booking.end_time,
+      service: booking.service,
+      status: booking.status,
+    }));
+  }
+
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-4 p-4">
       <div className="flex items-center justify-between gap-2">
@@ -90,52 +100,7 @@ export default async function MyBookingsPage({
         </p>
       ) : null}
 
-      {myBookings.length === 0 ? (
-        <p className="text-sm text-muted-foreground">
-          You haven&apos;t requested any rooms yet.
-        </p>
-      ) : (
-        <Tabs defaultValue="upcoming">
-          <TabsList className="w-full">
-            {BUCKETS.map(({ value, label }) => (
-              <TabsTrigger key={value} value={value}>
-                {label} ({grouped[value].length})
-              </TabsTrigger>
-            ))}
-          </TabsList>
-
-          {BUCKETS.map(({ value }) => {
-            const bucketBookings = sortBookings(grouped[value], value);
-            return (
-              <TabsContent key={value} value={value} className="mt-3">
-                {bucketBookings.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nothing here.</p>
-                ) : (
-                  <ul className="flex flex-col gap-3">
-                    {bucketBookings.map((booking) => (
-                      <li key={booking.id}>
-                        <Link href={`/bookings/${booking.id}`} className="block">
-                          <Card className="transition-colors hover:bg-accent/50">
-                            <CardHeader className="flex flex-row items-center justify-between gap-2">
-                              <CardTitle>{roomName(booking.rooms)}</CardTitle>
-                              <BookingStatusBadge status={booking.status} />
-                            </CardHeader>
-                            <CardContent className="text-sm text-muted-foreground">
-                              {formatDateLabel(booking.date)} ·{" "}
-                              {formatTimeLabel(booking.start_time)}–
-                              {formatTimeLabel(booking.end_time)} · {booking.service}
-                            </CardContent>
-                          </Card>
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </TabsContent>
-            );
-          })}
-        </Tabs>
-      )}
+      <MyBookingsTabs buckets={buckets} />
     </div>
   );
 }

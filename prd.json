@@ -269,8 +269,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 18,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added components/bookings/my-bookings-tabs.tsx (client component: US-005 SegmentedControl for Upcoming/Pending/Past/Cancelled with per-tab counts, US-014 BookingCard per row wrapped in a plain Link since no onModify/onCancel handlers are passed in this story, and a per-bucket US-010 EmptyState with a distinct icon/copy per tab and a 'Request a room' action only on the Upcoming empty state). Rewired app/bookings/page.tsx to keep its existing server-side fetch/bucketForBooking grouping (unchanged) but map each bucket into MyBookingCardData and render <MyBookingsTabs buckets={...} /> instead of the old shadcn Tabs/Card markup; removed the now-unused Card/Tabs/BookingStatusBadge imports (BookingStatusBadge is still used elsewhere so not deleted). Verified: npx tsc --noEmit and npm run lint clean; npm run build succeeds (13 routes unchanged). No dev-browser skill in this environment, so verified against the real dev server with Playwright using a temporary confirmed test user and 4 seeded bookings (one per bucket, fully cleaned up after) — confirmed all four tabs render with correct counts, the pending card shows 'Awaiting approval', switching tabs works, and there is zero horizontal scroll at both 375px and 1280px. Noted but did not fix (pre-existing, unrelated to this story): a Base UI 'nativeButton' console warning fires on every Button+render={<Link>} usage app-wide, including the unmodified Home page, so it predates this change."
     },
     {
       "id": "US-019",
