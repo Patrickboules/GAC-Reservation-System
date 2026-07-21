@@ -3,6 +3,8 @@
 import { redirect } from "next/navigation";
 
 import { fetchConflictingBookings } from "@/lib/bookings/conflict-check";
+import { notifyBookingApproved, notifyBookingRejected } from "@/lib/notifications";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 async function requireAdmin() {
@@ -38,7 +40,7 @@ export async function approveBooking(formData: FormData) {
 
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
-    .select("id, room_id, date, start_time, end_time, status")
+    .select("id, user_id, room_id, date, start_time, end_time, status")
     .eq("id", bookingId)
     .single();
 
@@ -80,6 +82,15 @@ export async function approveBooking(formData: FormData) {
     redirect("/admin?error=" + encodeURIComponent(updateError.message));
   }
 
+  await notifyBookingApproved(createAdminClient(), {
+    bookingId: booking.id,
+    userId: booking.user_id,
+    roomId: booking.room_id,
+    date: booking.date,
+    startTime: booking.start_time,
+    endTime: booking.end_time,
+  });
+
   redirect("/admin");
 }
 
@@ -92,6 +103,19 @@ export async function rejectBooking(formData: FormData) {
 
   const supabase = await requireAdmin();
 
+  const { data: booking, error: fetchError } = await supabase
+    .from("bookings")
+    .select("id, user_id, room_id, date, start_time, end_time, status")
+    .eq("id", bookingId)
+    .single();
+
+  if (fetchError || !booking) {
+    redirect("/admin?error=Booking not found.");
+  }
+  if (booking.status !== "pending") {
+    redirect("/admin?error=Only pending requests can be rejected.");
+  }
+
   const { error: updateError } = await supabase
     .from("bookings")
     .update({ status: "rejected", reject_reason: reason })
@@ -101,6 +125,16 @@ export async function rejectBooking(formData: FormData) {
   if (updateError) {
     redirect("/admin?error=" + encodeURIComponent(updateError.message));
   }
+
+  await notifyBookingRejected(createAdminClient(), {
+    bookingId: booking.id,
+    userId: booking.user_id,
+    roomId: booking.room_id,
+    date: booking.date,
+    startTime: booking.start_time,
+    endTime: booking.end_time,
+    reason,
+  });
 
   redirect("/admin");
 }

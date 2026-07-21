@@ -239,8 +239,8 @@
         "Tests pass"
       ],
       "priority": 16,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added lib/notifications.ts (pure message formatters + notifyBookingApproved/Rejected/Cancelled/notifyAdminsNewRequest, each taking a service-role admin client and inserting via createAdminClient from US-015's admin.ts, bypassing the no-client-insert RLS). Wired into the existing server actions with no duplicated business logic: app/admin/actions.ts approveBooking/rejectBooking (rejectBooking now fetches the booking first, mirroring approveBooking's pattern, so it has the data needed to notify) and app/bookings/actions.ts requestBooking (notifies all admin profiles) and cancelBooking (notifies the requester; only the owning-member cancel path exists in this codebase today, so that's what's wired). Verified: npx tsc --noEmit, npm run lint, npm run build all clean; added lib/notifications.test.ts (10 new tests covering message formatting and insert payloads via a fake Supabase client) and npm test passes 20/20."
     },
     {
       "id": "US-017",

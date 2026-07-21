@@ -6,6 +6,8 @@ import { fetchConflictingBookings } from "@/lib/bookings/conflict-check";
 import { isBookingService } from "@/lib/bookings/services";
 import { isBookingModifiable } from "@/lib/bookings/status";
 import { isBookingPast, normalizeTimeString } from "@/lib/dates";
+import { notifyAdminsNewRequest, notifyBookingCancelled } from "@/lib/notifications";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 const MAX_OPEN_PENDING_BOOKINGS = 5;
@@ -75,20 +77,33 @@ export async function requestBooking(
     };
   }
 
-  const { error: insertError } = await supabase.from("bookings").insert({
-    room_id: roomId,
-    user_id: user.id,
-    date,
-    start_time: startTime,
-    end_time: endTime,
-    service,
-    notes,
-    status: "pending",
-  });
+  const { data: inserted, error: insertError } = await supabase
+    .from("bookings")
+    .insert({
+      room_id: roomId,
+      user_id: user.id,
+      date,
+      start_time: startTime,
+      end_time: endTime,
+      service,
+      notes,
+      status: "pending",
+    })
+    .select("id")
+    .single();
 
   if (insertError) {
     return { error: insertError.message };
   }
+
+  await notifyAdminsNewRequest(createAdminClient(), {
+    bookingId: inserted.id,
+    requesterId: user.id,
+    roomId,
+    date,
+    startTime,
+    endTime,
+  });
 
   redirect("/bookings");
 }
@@ -203,7 +218,7 @@ export async function cancelBooking(formData: FormData) {
 
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
-    .select("id, user_id, date, end_time, status")
+    .select("id, user_id, room_id, date, start_time, end_time, status")
     .eq("id", bookingId)
     .single();
 
@@ -229,6 +244,15 @@ export async function cancelBooking(formData: FormData) {
   if (updateError) {
     redirect("/bookings?error=" + encodeURIComponent(updateError.message));
   }
+
+  await notifyBookingCancelled(createAdminClient(), {
+    bookingId: booking.id,
+    userId: booking.user_id,
+    roomId: booking.room_id,
+    date: booking.date,
+    startTime: booking.start_time,
+    endTime: booking.end_time,
+  });
 
   redirect("/bookings");
 }
