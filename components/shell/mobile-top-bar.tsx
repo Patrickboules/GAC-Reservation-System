@@ -1,11 +1,12 @@
-// Compact placeholder top bar for mobile. US-023 adds date context, search,
-// notifications, and profile controls into this same bar.
-export function MobileTopBar() {
+import { TopBar, type TopBarProfile } from "@/components/shell/top-bar";
+
+interface MobileTopBarProps {
+  profile: TopBarProfile;
+}
+
+// Compact top bar for mobile, shown alongside the bottom tab bar.
+export function MobileTopBar({ profile }: MobileTopBarProps) {
   return (
-    <header className="sticky top-0 z-40 flex h-14 shrink-0 items-center border-b border-line bg-surface px-4 lg:hidden">
-      <span className="font-display text-h3 font-semibold text-ink-900">
-        GAC
-      </span>
-    </header>
+    <TopBar profile={profile} variant="mobile" className="lg:hidden" />
   );
 }
