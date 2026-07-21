@@ -134,8 +134,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 9,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added components/kit/toast.tsx built on @base-ui/react/toast: ToastProvider (mounts Toast.Provider + Portal + Viewport, positioned inset-x-4 top-4 on mobile and right-4/w-[380px] on desktop, 4s default timeout) and useToast() hook exposing success/info/warning/error methods (each taking title/description/optional action{label,onClick}), mapped to left-accent+icon styling per variant (success/status-approved, info/sky-600, warning/status-pending, error/status-rejected), shadow-md/rounded-md surface card, focus-visible rings on close/action, and a reduced-motion-safe slide+fade transition. Mounted ToastProvider in app/layout.tsx wrapping {children} so any client component in the app can call useToast(). Verified: npx tsc --noEmit, npm run lint, and npm run build (13 routes unchanged) all clean; drove a temporary /kit-probe route (added to middleware PUBLIC_PATHS, then fully reverted) with Playwright at 1280x800 and 375x700 — confirmed all four variants render with correct accent colors/icons/labels, desktop viewport anchors top-right (x=884..1264 of 1280) and mobile anchors top-full-width, auto-dismiss removed all 5 stacked toasts after 4.8s, the close button and action link (\"View booking\") both work, and under reducedMotion:'reduce' a freshly-added toast's computed transform is 'none' (no slide)."
     },
     {
       "id": "US-010",
