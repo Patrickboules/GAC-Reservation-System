@@ -298,8 +298,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 20,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Rewrote components/bookings/cancel-booking-button.tsx (used by app/bookings/[id]/page.tsx) to use the US-008 kit Modal instead of components/ui/alert-dialog (shadcn AlertDialog), keeping the same unchanged cancelBooking server action and hidden booking_id field. typecheck/lint/build pass; verified against the real dev server with Playwright using a temporary test user + approved booking (cleaned up after) — confirm dialog renders as the kit Modal (no alert-dialog elements present), and confirming flips the booking to status='cancelled' in the DB and redirects to /bookings. Left components/ui/alert-dialog.tsx in place since it's now unused but its removal belongs to US-048 (legacy component cleanup)."
     },
     {
       "id": "US-021",
