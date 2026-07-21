@@ -209,8 +209,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 14,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added components/kit/booking-card.tsx (BookingCard): left color stripe (bg-status-*-fg) reflecting status, room name, date, font-mono time range, service chip, and the US-005 StatusBadge; trailing kebab menu (US-010 DropdownMenu, rendered only when onModify/onCancel are supplied) offering Modify (direct callback) and Cancel (guarded by a confirm Modal from US-008 before invoking the callback); pending status renders an 'Awaiting approval' line. Verified: npx tsc --noEmit, npm run lint, and npm run build all clean (13 routes unchanged); drove a temporary /kit-probe route (added to middleware PUBLIC_PATHS, then fully reverted) with Playwright at 420x900 and 375px width — confirmed stripe colors per status, the pending-only 'Awaiting approval' line, kebab menu shows Modify/Cancel, clicking Cancel opens the confirm modal as a bottom sheet, Keep booking dismisses it, cards without handlers render no kebab menu, and no horizontal scroll at 375px."
     },
     {
       "id": "US-015",
