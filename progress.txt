@@ -1,3 +1,4 @@
 # Ralph Progress Log
 Started: Tue Jul 21 14:28:31 EEST 2026
 ---
+US-001: added canvas/surface/line/ink/sky/sand/status color tokens and radius(sm/md/lg/xl)/shadow(sm/md/lg) tokens to app/globals.css's @theme block per UI-Redesign-Spec.md 1.1. npx tsc --noEmit, npm run lint, npm run build all pass; compiled CSS confirmed to contain the new utility classes.

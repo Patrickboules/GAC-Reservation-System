@@ -39,13 +39,49 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* UI Redesign v2 tokens — prd_plans/UI-Redesign-Spec.md section 1.1 */
+  --color-canvas: #f6f9fe;
+  --color-surface: #ffffff;
+  --color-line: #e6ebf1;
+
+  --color-ink-900: #1b2430;
+  --color-ink-700: #38434f;
+  --color-ink-500: #64707d;
+  --color-ink-300: #aeb7c1;
+
+  --color-sky-50: #f0f6ff;
+  --color-sky-100: #dcebff;
+  --color-sky-200: #bad6ff;
+  --color-sky-300: #8fbefc;
+  --color-sky-400: #5e9bf7;
+  --color-sky-500: #3b82f6;
+  --color-sky-600: #2465d8;
+  --color-sky-700: #1b4fb0;
+
+  --color-sand-50: #fbf8f3;
+  --color-sand-100: #f4eee3;
+  --color-sand-200: #e9dfce;
+
+  --color-status-approved-fg: #0f9d6b;
+  --color-status-approved-bg: #e4f7ef;
+  --color-status-pending-fg: #c77a06;
+  --color-status-pending-bg: #fbefd6;
+  --color-status-rejected-fg: #d93a2b;
+  --color-status-rejected-bg: #fce7e4;
+  --color-status-cancelled-fg: #64707d;
+  --color-status-cancelled-bg: #eef1f5;
+
+  --shadow-sm: 0 1px 2px rgba(16, 32, 64, 0.06);
+  --shadow-md: 0 4px 16px rgba(23, 54, 109, 0.08);
+  --shadow-lg: 0 12px 32px rgba(23, 54, 109, 0.1);
 }
 
 :root {

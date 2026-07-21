@@ -14,8 +14,8 @@
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added canvas/surface/line/ink(900/700/500/300)/sky(50-700)/sand(50/100/200)/status(approved|pending|rejected|cancelled Fg/Bg) color tokens and radius(sm/md/lg/xl)/shadow(sm/md/lg) tokens to the existing @theme block in app/globals.css per UI-Redesign-Spec.md 1.1, additive alongside the existing shadcn tokens (radius-sm/md/lg/xl values updated in place to the spec fixed px values, per goal of generous rounding; no other tokens touched). Verified: npx tsc --noEmit clean, npm run lint clean, npm run build succeeds (all 13 routes), and the compiled CSS chunk contains the new utility classes (color-canvas, sky-600, etc)."
     },
     {
       "id": "US-002",
