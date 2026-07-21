@@ -2,3 +2,4 @@
 Started: Tue Jul 21 14:28:31 EEST 2026
 ---
 US-001: added canvas/surface/line/ink/sky/sand/status color tokens and radius(sm/md/lg/xl)/shadow(sm/md/lg) tokens to app/globals.css's @theme block per UI-Redesign-Spec.md 1.1. npx tsc --noEmit, npm run lint, npm run build all pass; compiled CSS confirmed to contain the new utility classes.
+US-002: loaded Bricolage Grotesque/Geist/Geist Mono via next/font/google in app/layout.tsx; wired font-sans/font-mono/font-display tokens in app/globals.css and added tabular-nums for font-mono. typecheck, lint, build all pass; confirmed compiled CSS resolves each utility to the correct font var. Also fixed local-only .env (added NEXT_PUBLIC_SUPABASE_ANON_KEY alias) so dev server could boot for verification — no dev-browser skill present in this env.
