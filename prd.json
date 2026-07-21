@@ -89,8 +89,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 6,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added components/kit/input.tsx, select.tsx, textarea.tsx: each supports default/focus/error/disabled states with label/helperText/errorText slots, error state shows a red border plus a non-color AlertCircle icon, and aria-describedby links the error/helper paragraph id to the control (aria-invalid set on error). Select wraps @base-ui/react/select (items prop wired for label resolution) styled to match Input/Textarea. Verified: npx tsc --noEmit and npm run lint clean, npm run build succeeds (13 routes unchanged); drove a temporary /kit-probe route (added to middleware PUBLIC_PATHS, reverted after) with Playwright \u2014 screenshotted all states, opened the Select popup, selected an option and confirmed the trigger shows the resolved label, and confirmed the focus-visible ring renders (rgb(143,190,252) 2px)."
     },
     {
       "id": "US-007",
