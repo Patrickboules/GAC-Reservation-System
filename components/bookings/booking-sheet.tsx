@@ -7,7 +7,7 @@ import {
   requestBooking,
   updateBooking,
   type RequestBookingState,
-} from "@/app/bookings/actions";
+} from "@/app/(app)/bookings/actions";
 import { Button } from "@/components/kit/button";
 import { BookingCard } from "@/components/kit/booking-card";
 import { DatePicker } from "@/components/kit/date-picker";

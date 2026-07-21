@@ -82,7 +82,7 @@ export default async function MyBookingsPage({
   }
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-4 p-4">
+    <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-4 p-4">
       <div className="flex items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-semibold">My bookings</h1>

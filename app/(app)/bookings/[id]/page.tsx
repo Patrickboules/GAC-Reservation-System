@@ -40,7 +40,7 @@ export default async function BookingDetailPage({
   const modifiable = isBookingModifiable(booking.status, booking.date, booking.end_time);
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-xl flex-col gap-4 p-4">
+    <div className="mx-auto flex min-h-full w-full max-w-xl flex-col gap-4 p-4">
       <div className="flex items-center justify-between gap-2">
         <h1 className="text-2xl font-semibold">Booking details</h1>
         <Button variant="outline" render={<Link href="/bookings">My bookings</Link>} />

@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { approveBooking, rejectBooking } from "@/app/admin/actions";
+import { approveBooking, rejectBooking } from "@/app/(app)/admin/actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
@@ -54,7 +54,7 @@ export default async function AdminHome({
   );
 
   return (
-    <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col gap-4 p-4">
+    <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-4 p-4">
       <div className="flex items-center justify-between gap-2">
         <div>
           <h1 className="text-2xl font-semibold">Approval queue</h1>

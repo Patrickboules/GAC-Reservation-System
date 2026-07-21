@@ -2,7 +2,7 @@
 
 import * as React from "react";
 
-import { cancelBooking } from "@/app/bookings/actions";
+import { cancelBooking } from "@/app/(app)/bookings/actions";
 import { Button } from "@/components/kit/button";
 import {
   Modal,

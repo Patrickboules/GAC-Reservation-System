@@ -11,7 +11,7 @@ export default async function Home() {
   } = await supabase.auth.getUser();
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">
+    <div className="flex min-h-full flex-col items-center justify-center gap-4 p-8 text-center">
       <h1 className="text-2xl font-semibold">GAC Reservations</h1>
       <p className="text-muted-foreground">
         Room and hall booking system — coming soon.
