@@ -1,0 +1,259 @@
+{
+  "project": "GAC Reservations",
+  "branchName": "ralph/gac-reservations-v1",
+  "description": "GAC Reservations v1 \u2014 a mobile-first, auth-gated room/hall booking system for Gawargious & Ava Antonious. Members browse room schedules, check availability, and submit booking requests; admins approve/reject from a queue. Next.js 15 (App Router) + TypeScript + Tailwind + shadcn/ui, backed by Supabase (Postgres, Auth, RLS) via supabase-js and raw SQL migrations.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Scaffold Next.js 15 app with Tailwind and shadcn/ui",
+      "description": "As a developer, I need the base app scaffold so every feature has somewhere to live.",
+      "acceptanceCriteria": [
+        "Next.js 15 App Router project created with TypeScript",
+        "Tailwind CSS configured and applied to a global stylesheet",
+        "shadcn/ui initialized (components.json present, at least Button component installed)",
+        "Root layout renders a placeholder home page that builds",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Scaffolded Next.js 15.5.20 (App Router, TS) with Tailwind v4 and shadcn/ui (base-nova style, Button installed) via create-next-app + shadcn init; placeholder home page renders Button; npx tsc --noEmit, npm run lint, and npm run build all pass; verified dev server serves 200 with expected markup."
+    },
+    {
+      "id": "US-002",
+      "title": "Wire up Supabase client and environment variables",
+      "description": "As a developer, I need browser and server Supabase clients so the app can talk to Postgres and Auth.",
+      "acceptanceCriteria": [
+        "Add .env.local.example with NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and server-only SUPABASE_SERVICE_ROLE_KEY",
+        "Create a browser supabase client helper and a server supabase client helper using supabase-js / @supabase/ssr",
+        "Service role key is only ever read in server-side code, never exposed to the client bundle",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Installed @supabase/supabase-js, @supabase/ssr, server-only. Added .env.local.example (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY). Added lib/supabase/client.ts (browser), lib/supabase/server.ts (per-request server client via @supabase/ssr + next/headers cookies), and lib/supabase/admin.ts (service-role client guarded by the 'server-only' import so it can't land in a client bundle). Typecheck and lint pass."
+    },
+    {
+      "id": "US-003",
+      "title": "SQL migration for rooms, bookings, and profiles tables",
+      "description": "As a developer, I need the core schema so bookings can be stored.",
+      "acceptanceCriteria": [
+        "Version-controlled SQL migration file creates rooms (id, name, capacity, amenities, location, rules, created_at)",
+        "Creates bookings (id, room_id FK, user_id FK, date, start_time, end_time, service, notes, status, reject_reason, created_at, updated_at)",
+        "Creates profiles (id FK auth.users, display_name, role default 'member', created_at)",
+        "bookings.status constrained to 'pending' | 'approved' | 'rejected' | 'cancelled' via enum or CHECK",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Added supabase/migrations/20260719000000_create_core_schema.sql creating booking_status enum, rooms, profiles, and bookings (with FKs to auth.users, end_time>start_time check, and room/date + user_id indexes). Typecheck passes (no TS changes; SQL-only story)."
+    },
+    {
+      "id": "US-004",
+      "title": "SQL migration for Row-Level Security policies",
+      "description": "As a developer, I need RLS so data access is enforced at the database layer, not just the UI.",
+      "acceptanceCriteria": [
+        "RLS enabled on rooms, bookings, and profiles",
+        "rooms: any authenticated user may SELECT; no member INSERT/UPDATE/DELETE",
+        "bookings: members SELECT/UPDATE only their own rows; INSERT only where user_id = auth.uid() and status = 'pending'; only role='admin' may set status to 'approved'/'rejected'",
+        "profiles: a user may read/update only their own profile; role is not self-service editable",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Added supabase/migrations/20260719000100_add_rls_policies.sql: enables RLS on rooms/bookings/profiles; rooms readable by any authenticated user with no member write policies; bookings select/insert/update scoped to user_id = auth.uid() with insert requiring status='pending' and member updates blocked from setting approved/rejected; a security-definer is_admin() plus an admin-only update policy lets only role='admin' transition status to approved/rejected; profiles select/update scoped to own id, with a BEFORE UPDATE trigger blocking role self-edits unless done via the service_role key. Typecheck passes (SQL-only story, no TS changes)."
+    },
+    {
+      "id": "US-005",
+      "title": "Profile-on-signup trigger and seed script",
+      "description": "As a developer, I need a profiles row auto-created on signup and sample data for local testing.",
+      "acceptanceCriteria": [
+        "SQL trigger inserts a profiles row with default role 'member' when a new auth user is created",
+        "Seed script inserts at least 3 sample rooms",
+        "Seed script creates (or promotes) at least 1 admin profile for testing",
+        "Typecheck passes"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "Added supabase/migrations/20260719000200_profile_on_signup_trigger.sql (handle_new_user() + on_auth_user_created trigger inserting a profiles row with default role 'member'). Added supabase/seed.sql seeding 4 sample rooms and one admin user (admin@gac-reservations.local) inserted directly into auth.users/auth.identities and promoted to role='admin'. Also added supabase/config.toml and supabase/.gitignore (local Supabase CLI project init). Verified end-to-end with `npx supabase db reset` against local Docker Postgres: 4 rooms present, admin profile promoted correctly, and a freshly inserted auth.users row confirms the trigger defaults new signups to role='member'. npx tsc --noEmit passes."
+    },
+    {
+      "id": "US-006",
+      "title": "Login, signup, and logout with Supabase Auth",
+      "description": "As a member, I want to log in and out so I can access the app.",
+      "acceptanceCriteria": [
+        "Login and signup pages authenticate against Supabase Auth (email/password)",
+        "Successful login persists the session across a page refresh",
+        "A logout action ends the session and returns to the login page",
+        "Invalid credentials show a clear error message",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "Added app/login (page + server action), app/signup (page + server action), and app/logout (server action) using lib/supabase/server's cookie-based client; home page (app/page.tsx) now checks auth.getUser() and shows Log in/Sign up links or a Signed-in-as + Log out form. Added shadcn Input/Label/Card components for the forms. Invalid credentials redirect back to /login?error=... and render a role=alert message. Verified end-to-end against local Supabase (db reset applied) with a Playwright script driving a real browser: signup -> signed-in home, session persists across reload, logout -> /login, invalid login shows error, valid login signs in. npx tsc --noEmit and npm run lint both pass."
+    },
+    {
+      "id": "US-007",
+      "title": "Session gating middleware and admin route guard",
+      "description": "As a member, I want every page to require login, and admin pages to reject non-admins.",
+      "acceptanceCriteria": [
+        "Middleware redirects unauthenticated users to the login page for all app routes",
+        "Admin-only routes reject members with role checked from profiles (server-side, not just UI hiding)",
+        "An authenticated member is allowed through to member routes",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "Added middleware.ts + lib/supabase/middleware.ts (session refresh, redirects unauthenticated users to /login for all routes except /login and /signup, and redirects authenticated users away from those two). Added app/admin/layout.tsx (server-side role check against profiles, redirects non-admins to /) and a placeholder app/admin/page.tsx for US-013 to fill in later. Also fixed a real blocking bug found while verifying this: the US-004 RLS migration enabled RLS and added policies but never granted base table privileges to the authenticated role, so every RLS-permitted query still failed with 'permission denied for table' \u2014 added supabase/migrations/20260719000300_grant_table_privileges.sql (select on rooms; select/update on profiles; select/insert/update on bookings). Verified end-to-end via Playwright against a fresh `supabase db reset`: unauthenticated hits to / and /admin both redirect to /login; a freshly signed-up member reaches / but is bounced from /admin back to /; the seeded admin account reaches /admin and sees its placeholder heading. npx tsc --noEmit and npm run lint both pass."
+    },
+    {
+      "id": "US-008",
+      "title": "Shared booking conflict-check utility",
+      "description": "As a developer, I need one overlap-check function reused across availability, request, approval, and edit.",
+      "acceptanceCriteria": [
+        "Function detects overlap as same room_id and date with start_time < existing.end_time AND end_time > existing.start_time",
+        "Considers only bookings in status 'approved' or 'pending'",
+        "Exposed as a single reusable module imported by other features",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "Added lib/bookings/conflict-check.ts exposing findConflictingBookings/hasConflict (pure overlap logic over room_id+date+start/end time, filtered to pending/approved, with an excludeBookingId option for edit-in-place re-checks) plus fetchConflictingBookings, a Supabase-backed wrapper that queries bookings for the candidate room/date and runs them through the same pure function \u2014 the single implementation future stories (US-011/012/013/015) will import. First story needing a test runner, so added vitest (vitest.config.ts, npm run test) and lib/bookings/conflict-check.test.ts covering overlap, containment, boundary-touching (non-overlap), different room/date, non-conflicting statuses, and the exclude-id case. npx tsc --noEmit, npm run lint, and npm run test all pass (10/10 tests)."
+    },
+    {
+      "id": "US-009",
+      "title": "View rooms schedule (calendar + list toggle)",
+      "description": "As a member, I want a calendar/list of room schedules so I can find an open slot.",
+      "acceptanceCriteria": [
+        "Schedule page defaults to a calendar view with a toggle to a list view",
+        "Filter controls for room and for date/date-range; selecting a room shows only that room's bookings",
+        "pending and approved bookings are visually distinguished (e.g. amber vs green badge)",
+        "Read-only: shows only room, time, and status of others' bookings \u2014 no member identity or notes",
+        "Usable on a mobile viewport with no horizontal scroll",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "Added supabase/migrations/20260719000400_add_bookings_schedule_view.sql: a security-invoker=false view (public.bookings_schedule) exposing only id/room_id/date/start_time/end_time/status for pending+approved bookings, granted to authenticated \u2014 needed because the existing bookings RLS policy only allows a member to read their own rows, but the schedule must show everyone's slots without leaking user_id/notes/service. Added app/schedule/page.tsx (server component, fetches rooms) + components/schedule/schedule-view.tsx (client component: room select + From/To date inputs, Calendar/List tabs via shadcn Tabs, day-grouped cards in calendar view vs a flat sorted list in list view, amber/green BookingStatusBadge). Added shadcn badge/select/tabs components and lib/dates.ts (local-timezone date helpers). Linked from the home page. Verified with Playwright against the local Supabase instance: signed up a fresh member, confirmed calendar view groups seeded bookings by day with correct amber/green badges, list view shows the same bookings flat, room filter narrows correctly (fixed a bug where the Select showed the raw room id instead of its name), no member email/identity appears anywhere, and 375px viewport has zero horizontal overflow (scrollWidth === clientWidth). npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
+    },
+    {
+      "id": "US-010",
+      "title": "View room details",
+      "description": "As a member, I want to see a room's capacity, amenities, location, and rules before requesting it.",
+      "acceptanceCriteria": [
+        "Clicking a room card/row opens a detail page or modal",
+        "Detail shows name, capacity, amenities, location, and usage rules/notes",
+        "Any empty field renders 'Not specified' rather than blank",
+        "Reachable from both the schedule view and any room list",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 10,
+      "passes": true,
+      "notes": "Added app/rooms (list) and app/rooms/[id] (detail) pages showing capacity/amenities/location/rules with lib/rooms.ts formatting empty fields as \"Not specified\"; made room names in schedule-view.tsx (calendar + list tabs) link to the detail page, and added a Rooms nav button on /schedule. Verified end-to-end with Playwright against local Supabase: schedule booking row and rooms list card both navigate to the same detail page, all four fields render, and a room with null capacity/amenities/location/rules shows \"Not specified\" for each. npx tsc --noEmit, npm run lint, npm run test (10/10) all pass."
+    },
+    {
+      "id": "US-011",
+      "title": "Check room availability search",
+      "description": "As a member, I want to search by date/time range to find which rooms are free.",
+      "acceptanceCriteria": [
+        "Search form with date, start time, end time, and optional capacity filter",
+        "Results list rooms available for the requested slot using the shared conflict-check utility",
+        "A room with an overlapping approved booking is excluded from results",
+        "A room with an overlapping pending booking is shown as 'Requested \u2014 pending approval'",
+        "Empty-state message when no rooms are available for the slot",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 11,
+      "passes": true,
+      "notes": "Added app/availability/page.tsx (server component, fetches rooms with capacity/location) + components/availability/availability-search.tsx (client component: date/start-time/end-time/optional-capacity search form). On search it queries the bookings_schedule view (already scoped to pending/approved, no identity/notes) for the chosen date, then runs the shared findConflictingBookings util per room to decide inclusion: rooms with an overlapping approved booking are excluded, rooms with only an overlapping pending booking are shown with a 'Requested — pending approval' badge, and rooms with no conflict are shown as 'Available'; capacity filter drops rooms with null/insufficient capacity. Linked from home page and schedule page nav. Verified end-to-end with a Playwright script against local Supabase (db reset + two seeded bookings — one approved, one pending): approved-conflict room excluded, pending-conflict room shown with the pending badge, unaffected rooms shown available, capacity filter narrows correctly, empty-state message shows when no rooms qualify, a non-overlapping time slot shows the previously-excluded room as available again, and 375px viewport has zero horizontal overflow. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
+    },
+    {
+      "id": "US-012",
+      "title": "Request a room/hall",
+      "description": "As a member, I want to request a room for a date/time and service so an admin can review it.",
+      "acceptanceCriteria": [
+        "Form fields: room, date, start time, end time, service/purpose (fixed dropdown constant), optional notes",
+        "Client-side conflict check warns before submit if the slot overlaps an approved or pending booking",
+        "Server-side conflict check re-validates before insert and blocks conflicts with no row written",
+        "Server-side check rejects the request if the member already holds 5 open pending requests",
+        "A valid request inserts a bookings row with status 'pending' linked to the user, then redirects/confirms to View My Bookings",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 12,
+      "passes": true,
+      "notes": "Added app/bookings/new (form: room/date/start/end/service-dropdown/notes) + app/bookings/actions.ts requestBooking server action + app/bookings (minimal 'My bookings' flat list, the redirect/confirm target — US-016 will expand it into tabbed buckets) + lib/bookings/services.ts (fixed BOOKING_SERVICES constant per PRD FR-9). components/bookings/request-form.tsx runs a client-side conflict check against bookings_schedule on field change (non-blocking amber warning); requestBooking re-checks conflicts server-side via fetchConflictingBookings and blocks insert with no row written, and separately blocks if the member already has 5 open pending bookings. Fixed two real bugs found while verifying: (1) lib/bookings/conflict-check.ts's fetchConflictingBookings queried the base `bookings` table, which RLS restricts to the caller's own rows, so it silently missed other members' conflicting bookings — switched it to query the `bookings_schedule` view (already exposed to all authenticated members for pending/approved room/time/status) so conflict checks actually see everyone's bookings; (2) neither the new form nor the action normalized `<input type=\"time\">`'s \"HH:MM\" to Postgres's \"HH:MM:SS\" before comparing/storing, causing false-positive conflicts on adjacent (non-overlapping) slots — added lib/dates.ts#normalizeTimeString and applied it in both the client-side check and the server action. Verified end-to-end with Playwright against a fresh `supabase db reset`: valid request inserts and redirects to /bookings showing Pending; a duplicate-slot request shows the client-side pending-overlap warning then is blocked server-side with zero extra rows written; a slot overlapping a separately-inserted approved booking is also blocked; filling 5 pending requests succeeds and a 6th is rejected with the 5-pending-cap message and no 6th row written; adjacent non-overlapping slots (e.g. 10:00-11:00 right after an existing 09:00-10:00) are correctly allowed; 375px viewport has zero horizontal overflow. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
+    },
+    {
+      "id": "US-013",
+      "title": "Admin approval queue",
+      "description": "As an admin, I want to approve or reject pending requests so schedules stay conflict-free.",
+      "acceptanceCriteria": [
+        "Admin-only route lists all pending requests (room, requester, date/time, service)",
+        "Approve sets status to 'approved'; reject sets status to 'rejected' and stores an optional reason",
+        "On approve, a fresh server-side conflict check runs and blocks approval if a conflict now exists",
+        "Approving one of two pending requests for the same slot prevents the other from being approved",
+        "Non-admins cannot reach the route or invoke its actions (server-side + RLS)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 13,
+      "passes": true,
+      "notes": "Added app/admin/page.tsx (lists pending bookings with room/requester/date-time/service/notes, sorted by date+start_time) + app/admin/actions.ts (approveBooking/rejectBooking server actions, each re-checking admin role server-side via requireAdmin() before mutating). Added supabase/migrations/20260719000500_add_admin_select_policies.sql (admin-only select policies on bookings/profiles via is_admin(), since the existing select policies only let a user read their own rows) and supabase/migrations/20260719000600_grant_service_role_table_privileges.sql (service_role lacked base table grants entirely — same class of bug as US-007's authenticated-grant fix — so any server-side use of the service-role client 403'd; not on the approval queue's own path, but a real gap worth closing). Found and fixed a real bug in lib/bookings/conflict-check.ts: fetchConflictingBookings' approval re-check reused the default pending+approved status filter, so two pending requests for the same slot always blocked the FIRST approval too (the sibling still-pending request looked like a conflict). Added an optional `statuses` param (default unchanged) and had approveBooking pass `['approved']` only, matching the PRD's description of the approval re-check as a race guard against another already-approved booking. Verified end-to-end with a Playwright script against a fresh `supabase db reset` (two members, two directly-seeded overlapping pending bookings simulating the race scenario, one admin): non-admin redirected from /admin, admin sees both pending cards with room/service and no raw email leak, approving the first succeeds, approving the still-pending conflicting sibling is blocked with a clear conflict error and leaves it pending, rejecting it with a reason stores the reason, and each member's own /bookings page reflects the final approved/rejected status. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
+    },
+    {
+      "id": "US-014",
+      "title": "Cancel a booking",
+      "description": "As a member, I want to cancel my own booking so the slot frees up.",
+      "acceptanceCriteria": [
+        "Cancel action available for pending and future approved bookings owned by the user",
+        "Cancelling sets status to 'cancelled' after a confirmation step",
+        "Cancel action is not available for past bookings",
+        "A cancelled slot immediately shows as available in schedule and availability views",
+        "A user cannot cancel another user's booking (enforced via RLS)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 14,
+      "passes": true,
+      "notes": "Added components/bookings/cancel-booking-button.tsx (shadcn alert-dialog confirmation) and app/bookings/actions.ts#cancelBooking, wired into app/bookings/page.tsx for bookings that are pending/approved and not past (lib/dates.ts#isBookingPast). cancelBooking re-verifies ownership/status/not-past server-side before updating status to 'cancelled'; RLS's existing bookings_update_own policy (user_id = auth.uid(), status not in approved/rejected) independently blocks cross-user cancellation and self-approval bypass. No new migration needed: bookings_schedule and the conflict-check utility already filter to pending/approved only, so a cancelled booking is immediately excluded from schedule/availability views and conflict checks. Verified end-to-end with a Playwright + supabase-js script against a fresh `supabase db reset`: a future pending and a future approved booking both show a Cancel button and cancel successfully after confirming the dialog; a past approved booking shows no Cancel button and is left untouched; after cancelling, bookings_schedule no longer returns either id; a second user's own signed-in client attempting to update the first user's booking is blocked with 0 rows affected. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
+    },
+    {
+      "id": "US-015",
+      "title": "Modify/reschedule a booking",
+      "description": "As a member, I want to change the date/time/room of my request without recreating it.",
+      "acceptanceCriteria": [
+        "Edit action available for pending and future approved bookings owned by the user",
+        "Editing date, time, or room reverts status to 'pending' and re-runs the conflict check",
+        "A modification conflicting with another approved or pending booking is blocked with a clear error",
+        "A previously approved booking that is edited requires re-approval by an admin",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 15,
+      "passes": true,
+      "notes": "Added app/bookings/[id]/edit/page.tsx (server component: loads booking, verifies ownership + isBookingModifiable, redirects to /bookings?error=... otherwise, passes rooms + booking to the form) + components/bookings/edit-booking-form.tsx (client form pre-filled with current values, room/date/start/end/service/notes fields, client-side conflict-check warning via bookings_schedule + findConflictingBookings excluding the booking's own id) + app/bookings/actions.ts#updateBooking server action (re-verifies ownership/modifiability, re-runs fetchConflictingBookings excluding the booking id and blocks with a clear error on conflict, sets status back to 'pending' if room/date/start/end changed from the stored values, otherwise leaves status unchanged, then redirects to /bookings). Added lib/bookings/status.ts#isBookingModifiable (shared pending/approved-and-not-past check) and reused it from both app/bookings/page.tsx (replacing its local isCancellable) and the new edit page, and added an Edit link/button next to Cancel on modifiable rows in app/bookings/page.tsx. Verified end-to-end with a Playwright + supabase-js script against a fresh `supabase db reset`: edit form pre-fills correctly; rescheduling an approved booking into a slot conflicting with another user's pending booking is blocked with a clear inline error and leaves the original booking untouched; rescheduling into a free slot succeeds, reverts status to 'pending', and updates the stored time; navigating directly to a past booking's edit URL redirects away; a second user cannot reach the first user's edit page (redirected). Also confirmed zero horizontal overflow at 375px. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
+    },
+    {
+      "id": "US-016",
+      "title": "View my bookings",
+      "description": "As a member, I want to see my upcoming, pending, past, and cancelled bookings in one place.",
+      "acceptanceCriteria": [
+        "Tabbed or filterable list with buckets: Upcoming / Pending / Past / Cancelled",
+        "Bookings are bucketed correctly by date and status",
+        "Each row links to a detail view exposing cancel/edit actions where applicable",
+        "Only the logged-in user's own bookings are returned (enforced via Supabase RLS, not just UI filtering)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 16,
+      "passes": true,
+      "notes": "Rewrote app/bookings/page.tsx into a shadcn Tabs view (Upcoming/Pending/Past/Cancelled, each with a live count) with rows now linking to a new app/bookings/[id]/page.tsx detail view instead of exposing Edit/Cancel inline. Added lib/bookings/status.ts#bucketForBooking: cancelled and rejected bookings are always terminal (never 'upcoming'), everything else moves to 'past' once its end time has elapsed regardless of status, otherwise pending/approved map to their matching bucket. Upcoming/Pending sort soonest-first, Past/Cancelled sort most-recent-first. The detail page fetches the single booking (RLS's existing bookings_select_own policy already scopes it to the caller, so a foreign id 404s via redirect), shows date/time/service/notes/reject_reason (rejected only), and reuses isBookingModifiable + CancelBookingButton/Edit link, matching US-014/015's existing modifiability rules. Verified end-to-end with a Playwright + supabase-js script against a fresh `supabase db reset`: seeded one user with 4 bookings (approved future, pending future, approved past, cancelled future) plus a second user's booking in the same room set; tab counts read Upcoming(1)/Pending(1)/Past(1)/Cancelled(1) with the correct booking in each and the second user's booking not appearing anywhere (RLS-enforced, not just UI filtering); clicking into the upcoming (approved, future) booking's detail page shows Edit + Cancel; clicking into the past booking's detail page shows neither; 375px viewport has zero horizontal overflow. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
+    }
+  ]
+}

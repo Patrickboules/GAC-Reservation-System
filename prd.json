@@ -1,259 +1,712 @@
 {
   "project": "GAC Reservations",
-  "branchName": "ralph/gac-reservations-v1",
-  "description": "GAC Reservations v1 \u2014 a mobile-first, auth-gated room/hall booking system for Gawargious & Ava Antonious. Members browse room schedules, check availability, and submit booking requests; admins approve/reject from a queue. Next.js 15 (App Router) + TypeScript + Tailwind + shadcn/ui, backed by Supabase (Postgres, Auth, RLS) via supabase-js and raw SQL migrations.",
+  "branchName": "ralph/ui-redesign-v2",
+  "description": "UI Redesign v2 — full visual and navigational redesign of GAC Reservations on top of the working v1 app: bright baby-blue/beige identity, a persistent app shell, a mobile-first resource-day calendar with a progressive desktop grid, one consistent component kit, and three additive subsystems (notifications, room-management CRUD, usage reports). Source: tasks/prd-ui-redesign-v2.md and prd_plans/UI-Redesign-Spec.md.",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Scaffold Next.js 15 app with Tailwind and shadcn/ui",
-      "description": "As a developer, I need the base app scaffold so every feature has somewhere to live.",
+      "title": "Add Tailwind design tokens",
+      "description": "As a developer, I need the spec's color, radius, and shadow tokens in the Tailwind theme so every later component can reference them.",
       "acceptanceCriteria": [
-        "Next.js 15 App Router project created with TypeScript",
-        "Tailwind CSS configured and applied to a global stylesheet",
-        "shadcn/ui initialized (components.json present, at least Button component installed)",
-        "Root layout renders a placeholder home page that builds",
+        "canvas, surface, line, ink (900/700/500/300), sky (50-700), sand (50/100/200), and status (approvedFg/Bg, pendingFg/Bg, rejectedFg/Bg, cancelledFg/Bg) color tokens added per prd_plans/UI-Redesign-Spec.md section 1.1",
+        "borderRadius (sm/md/lg/xl) and boxShadow (sm/md/lg) tokens added per the same section",
+        "Existing pages still build with no visual breakage (tokens are additive, not yet applied everywhere)",
         "Typecheck passes"
       ],
       "priority": 1,
-      "passes": true,
-      "notes": "Scaffolded Next.js 15.5.20 (App Router, TS) with Tailwind v4 and shadcn/ui (base-nova style, Button installed) via create-next-app + shadcn init; placeholder home page renders Button; npx tsc --noEmit, npm run lint, and npm run build all pass; verified dev server serves 200 with expected markup."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-002",
-      "title": "Wire up Supabase client and environment variables",
-      "description": "As a developer, I need browser and server Supabase clients so the app can talk to Postgres and Auth.",
+      "title": "Load custom fonts (Bricolage Grotesque, Geist, Geist Mono)",
+      "description": "As a developer, I need the spec's font pairing loaded via next/font so display, UI, and tabular-data text can use the new type system.",
       "acceptanceCriteria": [
-        "Add .env.local.example with NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and server-only SUPABASE_SERVICE_ROLE_KEY",
-        "Create a browser supabase client helper and a server supabase client helper using supabase-js / @supabase/ssr",
-        "Service role key is only ever read in server-side code, never exposed to the client bundle",
-        "Typecheck passes"
+        "Bricolage Grotesque (weights 600/700), Geist (400/500/600), and Geist Mono (400/500) loaded via next/font/google (or next/font/local if self-hosted) in the root layout",
+        "font-display, font-sans, font-mono Tailwind font families wired to the loaded fonts",
+        "Text using font-mono has tabular-nums applied",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 2,
-      "passes": true,
-      "notes": "Installed @supabase/supabase-js, @supabase/ssr, server-only. Added .env.local.example (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY). Added lib/supabase/client.ts (browser), lib/supabase/server.ts (per-request server client via @supabase/ssr + next/headers cookies), and lib/supabase/admin.ts (service-role client guarded by the 'server-only' import so it can't land in a client bundle). Typecheck and lint pass."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-003",
-      "title": "SQL migration for rooms, bookings, and profiles tables",
-      "description": "As a developer, I need the core schema so bookings can be stored.",
+      "title": "Apply base page background and typography",
+      "description": "As a member, I want the app's base surface and text to reflect the new bright identity before individual components are redesigned.",
       "acceptanceCriteria": [
-        "Version-controlled SQL migration file creates rooms (id, name, capacity, amenities, location, rules, created_at)",
-        "Creates bookings (id, room_id FK, user_id FK, date, start_time, end_time, service, notes, status, reject_reason, created_at, updated_at)",
-        "Creates profiles (id FK auth.users, display_name, role default 'member', created_at)",
-        "bookings.status constrained to 'pending' | 'approved' | 'rejected' | 'cancelled' via enum or CHECK",
-        "Typecheck passes"
+        "Root layout background uses the canvas token; cards/panels default to the surface token",
+        "Body text defaults to ink-700 on font-sans; headings default to ink-900 on font-display",
+        "Type scale (display-xl/display/h2/h3/body/small/caption) is available as reusable Tailwind utility classes or a small typography component",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 3,
-      "passes": true,
-      "notes": "Added supabase/migrations/20260719000000_create_core_schema.sql creating booking_status enum, rooms, profiles, and bookings (with FKs to auth.users, end_time>start_time check, and room/date + user_id indexes). Typecheck passes (no TS changes; SQL-only story)."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-004",
-      "title": "SQL migration for Row-Level Security policies",
-      "description": "As a developer, I need RLS so data access is enforced at the database layer, not just the UI.",
+      "title": "Kit: Button and Icon Button",
+      "description": "As a developer, I need a Button and IconButton primitive in components/kit/ so every redesigned screen shares one interactive-control style.",
       "acceptanceCriteria": [
-        "RLS enabled on rooms, bookings, and profiles",
-        "rooms: any authenticated user may SELECT; no member INSERT/UPDATE/DELETE",
-        "bookings: members SELECT/UPDATE only their own rows; INSERT only where user_id = auth.uid() and status = 'pending'; only role='admin' may set status to 'approved'/'rejected'",
-        "profiles: a user may read/update only their own profile; role is not self-service editable",
-        "Typecheck passes"
+        "Button variants: primary/secondary/ghost/danger; states default/hover/pressed/disabled/loading; sizes sm/md/lg",
+        "Loading state shows a spinner in place of the label with the button's width locked (no layout shift)",
+        "IconButton variant supports an optional tooltip",
+        "Both show a visible focus ring (ring-2 ring-sky-300) when focused via keyboard",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 4,
-      "passes": true,
-      "notes": "Added supabase/migrations/20260719000100_add_rls_policies.sql: enables RLS on rooms/bookings/profiles; rooms readable by any authenticated user with no member write policies; bookings select/insert/update scoped to user_id = auth.uid() with insert requiring status='pending' and member updates blocked from setting approved/rejected; a security-definer is_admin() plus an admin-only update policy lets only role='admin' transition status to approved/rejected; profiles select/update scoped to own id, with a BEFORE UPDATE trigger blocking role self-edits unless done via the service_role key. Typecheck passes (SQL-only story, no TS changes)."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-005",
-      "title": "Profile-on-signup trigger and seed script",
-      "description": "As a developer, I need a profiles row auto-created on signup and sample data for local testing.",
+      "title": "Kit: Status badge, filter chip, segmented control",
+      "description": "As a developer, I need the status badge, filter chip, and segmented control primitives so booking state and grouped toggles look consistent everywhere.",
       "acceptanceCriteria": [
-        "SQL trigger inserts a profiles row with default role 'member' when a new auth user is created",
-        "Seed script inserts at least 3 sample rooms",
-        "Seed script creates (or promotes) at least 1 admin profile for testing",
-        "Typecheck passes"
+        "Status badge renders approved/pending/rejected/cancelled with the correct fg/bg token pair and always shows a text label (never color-only), with an optional leading dot",
+        "Filter chip has idle and selected states, an optional count, and is removable",
+        "Segmented control supports 2-4 segments with a visible selected-state indicator",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 5,
-      "passes": true,
-      "notes": "Added supabase/migrations/20260719000200_profile_on_signup_trigger.sql (handle_new_user() + on_auth_user_created trigger inserting a profiles row with default role 'member'). Added supabase/seed.sql seeding 4 sample rooms and one admin user (admin@gac-reservations.local) inserted directly into auth.users/auth.identities and promoted to role='admin'. Also added supabase/config.toml and supabase/.gitignore (local Supabase CLI project init). Verified end-to-end with `npx supabase db reset` against local Docker Postgres: 4 rooms present, admin profile promoted correctly, and a freshly inserted auth.users row confirms the trigger defaults new signups to role='member'. npx tsc --noEmit passes."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-006",
-      "title": "Login, signup, and logout with Supabase Auth",
-      "description": "As a member, I want to log in and out so I can access the app.",
+      "title": "Kit: Input, Select, Textarea",
+      "description": "As a developer, I need shared form-field primitives with consistent label/help/error handling for every redesigned form.",
       "acceptanceCriteria": [
-        "Login and signup pages authenticate against Supabase Auth (email/password)",
-        "Successful login persists the session across a page refresh",
-        "A logout action ends the session and returns to the login page",
-        "Invalid credentials show a clear error message",
+        "Input, Select, and Textarea each support default/focus/error/disabled states with label, helper-text, and error-text slots",
+        "Error state is visually distinct beyond color alone and the error text is linked via aria-describedby",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
       "priority": 6,
-      "passes": true,
-      "notes": "Added app/login (page + server action), app/signup (page + server action), and app/logout (server action) using lib/supabase/server's cookie-based client; home page (app/page.tsx) now checks auth.getUser() and shows Log in/Sign up links or a Signed-in-as + Log out form. Added shadcn Input/Label/Card components for the forms. Invalid credentials redirect back to /login?error=... and render a role=alert message. Verified end-to-end against local Supabase (db reset applied) with a Playwright script driving a real browser: signup -> signed-in home, session persists across reload, logout -> /login, invalid login shows error, valid login signs in. npx tsc --noEmit and npm run lint both pass."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-007",
-      "title": "Session gating middleware and admin route guard",
-      "description": "As a member, I want every page to require login, and admin pages to reject non-admins.",
+      "title": "Kit: Date picker and time-range picker",
+      "description": "As a member, I want a bright date picker and a time-range picker with a live duration readout so choosing a booking slot is fast and clear.",
       "acceptanceCriteria": [
-        "Middleware redirects unauthenticated users to the login page for all app routes",
-        "Admin-only routes reject members with role checked from profiles (server-side, not just UI hiding)",
-        "An authenticated member is allowed through to member routes",
+        "Date picker supports inline and popover modes; selected day gets a sky-600 fill, today gets a sky-300 ring, disabled dates are muted and unclickable",
+        "Time-range picker uses two font-mono steppers snapping to a configurable granularity (default 30 minutes, exposed as a single app-level constant) and shows a live 'duration: Xh Ym' readout",
+        "Time-range picker accepts an externally supplied conflict flag and renders an inline soft warning when true (actual conflict-check wiring happens in the story that consumes this picker)",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
       "priority": 7,
-      "passes": true,
-      "notes": "Added middleware.ts + lib/supabase/middleware.ts (session refresh, redirects unauthenticated users to /login for all routes except /login and /signup, and redirects authenticated users away from those two). Added app/admin/layout.tsx (server-side role check against profiles, redirects non-admins to /) and a placeholder app/admin/page.tsx for US-013 to fill in later. Also fixed a real blocking bug found while verifying this: the US-004 RLS migration enabled RLS and added policies but never granted base table privileges to the authenticated role, so every RLS-permitted query still failed with 'permission denied for table' \u2014 added supabase/migrations/20260719000300_grant_table_privileges.sql (select on rooms; select/update on profiles; select/insert/update on bookings). Verified end-to-end via Playwright against a fresh `supabase db reset`: unauthenticated hits to / and /admin both redirect to /login; a freshly signed-up member reaches / but is bounced from /admin back to /; the seeded admin account reaches /admin and sees its placeholder heading. npx tsc --noEmit and npm run lint both pass."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-008",
-      "title": "Shared booking conflict-check utility",
-      "description": "As a developer, I need one overlap-check function reused across availability, request, approval, and edit.",
+      "title": "Kit: Modal and Sheet",
+      "description": "As a developer, I need one responsive dialog primitive that renders as a centered modal on desktop and a bottom sheet on mobile, so every dialog in the app behaves consistently.",
       "acceptanceCriteria": [
-        "Function detects overlap as same room_id and date with start_time < existing.end_time AND end_time > existing.start_time",
-        "Considers only bookings in status 'approved' or 'pending'",
-        "Exposed as a single reusable module imported by other features",
+        "Single component API renders a centered modal (max-w-lg, shadow-lg, rounded-lg) on desktop and a bottom sheet with a drag handle on mobile",
+        "Backdrop uses rgba(16,32,64,.32); closes on backdrop click and on Escape",
+        "Sheet open/close uses a slide transition that is replaced by a fade when prefers-reduced-motion is set",
         "Typecheck passes",
-        "Tests pass"
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 8,
-      "passes": true,
-      "notes": "Added lib/bookings/conflict-check.ts exposing findConflictingBookings/hasConflict (pure overlap logic over room_id+date+start/end time, filtered to pending/approved, with an excludeBookingId option for edit-in-place re-checks) plus fetchConflictingBookings, a Supabase-backed wrapper that queries bookings for the candidate room/date and runs them through the same pure function \u2014 the single implementation future stories (US-011/012/013/015) will import. First story needing a test runner, so added vitest (vitest.config.ts, npm run test) and lib/bookings/conflict-check.test.ts covering overlap, containment, boundary-touching (non-overlap), different room/date, non-conflicting statuses, and the exclude-id case. npx tsc --noEmit, npm run lint, and npm run test all pass (10/10 tests)."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-009",
-      "title": "View rooms schedule (calendar + list toggle)",
-      "description": "As a member, I want a calendar/list of room schedules so I can find an open slot.",
+      "title": "Kit: Toast system",
+      "description": "As a member, I want toast confirmations after actions like booking or cancelling so I get immediate feedback.",
       "acceptanceCriteria": [
-        "Schedule page defaults to a calendar view with a toggle to a list view",
-        "Filter controls for room and for date/date-range; selecting a room shows only that room's bookings",
-        "pending and approved bookings are visually distinguished (e.g. amber vs green badge)",
-        "Read-only: shows only room, time, and status of others' bookings \u2014 no member identity or notes",
-        "Usable on a mobile viewport with no horizontal scroll",
+        "Toast renders success/info/warning/error variants with a semantic left accent and icon",
+        "Positioned top-right on desktop and top on mobile; auto-dismisses after 4 seconds; supports an optional action link",
+        "A toast provider/hook is available so any client component can trigger a toast",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
       "priority": 9,
-      "passes": true,
-      "notes": "Added supabase/migrations/20260719000400_add_bookings_schedule_view.sql: a security-invoker=false view (public.bookings_schedule) exposing only id/room_id/date/start_time/end_time/status for pending+approved bookings, granted to authenticated \u2014 needed because the existing bookings RLS policy only allows a member to read their own rows, but the schedule must show everyone's slots without leaking user_id/notes/service. Added app/schedule/page.tsx (server component, fetches rooms) + components/schedule/schedule-view.tsx (client component: room select + From/To date inputs, Calendar/List tabs via shadcn Tabs, day-grouped cards in calendar view vs a flat sorted list in list view, amber/green BookingStatusBadge). Added shadcn badge/select/tabs components and lib/dates.ts (local-timezone date helpers). Linked from the home page. Verified with Playwright against the local Supabase instance: signed up a fresh member, confirmed calendar view groups seeded bookings by day with correct amber/green badges, list view shows the same bookings flat, room filter narrows correctly (fixed a bug where the Select showed the raw room id instead of its name), no member email/identity appears anywhere, and 375px viewport has zero horizontal overflow (scrollWidth === clientWidth). npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-010",
-      "title": "View room details",
-      "description": "As a member, I want to see a room's capacity, amenities, location, and rules before requesting it.",
+      "title": "Kit: Empty/Loading/Error states, Skeleton, Tooltip, Dropdown menu",
+      "description": "As a developer, I need shared state and overlay primitives (empty state, loading skeleton, error state, tooltip, dropdown menu) so every list, table, and calendar can reuse them.",
       "acceptanceCriteria": [
-        "Clicking a room card/row opens a detail page or modal",
-        "Detail shows name, capacity, amenities, location, and usage rules/notes",
-        "Any empty field renders 'Not specified' rather than blank",
-        "Reachable from both the schedule view and any room list",
+        "Empty state: centered display-font headline plus one primary action slot",
+        "Loading state: skeleton shimmer matching the real layout shape, not a bare spinner",
+        "Error state: inline card explaining the failure with a Retry action",
+        "Skeleton, Tooltip, and Dropdown menu primitives are available for reuse by later stories (e.g. kebab row actions)",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
       "priority": 10,
-      "passes": true,
-      "notes": "Added app/rooms (list) and app/rooms/[id] (detail) pages showing capacity/amenities/location/rules with lib/rooms.ts formatting empty fields as \"Not specified\"; made room names in schedule-view.tsx (calendar + list tabs) link to the detail page, and added a Rooms nav button on /schedule. Verified end-to-end with Playwright against local Supabase: schedule booking row and rooms list card both navigate to the same detail page, all four fields render, and a room with null capacity/amenities/location/rules shows \"Not specified\" for each. npx tsc --noEmit, npm run lint, npm run test (10/10) all pass."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-011",
-      "title": "Check room availability search",
-      "description": "As a member, I want to search by date/time range to find which rooms are free.",
+      "title": "Kit: Admin table",
+      "description": "As an admin, I want a consistent sortable table with row actions so admin screens (requests, rooms) share one pattern.",
       "acceptanceCriteria": [
-        "Search form with date, start time, end time, and optional capacity filter",
-        "Results list rooms available for the requested slot using the shared conflict-check utility",
-        "A room with an overlapping approved booking is excluded from results",
-        "A room with an overlapping pending booking is shown as 'Requested \u2014 pending approval'",
-        "Empty-state message when no rooms are available for the slot",
+        "Sticky header, sortable columns, row hover state (bg-sky-50), status rendered via the Status badge (US-005), row actions in a trailing kebab menu using the Dropdown menu from US-010",
+        "Supports pagination",
+        "Has dedicated empty and loading (skeleton row) states using US-010's primitives",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
       "priority": 11,
-      "passes": true,
-      "notes": "Added app/availability/page.tsx (server component, fetches rooms with capacity/location) + components/availability/availability-search.tsx (client component: date/start-time/end-time/optional-capacity search form). On search it queries the bookings_schedule view (already scoped to pending/approved, no identity/notes) for the chosen date, then runs the shared findConflictingBookings util per room to decide inclusion: rooms with an overlapping approved booking are excluded, rooms with only an overlapping pending booking are shown with a 'Requested — pending approval' badge, and rooms with no conflict are shown as 'Available'; capacity filter drops rooms with null/insufficient capacity. Linked from home page and schedule page nav. Verified end-to-end with a Playwright script against local Supabase (db reset + two seeded bookings — one approved, one pending): approved-conflict room excluded, pending-conflict room shown with the pending badge, unaffected rooms shown available, capacity filter narrows correctly, empty-state message shows when no rooms qualify, a non-overlapping time slot shows the previously-excluded room as available again, and 375px viewport has zero horizontal overflow. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-012",
-      "title": "Request a room/hall",
-      "description": "As a member, I want to request a room for a date/time and service so an admin can review it.",
+      "title": "Kit: Avatar and role badge",
+      "description": "As a member, I want to see avatars and role badges (member/servant/scout/guide/admin) throughout the app so people and roles are recognizable at a glance.",
       "acceptanceCriteria": [
-        "Form fields: room, date, start time, end time, service/purpose (fixed dropdown constant), optional notes",
-        "Client-side conflict check warns before submit if the slot overlaps an approved or pending booking",
-        "Server-side conflict check re-validates before insert and blocks conflicts with no row written",
-        "Server-side check rejects the request if the member already holds 5 open pending requests",
-        "A valid request inserts a bookings row with status 'pending' linked to the user, then redirects/confirms to View My Bookings",
+        "Avatar renders an initials fallback when no image is set",
+        "Role badge renders member/servant/scout/guide/admin with distinct, legible styling",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
       "priority": 12,
-      "passes": true,
-      "notes": "Added app/bookings/new (form: room/date/start/end/service-dropdown/notes) + app/bookings/actions.ts requestBooking server action + app/bookings (minimal 'My bookings' flat list, the redirect/confirm target — US-016 will expand it into tabbed buckets) + lib/bookings/services.ts (fixed BOOKING_SERVICES constant per PRD FR-9). components/bookings/request-form.tsx runs a client-side conflict check against bookings_schedule on field change (non-blocking amber warning); requestBooking re-checks conflicts server-side via fetchConflictingBookings and blocks insert with no row written, and separately blocks if the member already has 5 open pending bookings. Fixed two real bugs found while verifying: (1) lib/bookings/conflict-check.ts's fetchConflictingBookings queried the base `bookings` table, which RLS restricts to the caller's own rows, so it silently missed other members' conflicting bookings — switched it to query the `bookings_schedule` view (already exposed to all authenticated members for pending/approved room/time/status) so conflict checks actually see everyone's bookings; (2) neither the new form nor the action normalized `<input type=\"time\">`'s \"HH:MM\" to Postgres's \"HH:MM:SS\" before comparing/storing, causing false-positive conflicts on adjacent (non-overlapping) slots — added lib/dates.ts#normalizeTimeString and applied it in both the client-side check and the server action. Verified end-to-end with Playwright against a fresh `supabase db reset`: valid request inserts and redirects to /bookings showing Pending; a duplicate-slot request shows the client-side pending-overlap warning then is blocked server-side with zero extra rows written; a slot overlapping a separately-inserted approved booking is also blocked; filling 5 pending requests succeeds and a 6th is rejected with the 5-pending-cap message and no 6th row written; adjacent non-overlapping slots (e.g. 10:00-11:00 right after an existing 09:00-10:00) are correctly allowed; 375px viewport has zero horizontal overflow. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-013",
-      "title": "Admin approval queue",
-      "description": "As an admin, I want to approve or reject pending requests so schedules stay conflict-free.",
+      "title": "Kit: Room card",
+      "description": "As a member, I want a rich room card (capacity, amenities, availability) so I can scan rooms quickly in lists and grids.",
       "acceptanceCriteria": [
-        "Admin-only route lists all pending requests (room, requester, date/time, service)",
-        "Approve sets status to 'approved'; reject sets status to 'rejected' and stores an optional reason",
-        "On approve, a fresh server-side conflict check runs and blocks approval if a conflict now exists",
-        "Approving one of two pending requests for the same slot prevents the other from being approved",
-        "Non-admins cannot reach the route or invoke its actions (server-side + RLS)",
+        "Card shows a color header, room name + code (font-mono), capacity, up to 4 amenity icons plus a '+n' overflow, a location line, and a live availability dot (green free / amber busy now)",
+        "The entire card is the tap target",
+        "Grid and list density variants are both supported",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
       "priority": 13,
-      "passes": true,
-      "notes": "Added app/admin/page.tsx (lists pending bookings with room/requester/date-time/service/notes, sorted by date+start_time) + app/admin/actions.ts (approveBooking/rejectBooking server actions, each re-checking admin role server-side via requireAdmin() before mutating). Added supabase/migrations/20260719000500_add_admin_select_policies.sql (admin-only select policies on bookings/profiles via is_admin(), since the existing select policies only let a user read their own rows) and supabase/migrations/20260719000600_grant_service_role_table_privileges.sql (service_role lacked base table grants entirely — same class of bug as US-007's authenticated-grant fix — so any server-side use of the service-role client 403'd; not on the approval queue's own path, but a real gap worth closing). Found and fixed a real bug in lib/bookings/conflict-check.ts: fetchConflictingBookings' approval re-check reused the default pending+approved status filter, so two pending requests for the same slot always blocked the FIRST approval too (the sibling still-pending request looked like a conflict). Added an optional `statuses` param (default unchanged) and had approveBooking pass `['approved']` only, matching the PRD's description of the approval re-check as a race guard against another already-approved booking. Verified end-to-end with a Playwright script against a fresh `supabase db reset` (two members, two directly-seeded overlapping pending bookings simulating the race scenario, one admin): non-admin redirected from /admin, admin sees both pending cards with room/service and no raw email leak, approving the first succeeds, approving the still-pending conflicting sibling is blocked with a clear conflict error and leaves it pending, rejecting it with a reason stores the reason, and each member's own /bookings page reflects the final approved/rejected status. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-014",
-      "title": "Cancel a booking",
-      "description": "As a member, I want to cancel my own booking so the slot frees up.",
+      "title": "Kit: Booking card",
+      "description": "As a member, I want a booking card with a status-colored stripe and quick actions so I can scan my bookings quickly.",
       "acceptanceCriteria": [
-        "Cancel action available for pending and future approved bookings owned by the user",
-        "Cancelling sets status to 'cancelled' after a confirmation step",
-        "Cancel action is not available for past bookings",
-        "A cancelled slot immediately shows as available in schedule and availability views",
-        "A user cannot cancel another user's booking (enforced via RLS)",
+        "Left color stripe reflects booking status; card shows room, date, font-mono time range, service-type chip, and the Status badge (US-005)",
+        "Trailing overflow menu (Dropdown menu from US-010) offers Modify/Cancel where applicable, guarded by a confirm step",
+        "Pending variant shows an 'Awaiting approval' line",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
       "priority": 14,
-      "passes": true,
-      "notes": "Added components/bookings/cancel-booking-button.tsx (shadcn alert-dialog confirmation) and app/bookings/actions.ts#cancelBooking, wired into app/bookings/page.tsx for bookings that are pending/approved and not past (lib/dates.ts#isBookingPast). cancelBooking re-verifies ownership/status/not-past server-side before updating status to 'cancelled'; RLS's existing bookings_update_own policy (user_id = auth.uid(), status not in approved/rejected) independently blocks cross-user cancellation and self-approval bypass. No new migration needed: bookings_schedule and the conflict-check utility already filter to pending/approved only, so a cancelled booking is immediately excluded from schedule/availability views and conflict checks. Verified end-to-end with a Playwright + supabase-js script against a fresh `supabase db reset`: a future pending and a future approved booking both show a Cancel button and cancel successfully after confirming the dialog; a past approved booking shows no Cancel button and is left untouched; after cancelling, bookings_schedule no longer returns either id; a second user's own signed-in client attempting to update the first user's booking is blocked with 0 rows affected. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-015",
-      "title": "Modify/reschedule a booking",
-      "description": "As a member, I want to change the date/time/room of my request without recreating it.",
+      "title": "Notifications schema",
+      "description": "As a developer, I need a notifications table so reminders, approval/rejection, and cancellation events can be persisted per user.",
       "acceptanceCriteria": [
-        "Edit action available for pending and future approved bookings owned by the user",
-        "Editing date, time, or room reverts status to 'pending' and re-runs the conflict check",
-        "A modification conflicting with another approved or pending booking is blocked with a clear error",
-        "A previously approved booking that is edited requires re-approval by an admin",
-        "Typecheck passes",
-        "Verify in browser using dev-browser skill"
+        "Migration creates notifications (id, user_id FK, type enum/check 'reminder'|'approved'|'rejected'|'cancelled'|'admin_new_request', booking_id FK nullable, message, read_at nullable, created_at)",
+        "RLS enabled: a user may SELECT and UPDATE (mark-read) only their own notifications; there is no client-facing INSERT policy",
+        "Typecheck passes"
       ],
       "priority": 15,
-      "passes": true,
-      "notes": "Added app/bookings/[id]/edit/page.tsx (server component: loads booking, verifies ownership + isBookingModifiable, redirects to /bookings?error=... otherwise, passes rooms + booking to the form) + components/bookings/edit-booking-form.tsx (client form pre-filled with current values, room/date/start/end/service/notes fields, client-side conflict-check warning via bookings_schedule + findConflictingBookings excluding the booking's own id) + app/bookings/actions.ts#updateBooking server action (re-verifies ownership/modifiability, re-runs fetchConflictingBookings excluding the booking id and blocks with a clear error on conflict, sets status back to 'pending' if room/date/start/end changed from the stored values, otherwise leaves status unchanged, then redirects to /bookings). Added lib/bookings/status.ts#isBookingModifiable (shared pending/approved-and-not-past check) and reused it from both app/bookings/page.tsx (replacing its local isCancellable) and the new edit page, and added an Edit link/button next to Cancel on modifiable rows in app/bookings/page.tsx. Verified end-to-end with a Playwright + supabase-js script against a fresh `supabase db reset`: edit form pre-fills correctly; rescheduling an approved booking into a slot conflicting with another user's pending booking is blocked with a clear inline error and leaves the original booking untouched; rescheduling into a free slot succeeds, reverts status to 'pending', and updates the stored time; navigating directly to a past booking's edit URL redirects away; a second user cannot reach the first user's edit page (redirected). Also confirmed zero horizontal overflow at 375px. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-016",
-      "title": "View my bookings",
-      "description": "As a member, I want to see my upcoming, pending, past, and cancelled bookings in one place.",
+      "title": "Server-side notification triggers",
+      "description": "As a member or admin, I want approve/reject/cancel/new-request events to create a notification automatically so I don't have to manually re-check status.",
       "acceptanceCriteria": [
-        "Tabbed or filterable list with buckets: Upcoming / Pending / Past / Cancelled",
-        "Bookings are bucketed correctly by date and status",
-        "Each row links to a detail view exposing cancel/edit actions where applicable",
-        "Only the logged-in user's own bookings are returned (enforced via Supabase RLS, not just UI filtering)",
+        "Approving a booking (existing admin approve action) inserts an 'approved' notification for the requester",
+        "Rejecting a booking inserts a 'rejected' notification (including the reject reason) for the requester",
+        "Cancelling a booking, by the owning member or by an admin, inserts a 'cancelled' notification for the requester",
+        "Creating a new pending booking request inserts an 'admin_new_request' notification for every profile with role='admin'",
+        "These inserts happen inside the existing approve/reject/cancel/create server actions using the service-role or an admin-scoped insert path (no client insert, matching US-015's RLS) — no duplicate business logic is introduced",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 16,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-017",
+      "title": "Booking sheet/modal redesign",
+      "description": "As a member, I want a redesigned booking request dialog with a live conflict warning so requesting a room feels fast and clear.",
+      "acceptanceCriteria": [
+        "Replaces the current /bookings/new form UI with the Modal/Sheet (US-008) containing: room select (prefilled when a room/date/time is supplied via props/query params), date picker and time-range picker (US-007) wired to the existing shared conflict-check utility for the live warning, the existing fixed service-type dropdown constant (unchanged), and notes",
+        "Submitting shows an optimistic 'Pending' booking card and a success toast (US-009)",
+        "All existing server-side validation (conflict re-check, 5-open-pending cap) continues to run unchanged",
         "Typecheck passes",
         "Verify in browser using dev-browser skill"
       ],
-      "priority": 16,
-      "passes": true,
-      "notes": "Rewrote app/bookings/page.tsx into a shadcn Tabs view (Upcoming/Pending/Past/Cancelled, each with a live count) with rows now linking to a new app/bookings/[id]/page.tsx detail view instead of exposing Edit/Cancel inline. Added lib/bookings/status.ts#bucketForBooking: cancelled and rejected bookings are always terminal (never 'upcoming'), everything else moves to 'past' once its end time has elapsed regardless of status, otherwise pending/approved map to their matching bucket. Upcoming/Pending sort soonest-first, Past/Cancelled sort most-recent-first. The detail page fetches the single booking (RLS's existing bookings_select_own policy already scopes it to the caller, so a foreign id 404s via redirect), shows date/time/service/notes/reject_reason (rejected only), and reuses isBookingModifiable + CancelBookingButton/Edit link, matching US-014/015's existing modifiability rules. Verified end-to-end with a Playwright + supabase-js script against a fresh `supabase db reset`: seeded one user with 4 bookings (approved future, pending future, approved past, cancelled future) plus a second user's booking in the same room set; tab counts read Upcoming(1)/Pending(1)/Past(1)/Cancelled(1) with the correct booking in each and the second user's booking not appearing anywhere (RLS-enforced, not just UI filtering); clicking into the upcoming (approved, future) booking's detail page shows Edit + Cancel; clicking into the past booking's detail page shows neither; 375px viewport has zero horizontal overflow. npx tsc --noEmit, npm run lint, and npm run test (10/10) all pass."
+      "priority": 17,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-018",
+      "title": "My Bookings redesign",
+      "description": "As a member, I want my bookings shown as cards under clear tabs so I can find upcoming, pending, past, or cancelled bookings at a glance.",
+      "acceptanceCriteria": [
+        "/bookings renders the existing Upcoming/Pending/Past/Cancelled buckets using the Segmented control (US-005) and the Booking card (US-014)",
+        "Each tab has its own empty state built from US-010's Empty state",
+        "Existing bucketing logic (bucketForBooking) is unchanged",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 18,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-019",
+      "title": "Modify/reschedule redesign",
+      "description": "As a member, I want editing a booking to reuse the same redesigned booking sheet so the experience is consistent with creating one.",
+      "acceptanceCriteria": [
+        "/bookings/[id]/edit opens the same Booking sheet (US-017) pre-populated with the existing booking's values",
+        "If date/time/room changes from the stored values, an inline 'this will need re-approval' note shows before submit",
+        "Existing revert-to-pending-on-conflicting-change logic is unchanged",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 19,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-020",
+      "title": "Cancel confirmation redesign",
+      "description": "As a member, I want a clearer cancel-confirmation dialog so I don't cancel a booking by accident.",
+      "acceptanceCriteria": [
+        "Cancel action opens the redesigned confirm dialog (built on Modal/Sheet US-008) instead of the current alert-dialog styling",
+        "Confirming cancellation calls the existing cancel server action, unchanged, which (via US-016) already fires the cancellation notification",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 20,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-021",
+      "title": "Desktop sidebar shell",
+      "description": "As a member or admin, I want a persistent left sidebar on desktop so every part of the app is one click away.",
+      "acceptanceCriteria": [
+        "Fixed left sidebar with primary nav (Schedule, Book, My Bookings, Rooms) and an Admin group (Dashboard, Requests, Manage Rooms, Reports) that renders only when the signed-in user's profile role is 'admin' (server-checked, not just hidden client-side)",
+        "Collapsible between icon-only and icon+label",
+        "Active nav item gets a sky-100 fill, sky-600 text, and a 3px left indicator",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 21,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-022",
+      "title": "Mobile bottom tab bar and More sheet",
+      "description": "As a member on mobile, I want a bottom tab bar so I can reach the main sections with one tap.",
+      "acceptanceCriteria": [
+        "Bottom tab bar with 4 primary items (Schedule, Book, My Bookings, More) plus a compact top app bar",
+        "'More' opens a sheet (US-008) with secondary destinations (Rooms, and the Admin group when the user is an admin, server-checked)",
+        "Active tab gets sky-600 icon+label; inactive tabs get ink-500",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 22,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-023",
+      "title": "Top bar (date context, search, notifications, profile)",
+      "description": "As a member, I want a top bar with search, notifications, and my profile so I can act without leaving the current page.",
+      "acceptanceCriteria": [
+        "Top bar holds a date-context slot (populated by calendar pages), a global room-availability search entry point, a notifications bell with an unread-count dot, and a profile menu (avatar + role badge from US-012)",
+        "Notifications bell and profile menu render as functional stubs in this story (real notification data is wired in US-025); the search entry point opens an empty/placeholder panel (wired in US-039)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 23,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-024",
+      "title": "Wire the app shell into every route",
+      "description": "As a member, I want every page of the app wrapped in the new shell so navigation is consistent everywhere.",
+      "acceptanceCriteria": [
+        "Root layout renders the AppShell (sidebar+top bar on desktop from US-021/US-023, bottom tabs+top bar on mobile from US-022/US-023) wrapping all authenticated routes; /login remains shell-free",
+        "Every existing route (/, /schedule, /availability, /rooms, /rooms/[id], /bookings, /bookings/[id], /bookings/[id]/edit, /bookings/new, /admin) renders inside the shell with no layout breakage",
+        "No horizontal scroll on any route at a 375px viewport width",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 24,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-025",
+      "title": "Notifications bell UI",
+      "description": "As a member, I want to open a notifications panel from the top bar so I can see recent activity on my bookings.",
+      "acceptanceCriteria": [
+        "The top bar's notifications bell (US-023) shows an unread-count dot sourced from real notifications rows (US-015/US-016)",
+        "Clicking the bell opens a panel/list (Dropdown menu or Sheet) of recent notifications; each item links to its related booking",
+        "Opening the panel, or an explicit 'mark all read' action, updates read_at server-side for the shown notifications",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 25,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-026",
+      "title": "Reminder notifications",
+      "description": "As a member, I want a reminder before an approved booking starts so I don't forget it.",
+      "acceptanceCriteria": [
+        "An on-demand server check (run when the notifications panel or dashboard data is fetched, per this PRD's technical decision to avoid new scheduling infrastructure) inserts a 'reminder' notification for approved bookings starting within a 24-hour lead window, at most once per booking",
+        "Reminder notification items render with a clock icon in the panel from US-025, visually distinct from approval/rejection/cancellation types",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 26,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-027",
+      "title": "Single-room mobile calendar (baseline)",
+      "description": "As a member on mobile, I want a clear one-room-at-a-time day calendar so I can check a room's schedule without horizontal scrolling.",
+      "acceptanceCriteria": [
+        "Mobile /schedule shows a room selector (dropdown/search), an hour axis (default range 08:00-23:00, defined as a single app-level constant) down the side, and that room's bookings as full-width event blocks for the selected day",
+        "Swiping left/right changes the day; changing the room via the selector updates the same view",
+        "Off-hours band (sand-100) renders before opening and after closing",
+        "Zero horizontal scroll at a 375px viewport width",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 27,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-028",
+      "title": "Desktop multi-room resource grid",
+      "description": "As a member on desktop, I want to see all rooms as columns for a day so I can compare availability across rooms at once.",
+      "acceptanceCriteria": [
+        "At >=1024px, /schedule shows rooms as columns with a sticky time gutter (font-mono hour labels) and a sticky room-header row that scrolls horizontally in sync with the body",
+        "Room columns are at least 132px wide; an edge-fade or scrollbar hint signals additional rooms off-screen",
+        "Off-hours band and hour gridlines match the mobile view's time constants from US-027",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 28,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-029",
+      "title": "Day strip navigation",
+      "description": "As a member, I want a day strip and next/previous controls so I can move between days quickly.",
+      "acceptanceCriteria": [
+        "Horizontally scrollable day-pill strip under the schedule header; tapping a day jumps the grid to it; selected day gets a sky-600 fill",
+        "Left/right arrow buttons step one day; a 'Today' button snaps back to the current date",
+        "Day-change transition is a 300ms slide, reduced to a fade when prefers-reduced-motion is set",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 29,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-030",
+      "title": "Now-line indicator",
+      "description": "As a member, I want to see the current time marked on today's calendar so I can quickly see what's happening now.",
+      "acceptanceCriteria": [
+        "A sky-300 horizontal line with a leading dot renders at the current time, only when viewing today",
+        "The line's position updates on an interval (e.g. every minute) without a full page reload while the tab stays open",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 30,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-031",
+      "title": "Event block component",
+      "description": "As a member, I want each booking on the calendar shown as a clear, accessible block so I can tell its time, service, and status at a glance.",
+      "acceptanceCriteria": [
+        "Renders time range (font-mono), a service-type category color (left accent + tint fill), the requester's name, and a status dot; top/height reflect start time and duration",
+        "Pending events render at 70% opacity with a dashed border; cancelled events render struck-through and greyed",
+        "Blocks under about 40px height collapse to a single time-only line; hovering shows a popover with full detail; clicking opens the detail sheet",
+        "Overlapping bookings in the same room/day split the column width",
+        "Rendered as a real button with an aria-label describing room, time, and status",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 31,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-032",
+      "title": "Room filter bar and grouping",
+      "description": "As a member, I want to filter and group the room columns so I can find relevant rooms among 50+.",
+      "acceptanceCriteria": [
+        "Multi-select filter chips narrow visible rooms by building, floor, room type, capacity, and amenities, with a selection count shown on the chip",
+        "Optional sticky group headers span columns (e.g. 'Building A') in the desktop grid",
+        "The same filters narrow the mobile room selector's searchable list and the desktop grid's visible columns",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 32,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-033",
+      "title": "Favorite rooms schema",
+      "description": "As a developer, I need a favorite_rooms table so members can pin rooms they use often.",
+      "acceptanceCriteria": [
+        "Migration creates favorite_rooms (user_id FK, room_id FK, created_at, unique constraint on the user_id/room_id pair)",
+        "RLS enabled: a user may SELECT/INSERT/DELETE only rows where user_id = auth.uid()",
+        "Typecheck passes"
+      ],
+      "priority": 33,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-034",
+      "title": "Pin/unpin favorite rooms",
+      "description": "As a member, I want to pin rooms I use often so they're quick to find in the room selector and float to the left of the desktop grid.",
+      "acceptanceCriteria": [
+        "Pin/unpin toggle available from the room selector (mobile, US-027) and the room column header (desktop, US-028), backed by the favorite_rooms table (US-033)",
+        "Pinned rooms sort first in both the mobile room list and the desktop column order",
+        "A user can only pin/unpin their own favorites (RLS-enforced, not just UI-restricted)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 34,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-035",
+      "title": "Room quick-jump and hide-free-rooms toggle",
+      "description": "As a member on desktop, I want to jump straight to a room and hide empty columns so I can navigate the 50+-room grid quickly.",
+      "acceptanceCriteria": [
+        "A searchable room dropdown scrolls the desktop grid (US-028) to the selected room's column",
+        "A 'hide free rooms' toggle dims or hides columns with no bookings on the selected day",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 35,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-036",
+      "title": "Drag-to-create booking",
+      "description": "As a member, I want to drag across an empty time slot on the calendar to start a booking request pre-filled with that room, date, and time.",
+      "acceptanceCriteria": [
+        "Dragging across empty grid cells (desktop, US-028) or tap-and-drag (touch, US-027) pre-fills room, date, and time range and opens the Booking sheet (US-017)",
+        "Dropping onto an occupied slot shows an inline conflict warning instead of opening the booking sheet",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 36,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-037",
+      "title": "Room directory redesign",
+      "description": "As a member, I want the rooms list redesigned as a card grid so I can scan rooms visually.",
+      "acceptanceCriteria": [
+        "/rooms renders the Room card (US-013) in a responsive grid with a live availability dot per card",
+        "Existing filtering/search behavior from the current /rooms page is preserved",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 37,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-038",
+      "title": "Room detail redesign",
+      "description": "As a member, I want a richer room detail page so I can decide whether to book it.",
+      "acceptanceCriteria": [
+        "/rooms/[id] shows a color header, capacity, an amenity grid (icon + label), location, rules list, and a mini 7-day availability strip",
+        "Primary CTA 'Book this room' opens the Booking sheet (US-017) pre-filled with this room",
+        "Empty fields still render 'Not specified', preserving existing behavior",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 38,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-039",
+      "title": "Global availability search",
+      "description": "As a member, I want to search for available rooms by date/time/capacity from anywhere in the app.",
+      "acceptanceCriteria": [
+        "The top bar's search entry point (US-023) opens a filter panel: date, time range, optional capacity, optional amenities",
+        "Results render as a Room card (US-013) grid with free/busy badges, using the existing shared conflict-check utility (no duplicate overlap logic)",
+        "Each result links into the schedule (US-027/US-028) pre-filtered to that room and date",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 39,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-040",
+      "title": "Admin dashboard redesign",
+      "description": "As an admin, I want an overview dashboard with key numbers so I can see the state of the schedule at a glance.",
+      "acceptanceCriteria": [
+        "/admin (dashboard) shows a KPI stat row (today's bookings, pending count, utilization %) plus a recent-activity list",
+        "The existing pending-approval-queue functionality moves to /admin/requests (US-041); /admin becomes the overview page",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 40,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-041",
+      "title": "Admin requests queue redesign",
+      "description": "As an admin, I want a clearer, bulk-capable approval queue so I can process requests faster.",
+      "acceptanceCriteria": [
+        "/admin/requests renders pending bookings in the Admin table (US-011) with inline Approve/Reject actions and a required reason field on reject",
+        "Supports bulk-select and bulk approve/reject on selected rows, re-running the existing conflict check per row and reporting which rows failed",
+        "Each row deep-links to the corresponding calendar slot (US-027/US-028)",
+        "Existing race-condition re-check on approve is unchanged",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 41,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-042",
+      "title": "Manage rooms schema additions",
+      "description": "As a developer, I need a short room code and a category color field before building room management UI.",
+      "acceptanceCriteria": [
+        "Migration adds code (short unique text, e.g. 'A101') and category_color (text, one of the spec's calendar category palette keys) to rooms, nullable and backfilled for existing rows",
+        "Typecheck passes"
+      ],
+      "priority": 42,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-043",
+      "title": "Manage rooms CRUD",
+      "description": "As an admin, I want to create, edit, and delete rooms from the app instead of editing the database directly.",
+      "acceptanceCriteria": [
+        "/admin/rooms lists rooms in the Admin table (US-011) with add/edit via a Sheet (name, code, capacity, amenities multi-select, location, rules, category color from US-042)",
+        "Create and edit are admin-only server actions enforced by RLS, mirroring the existing admin-only booking-status-transition pattern",
+        "Delete is guarded by a confirm dialog and blocked, with a clear error, if the room has any pending or future approved bookings",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 43,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-044",
+      "title": "Usage reports",
+      "description": "As an admin, I want usage reports so I can see which rooms and times are most in demand.",
+      "acceptanceCriteria": [
+        "/admin/reports offers a date-range picker and computes, from existing bookings/rooms data with no new tables, a room-utilization bar chart, a most-active-members list, and a peak-hours heatmap",
+        "Figures use font-mono with tabular numerals",
+        "A CSV export button downloads the current date range's underlying booking data",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 44,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-045",
+      "title": "Loading/empty/error states everywhere",
+      "description": "As a member or admin, I want consistent loading, empty, and error states across every list and the calendar so the app never feels broken or blank.",
+      "acceptanceCriteria": [
+        "Every list, table, and the calendar itself uses the Empty/Loading/Error components from US-010 instead of ad hoc handling",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 45,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-046",
+      "title": "Keyboard and screen-reader accessibility pass",
+      "description": "As a member using a keyboard or screen reader, I want every redesigned control to be operable and understandable.",
+      "acceptanceCriteria": [
+        "Visible focus ring (ring-2 ring-sky-300) on every interactive element across the redesigned app",
+        "The calendar grid is navigable by arrow keys between event blocks/cells",
+        "All body/action color pairs are spot-checked against the token table and meet WCAG AA contrast",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 46,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-047",
+      "title": "Reduced-motion pass",
+      "description": "As a member with motion sensitivity, I want animations disabled when I've set that system preference.",
+      "acceptanceCriteria": [
+        "All slide/transition animations (day-strip transition from US-029, sheet open/close from US-008) are disabled and replaced with fades when prefers-reduced-motion: reduce is set",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 47,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-048",
+      "title": "Legacy component cleanup",
+      "description": "As a developer, I want unused legacy shadcn components removed once every page has migrated to the new kit, so the codebase doesn't carry two parallel UI systems indefinitely.",
+      "acceptanceCriteria": [
+        "Any components/ui/ (shadcn) component fully superseded by its components/kit/ equivalent, with zero remaining imports, is removed",
+        "No dead imports remain anywhere in the codebase",
+        "npm run build succeeds",
+        "Typecheck passes"
+      ],
+      "priority": 48,
+      "passes": false,
+      "notes": ""
     }
   ]
 }
