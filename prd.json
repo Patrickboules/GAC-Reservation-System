@@ -44,8 +44,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 3,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Root body now uses bg-canvas/text-ink-700/font-sans and h1-h6 default to font-display/text-ink-900 (app/globals.css @layer base); Card primitive (components/ui/card.tsx) switched from bg-card/ring-foreground to bg-surface/ring-line/text-ink-700 so panels use the surface token. Added the spec's type scale (display-xl/display/h2/h3/body/small/caption, with 1.25/1.5 line-heights and -0.01em heading tracking) as Tailwind theme --text-* tokens in the @theme inline block, yielding reusable text-display-xl/text-display/text-h2/text-h3/text-body/text-small/text-caption utility classes. Verified: npx tsc --noEmit and npm run lint clean; npm run build succeeds; a temporary probe route confirmed all seven type-scale utilities and bg-canvas/text-ink-700/text-ink-900 compile to the exact expected CSS, then the probe was removed and build reverified clean; dev server response for /login shows the Card rendering bg-surface/ring-line, and the served CSS shows body{color:#38434f;background-color:#f6f9fe} plus h1-h6{font-family:var(--font-bricolage-grotesque);color:#1b2430}; / still redirects (307) to /login, confirming the auth gate is untouched."
     },
     {
       "id": "US-004",

@@ -83,6 +83,26 @@
   --shadow-sm: 0 1px 2px rgba(16, 32, 64, 0.06);
   --shadow-md: 0 4px 16px rgba(23, 54, 109, 0.08);
   --shadow-lg: 0 12px 32px rgba(23, 54, 109, 0.1);
+
+  /* Type scale — UI-Redesign-Spec.md section 1.2 (rem @ 16px base) */
+  --text-display-xl: 2rem;
+  --text-display-xl--line-height: 1.25;
+  --text-display-xl--letter-spacing: -0.01em;
+  --text-display: 1.5rem;
+  --text-display--line-height: 1.25;
+  --text-display--letter-spacing: -0.01em;
+  --text-h2: 1.25rem;
+  --text-h2--line-height: 1.25;
+  --text-h2--letter-spacing: -0.01em;
+  --text-h3: 1.0625rem;
+  --text-h3--line-height: 1.25;
+  --text-h3--letter-spacing: -0.01em;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.5;
+  --text-small: 0.8125rem;
+  --text-small--line-height: 1.5;
+  --text-caption: 0.75rem;
+  --text-caption--line-height: 1.5;
 }
 
 :root {
@@ -159,7 +179,15 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply bg-background text-foreground;
+    @apply bg-canvas text-ink-700 font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display text-ink-900;
   }
   html {
     @apply font-sans;
