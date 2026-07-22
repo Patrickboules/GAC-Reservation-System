@@ -5,6 +5,7 @@ import { useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
 import { Select } from "@/components/kit/select";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
 import { addDays } from "@/lib/dates";
+import type { ScheduleRoom } from "@/lib/rooms-filters";
 import { dayTransitionClassName, useDayTransitionDirection } from "@/lib/schedule/day-transition";
 import { layoutOverlappingEvents } from "@/lib/schedule/event-layout";
 import { formatHourLabel, HOUR_ROW_HEIGHT_PX, offsetForTime, scheduleHours } from "@/lib/schedule/hours";
@@ -14,10 +15,7 @@ import { cn } from "@/lib/utils";
 import { EventBlock } from "./event-block";
 import { NowLine } from "./now-line";
 
-export interface ScheduleRoom {
-  id: string;
-  name: string;
-}
+export type { ScheduleRoom };
 
 interface DayBooking {
   id: string;
@@ -48,6 +46,12 @@ export function MobileDayCalendar({ rooms, date, onDateChange }: MobileDayCalend
   const [bookings, setBookings] = useState<DayBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (roomId && !rooms.some((room) => room.id === roomId)) {
+      setRoomId(rooms[0]?.id ?? null);
+    }
+  }, [rooms, roomId]);
 
   useEffect(() => {
     if (!roomId) {

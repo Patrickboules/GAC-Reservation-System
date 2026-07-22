@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
+import { buildingGroupSpans, type ScheduleRoom } from "@/lib/rooms-filters";
 import { dayTransitionClassName, useDayTransitionDirection } from "@/lib/schedule/day-transition";
 import { layoutOverlappingEvents } from "@/lib/schedule/event-layout";
 import { formatHourLabel, HOUR_ROW_HEIGHT_PX, offsetForTime, scheduleHours } from "@/lib/schedule/hours";
@@ -12,10 +13,7 @@ import { cn } from "@/lib/utils";
 import { EventBlock } from "./event-block";
 import { NowLine } from "./now-line";
 
-export interface ScheduleRoom {
-  id: string;
-  name: string;
-}
+export type { ScheduleRoom };
 
 interface DayBooking {
   id: string;
@@ -29,18 +27,26 @@ interface DayBooking {
 const ROOM_COLUMN_WIDTH_PX = 132;
 const TIME_GUTTER_WIDTH_PX = 64;
 const OFF_HOURS_BAND_PX = 24;
+const GROUP_HEADER_HEIGHT_PX = 28;
 
 /**
  * Desktop multi-room resource-day calendar (US-028 baseline): rooms as
  * horizontally scrollable columns under a sticky room-header row, with a
  * sticky time gutter down the left. Shares the mobile view's hour range,
  * row height, and off-hours styling (lib/schedule/hours.ts).
+ *
+ * `rooms` is expected pre-ordered by the caller (e.g. via groupRoomsByBuilding,
+ * US-032) so same-building rooms are contiguous and can share one sticky
+ * group header spanning their columns.
  */
 export function DesktopResourceGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: string }) {
   const supabase = useMemo(() => createClient(), []);
   const [bookings, setBookings] = useState<DayBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const buildingGroups = useMemo(() => buildingGroupSpans(rooms), [rooms]);
+  const hasBuildingGroups = rooms.some((room) => room.building);
+  const headerTopOffset = hasBuildingGroups ? GROUP_HEADER_HEIGHT_PX : 0;
 
   useEffect(() => {
     if (rooms.length === 0) {
@@ -136,12 +142,35 @@ export function DesktopResourceGrid({ rooms, date }: { rooms: ScheduleRoom[]; da
             gridTemplateColumns: `${TIME_GUTTER_WIDTH_PX}px repeat(${rooms.length}, minmax(${ROOM_COLUMN_WIDTH_PX}px, 1fr))`,
           }}
         >
-          <div className="sticky top-0 left-0 z-20 border-r border-b border-line bg-surface" />
+          {hasBuildingGroups && (
+            <>
+              <div
+                style={{ height: GROUP_HEADER_HEIGHT_PX }}
+                className="sticky top-0 left-0 z-30 border-r border-b border-line bg-surface"
+              />
+              {buildingGroups.map((group, index) => (
+                <div
+                  key={index}
+                  title={group.building ?? "Other"}
+                  style={{ gridColumn: `span ${group.count}`, height: GROUP_HEADER_HEIGHT_PX }}
+                  className="sticky top-0 z-20 truncate border-b border-line bg-sand-50 px-3 py-1 text-caption font-medium text-ink-500"
+                >
+                  {group.building ?? "Other"}
+                </div>
+              ))}
+            </>
+          )}
+
+          <div
+            style={{ top: headerTopOffset }}
+            className="sticky left-0 z-20 border-r border-b border-line bg-surface"
+          />
           {rooms.map((room) => (
             <div
               key={room.id}
               title={room.name}
-              className="sticky top-0 z-10 truncate border-b border-line bg-surface px-3 py-2 font-display text-small text-ink-900"
+              style={{ top: headerTopOffset }}
+              className="sticky z-10 truncate border-b border-line bg-surface px-3 py-2 font-display text-small text-ink-900"
             >
               {room.name}
             </div>

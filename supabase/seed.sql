@@ -2,12 +2,12 @@
 -- Applied automatically by `supabase db reset` after migrations run, or via
 -- `psql -f supabase/seed.sql` against a local Supabase instance.
 
-insert into public.rooms (name, capacity, amenities, location, rules)
+insert into public.rooms (name, capacity, amenities, location, building, floor, room_type, rules)
 values
-  ('Antonious Hall', 150, array['projector', 'stage', 'sound system'], 'Main Building, Ground Floor', 'Requires setup/cleanup crew; no food without prior approval.'),
-  ('Gawargious Room', 40, array['whiteboard', 'tv screen'], 'Main Building, 1st Floor', 'Suitable for meetings and small classes.'),
-  ('Youth Room', 25, array['tables', 'chairs'], 'Annex Building', 'Furniture may be rearranged; return to original layout after use.'),
-  ('Choir Room', 20, array['piano', 'music stands'], 'Main Building, 2nd Floor', 'No food or drink permitted.')
+  ('Antonious Hall', 150, array['projector', 'stage', 'sound system'], 'Main Building, Ground Floor', 'Main Building', 'Ground Floor', 'Hall', 'Requires setup/cleanup crew; no food without prior approval.'),
+  ('Gawargious Room', 40, array['whiteboard', 'tv screen'], 'Main Building, 1st Floor', 'Main Building', '1st Floor', 'Meeting Room', 'Suitable for meetings and small classes.'),
+  ('Youth Room', 25, array['tables', 'chairs'], 'Annex Building', 'Annex Building', null, 'Classroom', 'Furniture may be rearranged; return to original layout after use.'),
+  ('Choir Room', 20, array['piano', 'music stands'], 'Main Building, 2nd Floor', 'Main Building', '2nd Floor', 'Practice Room', 'No food or drink permitted.')
 on conflict do nothing;
 
 -- Seed one admin user for local testing. Inserting directly into auth.users
