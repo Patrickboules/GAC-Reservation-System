@@ -520,8 +520,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 35,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added a toolbar above the desktop grid (components/schedule/desktop-resource-grid.tsx) with two controls: a RoomQuickJump (Base UI Combobox, filters rooms by typed text, calls a new scrollToRoom() that scrollTo's the grid's scrollRef container to the target room column's offsetLeft via per-room refs collected in a roomColumnRefs Map) and a 'Hide free rooms' kit Button toggle (aria-pressed) that filters the rendered columns down to visibleRooms = rooms with at least one bookings_schedule row for the selected day (busyRoomIds derived from the already-fetched `bookings` state); all render call sites (building groups, header row, off-hours bands, hour grid, event columns) now iterate visibleRooms instead of the raw rooms prop, and the scroll-edge-fade effect now depends on visibleRooms.length. When hideFreeRooms hides every room, an inline 'No rooms have bookings on this day.' note shows next to the toggle. Verified: npx tsc --noEmit, npm run lint, npm run build all clean (13 routes unchanged). No dev-browser skill in this environment, so drove the real flow with Playwright against the local Supabase dev server using a temporary confirmed test user, 10 extra temp rooms (to force horizontal overflow), and one seeded today-booking on Choir Room (all cleaned up after) at 1280px — confirmed the quick-jump input and hide-toggle render, toggling 'Hide free rooms' narrows 14 room columns down to exactly the 1 busy room (Choir Room) and aria-pressed flips to 'true', un-toggling restores all 14, searching 'ZZ Temp Room 10' in the quick jump filters to that single option and clicking it smoothly scrolls the grid's scrollLeft from 0 to 661 of a 1274px-scrollable container, and no new console errors beyond the pre-existing, already-flagged Base UI 'nativeButton' warning."
     },
     {
       "id": "US-036",

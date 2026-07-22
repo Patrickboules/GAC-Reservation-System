@@ -1,8 +1,10 @@
 "use client";
 
-import { Pin, PinOff } from "lucide-react";
+import { Combobox } from "@base-ui/react/combobox";
+import { Pin, PinOff, Search, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { Button } from "@/components/kit/button";
 import { IconButton } from "@/components/kit/icon-button";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
 import { buildingGroupSpans, type ScheduleRoom } from "@/lib/rooms-filters";
@@ -16,6 +18,55 @@ import { EventBlock } from "./event-block";
 import { NowLine } from "./now-line";
 
 export type { ScheduleRoom };
+
+interface RoomComboItem {
+  value: string;
+  label: string;
+}
+
+/** Searchable room jump for the desktop grid (US-035): scrolls the grid to the selected room's column. */
+function RoomQuickJump({ rooms, onJump }: { rooms: ScheduleRoom[]; onJump: (roomId: string) => void }) {
+  const items = useMemo<RoomComboItem[]>(() => rooms.map((room) => ({ value: room.id, label: room.name })), [rooms]);
+
+  return (
+    <Combobox.Root<RoomComboItem>
+      items={items}
+      onValueChange={(next) => {
+        if (next) onJump(next.value);
+      }}
+    >
+      <Combobox.InputGroup className="flex h-9 w-full items-center gap-1.5 rounded-md border border-line bg-white px-2.5 text-sm text-ink-900 focus-within:border-sky-600 focus-within:ring-2 focus-within:ring-sky-300 sm:w-56">
+        <Search aria-hidden="true" className="size-4 shrink-0 text-ink-500" />
+        <Combobox.Input
+          placeholder="Jump to room…"
+          aria-label="Jump to room"
+          className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-ink-500"
+        />
+        <Combobox.Clear aria-label="Clear" className="shrink-0 text-ink-500 outline-none hover:text-ink-700">
+          <X aria-hidden="true" className="size-4" />
+        </Combobox.Clear>
+      </Combobox.InputGroup>
+      <Combobox.Portal>
+        <Combobox.Positioner sideOffset={4} className="z-50 outline-none">
+          <Combobox.Popup className="max-h-64 w-56 overflow-y-auto rounded-md border border-line bg-white p-1 shadow-md outline-none">
+            <Combobox.Empty className="px-2.5 py-2 text-small text-ink-500">No rooms found.</Combobox.Empty>
+            <Combobox.List>
+              {(item: RoomComboItem) => (
+                <Combobox.Item
+                  key={item.value}
+                  value={item}
+                  className="cursor-pointer rounded-sm px-2.5 py-2 text-sm text-ink-900 outline-none select-none data-[highlighted]:bg-sky-50"
+                >
+                  {item.label}
+                </Combobox.Item>
+              )}
+            </Combobox.List>
+          </Combobox.Popup>
+        </Combobox.Positioner>
+      </Combobox.Portal>
+    </Combobox.Root>
+  );
+}
 
 interface DayBooking {
   id: string;
@@ -56,8 +107,16 @@ export function DesktopResourceGrid({
   const [bookings, setBookings] = useState<DayBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const buildingGroups = useMemo(() => buildingGroupSpans(rooms), [rooms]);
-  const hasBuildingGroups = rooms.some((room) => room.building);
+  const [hideFreeRooms, setHideFreeRooms] = useState(false);
+
+  const busyRoomIds = useMemo(() => new Set(bookings.map((booking) => booking.room_id)), [bookings]);
+  const visibleRooms = useMemo(
+    () => (hideFreeRooms ? rooms.filter((room) => busyRoomIds.has(room.id)) : rooms),
+    [rooms, hideFreeRooms, busyRoomIds]
+  );
+
+  const buildingGroups = useMemo(() => buildingGroupSpans(visibleRooms), [visibleRooms]);
+  const hasBuildingGroups = visibleRooms.some((room) => room.building);
   const headerTopOffset = hasBuildingGroups ? GROUP_HEADER_HEIGHT_PX : 0;
 
   useEffect(() => {
@@ -114,8 +173,16 @@ export function DesktopResourceGrid({
   const transitionDirection = useDayTransitionDirection(date);
 
   const scrollRef = useRef<HTMLDivElement>(null);
+  const roomColumnRefs = useRef(new Map<string, HTMLDivElement>());
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
+
+  function scrollToRoom(roomId: string) {
+    const container = scrollRef.current;
+    const column = roomColumnRefs.current.get(roomId);
+    if (!container || !column) return;
+    container.scrollTo({ left: column.offsetLeft - TIME_GUTTER_WIDTH_PX, behavior: "smooth" });
+  }
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -134,7 +201,7 @@ export function DesktopResourceGrid({
       el.removeEventListener("scroll", updateEdges);
       window.removeEventListener("resize", updateEdges);
     };
-  }, [rooms.length]);
+  }, [visibleRooms.length]);
 
   if (rooms.length === 0) {
     return (
@@ -146,12 +213,28 @@ export function DesktopResourceGrid({
 
   return (
     <div className="relative hidden w-full min-w-0 lg:block">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
+        <RoomQuickJump rooms={visibleRooms} onJump={scrollToRoom} />
+        <Button
+          type="button"
+          variant={hideFreeRooms ? "primary" : "secondary"}
+          size="sm"
+          aria-pressed={hideFreeRooms}
+          onClick={() => setHideFreeRooms((current) => !current)}
+        >
+          Hide free rooms
+        </Button>
+        {hideFreeRooms && visibleRooms.length === 0 && (
+          <p className="text-small text-ink-500">No rooms have bookings on this day.</p>
+        )}
+      </div>
+
       <div ref={scrollRef} className="w-full min-w-0 overflow-auto rounded-lg border border-line bg-surface">
         <div
           key={date}
           className={cn("grid", dayTransitionClassName(transitionDirection))}
           style={{
-            gridTemplateColumns: `${TIME_GUTTER_WIDTH_PX}px repeat(${rooms.length}, minmax(${ROOM_COLUMN_WIDTH_PX}px, 1fr))`,
+            gridTemplateColumns: `${TIME_GUTTER_WIDTH_PX}px repeat(${visibleRooms.length}, minmax(${ROOM_COLUMN_WIDTH_PX}px, 1fr))`,
           }}
         >
           {hasBuildingGroups && (
@@ -177,11 +260,15 @@ export function DesktopResourceGrid({
             style={{ top: headerTopOffset }}
             className="sticky left-0 z-20 border-r border-b border-line bg-surface"
           />
-          {rooms.map((room) => {
+          {visibleRooms.map((room) => {
             const isFavorite = favoriteRoomIds.has(room.id);
             return (
               <div
                 key={room.id}
+                ref={(el) => {
+                  if (el) roomColumnRefs.current.set(room.id, el);
+                  else roomColumnRefs.current.delete(room.id);
+                }}
                 title={room.name}
                 style={{ top: headerTopOffset }}
                 className="sticky z-10 flex items-center justify-between gap-1 truncate border-b border-line bg-surface px-2 py-1 font-display text-small text-ink-900"
@@ -202,7 +289,7 @@ export function DesktopResourceGrid({
           })}
 
           <div aria-hidden="true" className="sticky left-0 z-10 bg-sand-100" style={{ height: OFF_HOURS_BAND_PX }} />
-          {rooms.map((room) => (
+          {visibleRooms.map((room) => (
             <div key={`${room.id}-off-top`} aria-hidden="true" className="bg-sand-100" style={{ height: OFF_HOURS_BAND_PX }} />
           ))}
 
@@ -222,7 +309,7 @@ export function DesktopResourceGrid({
             <NowLine date={date} />
           </div>
 
-          {rooms.map((room) => {
+          {visibleRooms.map((room) => {
             const roomBookings = laidOutBookingsByRoom.get(room.id) ?? [];
             return (
               <div key={room.id} className="relative border-r border-line/60 last:border-r-0" style={{ height: gridHeight }}>
@@ -260,7 +347,7 @@ export function DesktopResourceGrid({
           })}
 
           <div aria-hidden="true" className="sticky left-0 z-10 bg-sand-100" style={{ height: OFF_HOURS_BAND_PX }} />
-          {rooms.map((room) => (
+          {visibleRooms.map((room) => (
             <div key={`${room.id}-off-bottom`} aria-hidden="true" className="bg-sand-100" style={{ height: OFF_HOURS_BAND_PX }} />
           ))}
         </div>
