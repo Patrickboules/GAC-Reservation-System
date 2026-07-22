@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { MobileDayCalendar } from "@/components/schedule/mobile-day-calendar";
 import { ScheduleView } from "@/components/schedule/schedule-view";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
@@ -24,7 +25,10 @@ export default async function SchedulePage() {
           <Button variant="outline" render={<Link href="/">Home</Link>} />
         </div>
       </div>
-      <ScheduleView rooms={rooms ?? []} />
+      <MobileDayCalendar rooms={rooms ?? []} />
+      <div className="hidden lg:block">
+        <ScheduleView rooms={rooms ?? []} />
+      </div>
     </div>
   );
 }

@@ -402,8 +402,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 27,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added components/schedule/mobile-day-calendar.tsx (MobileDayCalendar, shown lg:hidden) and lib/schedule/hours.ts (SCHEDULE_START_HOUR=8/SCHEDULE_END_HOUR=23 app-level constants). Room selector uses the US-006 kit Select; hour axis renders font-mono labels down the left side at a fixed 56px row height; bookings for the selected room+day are fetched from the bookings_schedule view and rendered as full-width absolutely-positioned blocks (top/height from start/end time) with a StatusBadge; sand-100 bands render above/below the hour grid for off-hours; swiping left/right (touchstart/touchend delta) or tapping the prev/next IconButtons changes the day, and changing the room via the selector re-fetches the same view. Wired into app/(app)/schedule/page.tsx alongside the existing desktop ScheduleView (now wrapped in `hidden lg:block`, unchanged otherwise). Verified: npx tsc --noEmit, npm run lint, npm run build all clean (13 routes unchanged). No dev-browser skill in this environment, so drove the real flow with Playwright against the dev server (linked remote Supabase) using a temporary confirmed test user and a seeded today-only booking (both cleaned up after) at a 375px/hasTouch viewport — confirmed the room selector defaults to the first room and is visible, 8 AM/11 PM hour labels render, zero horizontal scroll (scrollWidth<=clientWidth), two sand-100 off-hours bands render, the seeded booking block is visible, a dispatched touch swipe changes the visible date label and (scoped to the mobile-only `lg:hidden` container, to exclude the still-present-but-CSS-hidden desktop ScheduleView which independently shows a 7-day window starting today) removes the booking / shows 'No bookings for this day.', and tapping 'Previous day' brings the booking back."
     },
     {
       "id": "US-028",
