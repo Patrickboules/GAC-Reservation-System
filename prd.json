@@ -620,8 +620,8 @@
         "Typecheck passes"
       ],
       "priority": 42,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added supabase/migrations/20260722200000_add_room_code_category_color.sql: nullable unique code text and nullable category_color text (check-constrained to the 8 calendar palette keys) on rooms, with an UPDATE backfilling any pre-existing rows. Verified with npx supabase db reset (applies cleanly, constraint/backfill confirmed via psql) and npx tsc --noEmit (clean)."
     },
     {
       "id": "US-043",
