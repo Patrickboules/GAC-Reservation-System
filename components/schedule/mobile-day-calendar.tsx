@@ -11,6 +11,8 @@ import { formatHourLabel, HOUR_ROW_HEIGHT_PX, offsetForTime, scheduleHours } fro
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
+import { NowLine } from "./now-line";
+
 export interface ScheduleRoom {
   id: string;
   name: string;
@@ -161,6 +163,8 @@ export function MobileDayCalendar({ rooms, date, onDateChange }: MobileDayCalend
                   className="absolute inset-x-0 border-b border-line/60"
                 />
               ))}
+
+              <NowLine date={date} />
 
               {loading ? (
                 <p className="p-3 text-small text-ink-500">Loading…</p>

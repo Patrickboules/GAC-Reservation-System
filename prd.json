@@ -446,8 +446,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 30,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added lib/schedule/now-line.ts's useNowOffsetPx(date) hook (client-only, computes offsetForTime from lib/schedule/hours.ts against the current time, returns null when `date` isn't today, refreshes every 60s via setInterval so the line moves without a page reload) and components/schedule/now-line.tsx's <NowLine date showDot /> (sky-300 border-t-2 line, optional leading dot). Wired into the US-027 mobile calendar's single grid area and the US-028 desktop grid's time gutter (with dot) and each room column (without dot, to avoid duplicate dots while still spanning every column). Verified: npx tsc --noEmit, npm run lint, npm run build all clean (13 routes unchanged). No dev-browser skill in this environment, so started the local Supabase stack (had a stale leftover container from a prior crashed run blocking the name; removed it and retried) and drove the real flow with Playwright using a temporary confirmed test user and a seeded today approved booking (both cleaned up after) at 1280px and 375px — confirmed the now-line renders only when viewing today (present at both viewport sizes, disappears after navigating to a prior day via the day strip), its computed `top` offset (401.33px) matches the exact math for the current time-of-day against lib/schedule/hours.ts's offsetForTime, and screenshots show the sky-300 line with a leading dot positioned correctly on both the desktop grid and mobile calendar. No new console errors beyond the pre-existing, already-flagged Base UI 'nativeButton' warning."
     },
     {
       "id": "US-031",

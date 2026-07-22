@@ -10,6 +10,8 @@ import { formatHourLabel, HOUR_ROW_HEIGHT_PX, offsetForTime, scheduleHours } fro
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
+import { NowLine } from "./now-line";
+
 export interface ScheduleRoom {
   id: string;
   name: string;
@@ -146,7 +148,7 @@ export function DesktopResourceGrid({ rooms, date }: { rooms: ScheduleRoom[]; da
             <div key={`${room.id}-off-top`} aria-hidden="true" className="bg-sand-100" style={{ height: OFF_HOURS_BAND_PX }} />
           ))}
 
-          <div className="sticky left-0 z-10 bg-surface">
+          <div className="sticky left-0 z-10 bg-surface relative">
             {hours.map((hour, index) => (
               <div
                 key={hour}
@@ -159,6 +161,7 @@ export function DesktopResourceGrid({ rooms, date }: { rooms: ScheduleRoom[]; da
                 {formatHourLabel(hour)}
               </div>
             ))}
+            <NowLine date={date} />
           </div>
 
           {rooms.map((room) => {
@@ -172,6 +175,8 @@ export function DesktopResourceGrid({ rooms, date }: { rooms: ScheduleRoom[]; da
                     className="absolute inset-x-0 border-b border-line/60"
                   />
                 ))}
+
+                <NowLine date={date} showDot={false} />
 
                 {roomBookings.map((booking) => {
                   const top = offsetForTime(booking.start_time);
