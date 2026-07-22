@@ -8,6 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { EmptyState } from "@/components/kit/empty-state";
+import { ErrorState } from "@/components/kit/error-state";
+import { LoadingState } from "@/components/kit/loading-state";
 import { findConflictingBookings } from "@/lib/bookings/conflict-check";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
 import { formatRoomField } from "@/lib/rooms";
@@ -161,17 +164,16 @@ export function AvailabilitySearch({ rooms }: { rooms: AvailabilityRoom[] }) {
         </Button>
       </form>
 
-      {error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
+      {error ? <ErrorState description={error} /> : null}
 
-      {searched && !loading && !error ? (
+      {searched && loading ? (
+        <LoadingState variant="cards" count={3} />
+      ) : searched && !loading && !error ? (
         results.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No rooms available for this time slot.
-          </p>
+          <EmptyState
+            title="No rooms available"
+            description="No rooms available for this time slot."
+          />
         ) : (
           <ul className="flex flex-col gap-3">
             {results.map(({ room, pending }) => (

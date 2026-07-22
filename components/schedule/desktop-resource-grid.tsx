@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 
 import { Button } from "@/components/kit/button";
+import { EmptyState } from "@/components/kit/empty-state";
+import { ErrorState } from "@/components/kit/error-state";
 import { IconButton } from "@/components/kit/icon-button";
+import { LoadingState } from "@/components/kit/loading-state";
 import { findConflictingBookings, type BookingStatus } from "@/lib/bookings/conflict-check";
 import { formatTimeLabel, minutesToTime, normalizeTimeString, timeToMinutes } from "@/lib/dates";
 import { buildingGroupSpans, type ScheduleRoom } from "@/lib/rooms-filters";
@@ -337,7 +340,10 @@ export function DesktopResourceGrid({
   if (rooms.length === 0) {
     return (
       <div className="hidden w-full min-w-0 lg:block">
-        <p className="text-small text-ink-500">No rooms available.</p>
+        <EmptyState
+          title="No rooms available"
+          description="Rooms will appear here once they're added."
+        />
       </div>
     );
   }
@@ -355,11 +361,14 @@ export function DesktopResourceGrid({
         >
           Hide free rooms
         </Button>
-        {hideFreeRooms && visibleRooms.length === 0 && (
-          <p className="text-small text-ink-500">No rooms have bookings on this day.</p>
-        )}
       </div>
 
+      {hideFreeRooms && visibleRooms.length === 0 ? (
+        <EmptyState
+          title="No rooms have bookings"
+          description="Turn off “Hide free rooms” to see the full grid."
+        />
+      ) : (
       <div ref={scrollRef} className="w-full min-w-0 overflow-auto rounded-lg border border-line bg-surface">
         <div
           key={date}
@@ -509,6 +518,7 @@ export function DesktopResourceGrid({
           ))}
         </div>
       </div>
+      )}
 
       {canScrollLeft ? (
         <div
@@ -524,11 +534,12 @@ export function DesktopResourceGrid({
       ) : null}
 
       {error ? (
-        <p role="alert" className="mt-2 text-small text-status-rejected-fg">
-          {error}
-        </p>
+        <ErrorState className="mt-2" description={error} />
+      ) : loading ? (
+        <div className="mt-2">
+          <LoadingState variant="rows" count={3} />
+        </div>
       ) : null}
-      {loading ? <p className="mt-2 text-small text-ink-500">Loading…</p> : null}
     </div>
   );
 }

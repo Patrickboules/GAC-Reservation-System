@@ -5,8 +5,10 @@ import { useMemo, useState } from "react";
 
 import { DatePicker } from "@/components/kit/date-picker";
 import { EmptyState } from "@/components/kit/empty-state";
+import { ErrorState } from "@/components/kit/error-state";
 import { FilterChip } from "@/components/kit/filter-chip";
 import { Input } from "@/components/kit/input";
+import { LoadingState } from "@/components/kit/loading-state";
 import { RoomCard, type RoomCardAvailability } from "@/components/kit/room-card";
 import { TimeRangePicker } from "@/components/kit/time-range-picker";
 import { findConflictingBookings, type BookingStatus } from "@/lib/bookings/conflict-check";
@@ -173,11 +175,7 @@ export function GlobalAvailabilitySearch({
         </div>
       )}
 
-      {error ? (
-        <p role="alert" className="text-small text-status-rejected-fg">
-          {error}
-        </p>
-      ) : null}
+      {error ? <ErrorState description={error} /> : null}
 
       <button
         type="button"
@@ -189,7 +187,9 @@ export function GlobalAvailabilitySearch({
         {loading ? "Searching…" : "Search"}
       </button>
 
-      {searched && !loading && !error ? (
+      {searched && loading ? (
+        <LoadingState variant="cards" count={4} />
+      ) : searched && !loading && !error ? (
         results.length === 0 ? (
           <EmptyState
             title="No rooms available"

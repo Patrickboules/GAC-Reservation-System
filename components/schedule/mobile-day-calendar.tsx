@@ -4,7 +4,10 @@ import { Pin, PinOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { EmptyState } from "@/components/kit/empty-state";
+import { ErrorState } from "@/components/kit/error-state";
 import { IconButton } from "@/components/kit/icon-button";
+import { LoadingState } from "@/components/kit/loading-state";
 import { Select } from "@/components/kit/select";
 import { findConflictingBookings, type BookingStatus } from "@/lib/bookings/conflict-check";
 import { BOOKING_TIME_STEP_MINUTES } from "@/lib/bookings/time-granularity";
@@ -286,14 +289,11 @@ export function MobileDayCalendar({
         </IconButton>
       </div>
 
-      {error ? (
-        <p role="alert" className="text-small text-status-rejected-fg">
-          {error}
-        </p>
-      ) : null}
-
       {!roomId ? (
-        <p className="text-small text-ink-500">No rooms available.</p>
+        <EmptyState
+          title="No rooms available"
+          description="Rooms will appear here once they're added."
+        />
       ) : (
         <div
           key={date}
@@ -352,10 +352,18 @@ export function MobileDayCalendar({
                 <DragCreateOverlay top={dragConflict.top} height={dragConflict.height} label="Overlaps an existing booking" conflict />
               ) : null}
 
-              {loading ? (
-                <p className="p-3 text-small text-ink-500">Loading…</p>
+              {error ? (
+                <div className="p-3">
+                  <ErrorState description={error} />
+                </div>
+              ) : loading ? (
+                <div className="p-3">
+                  <LoadingState variant="list" count={3} />
+                </div>
               ) : bookings.length === 0 ? (
-                <p className="p-3 text-small text-ink-500">No bookings for this day.</p>
+                <div className="p-3">
+                  <EmptyState title="No bookings" description="No bookings for this day." />
+                </div>
               ) : (
                 laidOutBookings.map(({ event: booking, columnIndex, columnCount }) => {
                   const top = offsetForTime(booking.start_time);
