@@ -1,13 +1,12 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import { IconButton } from "@/components/kit/icon-button";
 import { Select } from "@/components/kit/select";
 import { StatusBadge } from "@/components/kit/status-badge";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
-import { addDays, formatDateLabel, formatTimeLabel, todayDateString } from "@/lib/dates";
+import { addDays, formatTimeLabel } from "@/lib/dates";
+import { dayTransitionClassName, useDayTransitionDirection } from "@/lib/schedule/day-transition";
 import { formatHourLabel, HOUR_ROW_HEIGHT_PX, offsetForTime, scheduleHours } from "@/lib/schedule/hours";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -29,15 +28,20 @@ interface DayBooking {
 /** Minimum horizontal drag (px) before a touch gesture counts as a day-changing swipe. */
 const SWIPE_THRESHOLD_PX = 50;
 
+interface MobileDayCalendarProps {
+  rooms: ScheduleRoom[];
+  date: string;
+  onDateChange: (date: string) => void;
+}
+
 /**
  * Mobile single-room resource-day calendar (US-027 baseline): a room selector,
  * an hour axis down the side, and that room's bookings as full-width blocks
- * for the selected day. Swipe or the arrow buttons change the day.
+ * for the selected day. Swipe or the day strip (US-029) change the day.
  */
-export function MobileDayCalendar({ rooms }: { rooms: ScheduleRoom[] }) {
+export function MobileDayCalendar({ rooms, date, onDateChange }: MobileDayCalendarProps) {
   const supabase = useMemo(() => createClient(), []);
   const [roomId, setRoomId] = useState<string | null>(rooms[0]?.id ?? null);
-  const [date, setDate] = useState(() => todayDateString());
   const [bookings, setBookings] = useState<DayBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -92,11 +96,13 @@ export function MobileDayCalendar({ rooms }: { rooms: ScheduleRoom[] }) {
     const endX = event.changedTouches[0]?.clientX ?? startX;
     const deltaX = endX - startX;
     if (deltaX > SWIPE_THRESHOLD_PX) {
-      setDate((current) => addDays(current, -1));
+      onDateChange(addDays(date, -1));
     } else if (deltaX < -SWIPE_THRESHOLD_PX) {
-      setDate((current) => addDays(current, 1));
+      onDateChange(addDays(date, 1));
     }
   }
+
+  const transitionDirection = useDayTransitionDirection(date);
 
   const roomOptions = useMemo(() => rooms.map((room) => ({ value: room.id, label: room.name })), [rooms]);
 
@@ -111,16 +117,6 @@ export function MobileDayCalendar({ rooms }: { rooms: ScheduleRoom[] }) {
         disabled={rooms.length === 0}
       />
 
-      <div className="flex items-center justify-between gap-2">
-        <IconButton label="Previous day" onClick={() => setDate((current) => addDays(current, -1))}>
-          <ChevronLeft aria-hidden="true" />
-        </IconButton>
-        <p className="font-display text-h3 text-ink-900">{formatDateLabel(date)}</p>
-        <IconButton label="Next day" onClick={() => setDate((current) => addDays(current, 1))}>
-          <ChevronRight aria-hidden="true" />
-        </IconButton>
-      </div>
-
       {error ? (
         <p role="alert" className="text-small text-status-rejected-fg">
           {error}
@@ -131,7 +127,11 @@ export function MobileDayCalendar({ rooms }: { rooms: ScheduleRoom[] }) {
         <p className="text-small text-ink-500">No rooms available.</p>
       ) : (
         <div
-          className="w-full min-w-0 touch-pan-y rounded-lg border border-line bg-surface"
+          key={date}
+          className={cn(
+            "w-full min-w-0 touch-pan-y rounded-lg border border-line bg-surface",
+            dayTransitionClassName(transitionDirection)
+          )}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >

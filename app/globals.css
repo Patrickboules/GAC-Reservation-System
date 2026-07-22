@@ -207,3 +207,56 @@
     font-variant-numeric: tabular-nums;
   }
 }
+
+/* Schedule day-change transition (US-029): 300ms slide, reduced to a fade
+   under prefers-reduced-motion. The reduced-motion media query re-declares
+   the same keyframes name so it wins the cascade without a duplicate class. */
+@keyframes schedule-day-slide-right {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes schedule-day-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes schedule-day-slide-right {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes schedule-day-slide-left {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+}
+
+.animate-schedule-slide-right {
+  animation: schedule-day-slide-right 300ms ease-out;
+}
+
+.animate-schedule-slide-left {
+  animation: schedule-day-slide-left 300ms ease-out;
+}

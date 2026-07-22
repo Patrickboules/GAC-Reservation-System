@@ -4,7 +4,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { StatusBadge } from "@/components/kit/status-badge";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
-import { formatTimeLabel, todayDateString } from "@/lib/dates";
+import { formatTimeLabel } from "@/lib/dates";
+import { dayTransitionClassName, useDayTransitionDirection } from "@/lib/schedule/day-transition";
 import { formatHourLabel, HOUR_ROW_HEIGHT_PX, offsetForTime, scheduleHours } from "@/lib/schedule/hours";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
@@ -33,9 +34,8 @@ const OFF_HOURS_BAND_PX = 24;
  * sticky time gutter down the left. Shares the mobile view's hour range,
  * row height, and off-hours styling (lib/schedule/hours.ts).
  */
-export function DesktopResourceGrid({ rooms }: { rooms: ScheduleRoom[] }) {
+export function DesktopResourceGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: string }) {
   const supabase = useMemo(() => createClient(), []);
-  const [date] = useState(() => todayDateString());
   const [bookings, setBookings] = useState<DayBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,6 +87,7 @@ export function DesktopResourceGrid({ rooms }: { rooms: ScheduleRoom[] }) {
 
   const hours = useMemo(() => scheduleHours(), []);
   const gridHeight = (hours.length - 1) * HOUR_ROW_HEIGHT_PX;
+  const transitionDirection = useDayTransitionDirection(date);
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -123,7 +124,8 @@ export function DesktopResourceGrid({ rooms }: { rooms: ScheduleRoom[] }) {
     <div className="relative hidden w-full min-w-0 lg:block">
       <div ref={scrollRef} className="w-full min-w-0 overflow-auto rounded-lg border border-line bg-surface">
         <div
-          className="grid"
+          key={date}
+          className={cn("grid", dayTransitionClassName(transitionDirection))}
           style={{
             gridTemplateColumns: `${TIME_GUTTER_WIDTH_PX}px repeat(${rooms.length}, minmax(${ROOM_COLUMN_WIDTH_PX}px, 1fr))`,
           }}
