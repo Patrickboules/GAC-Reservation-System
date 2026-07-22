@@ -2,20 +2,44 @@
 
 import { Combobox } from "@base-ui/react/combobox";
 import { Pin, PinOff, Search, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 
 import { Button } from "@/components/kit/button";
 import { IconButton } from "@/components/kit/icon-button";
-import type { BookingStatus } from "@/lib/bookings/conflict-check";
+import { findConflictingBookings, type BookingStatus } from "@/lib/bookings/conflict-check";
+import { formatTimeLabel, minutesToTime, normalizeTimeString, timeToMinutes } from "@/lib/dates";
 import { buildingGroupSpans, type ScheduleRoom } from "@/lib/rooms-filters";
 import { dayTransitionClassName, useDayTransitionDirection } from "@/lib/schedule/day-transition";
 import { layoutOverlappingEvents } from "@/lib/schedule/event-layout";
-import { formatHourLabel, HOUR_ROW_HEIGHT_PX, offsetForTime, scheduleHours } from "@/lib/schedule/hours";
+import {
+  formatHourLabel,
+  HOUR_ROW_HEIGHT_PX,
+  offsetForTime,
+  scheduleHours,
+  timeForOffset,
+} from "@/lib/schedule/hours";
+import { BOOKING_TIME_STEP_MINUTES } from "@/lib/bookings/time-granularity";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
+import { DragCreateOverlay } from "./drag-create-overlay";
 import { EventBlock } from "./event-block";
 import { NowLine } from "./now-line";
+
+/** How long a post-drop conflict warning stays visible before fading (US-036). */
+const DRAG_CONFLICT_DISPLAY_MS = 3000;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+interface ActiveDrag {
+  roomId: string;
+  columnTop: number;
+  anchorPx: number;
+  currentPx: number;
+}
 
 export type { ScheduleRoom };
 
@@ -151,7 +175,7 @@ export function DesktopResourceGrid({
     };
   }, [supabase, rooms.length, date]);
 
-  const laidOutBookingsByRoom = useMemo(() => {
+  const bookingsByRoom = useMemo(() => {
     const grouped = new Map<string, DayBooking[]>();
     for (const booking of bookings) {
       const existing = grouped.get(booking.room_id);
@@ -161,12 +185,16 @@ export function DesktopResourceGrid({
         grouped.set(booking.room_id, [booking]);
       }
     }
+    return grouped;
+  }, [bookings]);
+
+  const laidOutBookingsByRoom = useMemo(() => {
     const laidOut = new Map<string, ReturnType<typeof layoutOverlappingEvents<DayBooking>>>();
-    for (const [roomId, roomBookings] of grouped) {
+    for (const [roomId, roomBookings] of bookingsByRoom) {
       laidOut.set(roomId, layoutOverlappingEvents(roomBookings));
     }
     return laidOut;
-  }, [bookings]);
+  }, [bookingsByRoom]);
 
   const hours = useMemo(() => scheduleHours(), []);
   const gridHeight = (hours.length - 1) * HOUR_ROW_HEIGHT_PX;
@@ -202,6 +230,96 @@ export function DesktopResourceGrid({
       window.removeEventListener("resize", updateEdges);
     };
   }, [visibleRooms.length]);
+
+  const router = useRouter();
+
+  const dragRef = useRef<ActiveDrag | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [renderDrag, setRenderDrag] = useState<ActiveDrag | null>(null);
+  const [dragConflict, setDragConflict] = useState<{ roomId: string; top: number; height: number } | null>(null);
+  const dragConflictTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function dragRangeFor(anchorPx: number, currentPx: number) {
+    const top = Math.min(anchorPx, currentPx);
+    const bottom = Math.max(anchorPx, currentPx);
+    const startTime = timeForOffset(top);
+    let endTime = timeForOffset(bottom);
+    if (endTime === startTime) {
+      endTime = minutesToTime(timeToMinutes(startTime) + BOOKING_TIME_STEP_MINUTES);
+    }
+    return { startTime, endTime };
+  }
+
+  function handleRoomMouseDown(event: ReactMouseEvent<HTMLDivElement>, roomId: string) {
+    if (event.button !== 0) return;
+    if ((event.target as HTMLElement).closest("button")) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const offsetPx = clamp(event.clientY - rect.top, 0, gridHeight);
+    const next: ActiveDrag = { roomId, columnTop: rect.top, anchorPx: offsetPx, currentPx: offsetPx };
+    dragRef.current = next;
+    setRenderDrag(next);
+    setDragConflict(null);
+    setIsDragging(true);
+  }
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    function handleMouseMove(event: globalThis.MouseEvent) {
+      const current = dragRef.current;
+      if (!current) return;
+      const offsetPx = clamp(event.clientY - current.columnTop, 0, gridHeight);
+      const next = { ...current, currentPx: offsetPx };
+      dragRef.current = next;
+      setRenderDrag(next);
+    }
+
+    function handleMouseUp() {
+      setIsDragging(false);
+      const finished = dragRef.current;
+      dragRef.current = null;
+      setRenderDrag(null);
+      if (!finished) return;
+
+      const { startTime, endTime } = dragRangeFor(finished.anchorPx, finished.currentPx);
+      const roomBookings = bookingsByRoom.get(finished.roomId) ?? [];
+      const conflicts = findConflictingBookings(
+        {
+          room_id: finished.roomId,
+          date,
+          start_time: normalizeTimeString(startTime),
+          end_time: normalizeTimeString(endTime),
+        },
+        roomBookings
+      );
+
+      if (conflicts.length > 0) {
+        if (dragConflictTimeoutRef.current) clearTimeout(dragConflictTimeoutRef.current);
+        setDragConflict({
+          roomId: finished.roomId,
+          top: offsetForTime(startTime),
+          height: Math.max(offsetForTime(endTime) - offsetForTime(startTime), 22),
+        });
+        dragConflictTimeoutRef.current = setTimeout(() => setDragConflict(null), DRAG_CONFLICT_DISPLAY_MS);
+        return;
+      }
+
+      router.push(`/bookings/new?room=${finished.roomId}&date=${date}&start=${startTime}&end=${endTime}`);
+    }
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, gridHeight, bookingsByRoom, date, router]);
+
+  useEffect(() => {
+    return () => {
+      if (dragConflictTimeoutRef.current) clearTimeout(dragConflictTimeoutRef.current);
+    };
+  }, []);
 
   if (rooms.length === 0) {
     return (
@@ -311,8 +429,15 @@ export function DesktopResourceGrid({
 
           {visibleRooms.map((room) => {
             const roomBookings = laidOutBookingsByRoom.get(room.id) ?? [];
+            const drag = isDragging && renderDrag?.roomId === room.id ? renderDrag : null;
+            const conflict = dragConflict?.roomId === room.id ? dragConflict : null;
             return (
-              <div key={room.id} className="relative border-r border-line/60 last:border-r-0" style={{ height: gridHeight }}>
+              <div
+                key={room.id}
+                className="relative cursor-crosshair border-r border-line/60 last:border-r-0"
+                style={{ height: gridHeight }}
+                onMouseDown={(event) => handleRoomMouseDown(event, room.id)}
+              >
                 {hours.slice(0, -1).map((hour, index) => (
                   <div
                     key={hour}
@@ -342,6 +467,25 @@ export function DesktopResourceGrid({
                     />
                   );
                 })}
+
+                {drag ? (
+                  (() => {
+                    const { startTime, endTime } = dragRangeFor(drag.anchorPx, drag.currentPx);
+                    const top = Math.min(drag.anchorPx, drag.currentPx);
+                    const height = Math.max(Math.abs(drag.currentPx - drag.anchorPx), 4);
+                    return (
+                      <DragCreateOverlay
+                        top={top}
+                        height={height}
+                        label={`${formatTimeLabel(startTime)} – ${formatTimeLabel(endTime)}`}
+                      />
+                    );
+                  })()
+                ) : null}
+
+                {conflict ? (
+                  <DragCreateOverlay top={conflict.top} height={conflict.height} label="Overlaps an existing booking" conflict />
+                ) : null}
               </div>
             );
           })}

@@ -1,19 +1,28 @@
 "use client";
 
 import { Pin, PinOff } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { IconButton } from "@/components/kit/icon-button";
 import { Select } from "@/components/kit/select";
-import type { BookingStatus } from "@/lib/bookings/conflict-check";
-import { addDays } from "@/lib/dates";
+import { findConflictingBookings, type BookingStatus } from "@/lib/bookings/conflict-check";
+import { BOOKING_TIME_STEP_MINUTES } from "@/lib/bookings/time-granularity";
+import { addDays, formatTimeLabel, minutesToTime, normalizeTimeString, timeToMinutes } from "@/lib/dates";
 import type { ScheduleRoom } from "@/lib/rooms-filters";
 import { dayTransitionClassName, useDayTransitionDirection } from "@/lib/schedule/day-transition";
 import { layoutOverlappingEvents } from "@/lib/schedule/event-layout";
-import { formatHourLabel, HOUR_ROW_HEIGHT_PX, offsetForTime, scheduleHours } from "@/lib/schedule/hours";
+import {
+  formatHourLabel,
+  HOUR_ROW_HEIGHT_PX,
+  offsetForTime,
+  scheduleHours,
+  timeForOffset,
+} from "@/lib/schedule/hours";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
+import { DragCreateOverlay } from "./drag-create-overlay";
 import { EventBlock } from "./event-block";
 import { NowLine } from "./now-line";
 
@@ -30,6 +39,23 @@ interface DayBooking {
 
 /** Minimum horizontal drag (px) before a touch gesture counts as a day-changing swipe. */
 const SWIPE_THRESHOLD_PX = 50;
+
+/** Minimum movement (px) before a pending touch commits to a swipe or a drag-to-create gesture (US-036). */
+const GESTURE_COMMIT_THRESHOLD_PX = 10;
+
+/** How long a post-drop conflict warning stays visible before fading (US-036). */
+const DRAG_CONFLICT_DISPLAY_MS = 3000;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+interface TouchGestureState {
+  startX: number;
+  startY: number;
+  columnTop: number;
+  gesture: "pending" | "swipe" | "drag";
+}
 
 interface MobileDayCalendarProps {
   rooms: ScheduleRoom[];
@@ -101,25 +127,115 @@ export function MobileDayCalendar({
   const hours = useMemo(() => scheduleHours(), []);
   const gridHeight = (hours.length - 1) * HOUR_ROW_HEIGHT_PX;
 
-  const touchStartX = useRef<number | null>(null);
+  const router = useRouter();
+  const gridContentRef = useRef<HTMLDivElement>(null);
+  const touchStateRef = useRef<TouchGestureState | null>(null);
+  const [dragBox, setDragBox] = useState<{ top: number; height: number } | null>(null);
+  const [dragConflict, setDragConflict] = useState<{ top: number; height: number } | null>(null);
+  const dragConflictTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function handleTouchStart(event: TouchEvent<HTMLDivElement>) {
-    touchStartX.current = event.touches[0]?.clientX ?? null;
-  }
-
-  function handleTouchEnd(event: TouchEvent<HTMLDivElement>) {
-    const startX = touchStartX.current;
-    touchStartX.current = null;
-    if (startX === null) return;
-
-    const endX = event.changedTouches[0]?.clientX ?? startX;
-    const deltaX = endX - startX;
-    if (deltaX > SWIPE_THRESHOLD_PX) {
-      onDateChange(addDays(date, -1));
-    } else if (deltaX < -SWIPE_THRESHOLD_PX) {
-      onDateChange(addDays(date, 1));
+  function dragRangeFor(anchorPx: number, currentPx: number) {
+    const top = Math.min(anchorPx, currentPx);
+    const bottom = Math.max(anchorPx, currentPx);
+    const startTime = timeForOffset(top);
+    let endTime = timeForOffset(bottom);
+    if (endTime === startTime) {
+      endTime = minutesToTime(timeToMinutes(startTime) + BOOKING_TIME_STEP_MINUTES);
     }
+    return { startTime, endTime };
   }
+
+  useEffect(() => {
+    const el = gridContentRef.current;
+    if (!el || !roomId) return;
+    const activeRoomId = roomId;
+
+    function handleTouchStart(event: globalThis.TouchEvent) {
+      if ((event.target as HTMLElement).closest("button")) return;
+      const touch = event.touches[0];
+      if (!touch || !el) return;
+      const rect = el.getBoundingClientRect();
+      touchStateRef.current = { startX: touch.clientX, startY: touch.clientY, columnTop: rect.top, gesture: "pending" };
+    }
+
+    function handleTouchMove(event: globalThis.TouchEvent) {
+      const state = touchStateRef.current;
+      if (!state) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+      const deltaX = touch.clientX - state.startX;
+      const deltaY = touch.clientY - state.startY;
+
+      if (state.gesture === "pending") {
+        if (Math.abs(deltaX) < GESTURE_COMMIT_THRESHOLD_PX && Math.abs(deltaY) < GESTURE_COMMIT_THRESHOLD_PX) return;
+        state.gesture = Math.abs(deltaY) > Math.abs(deltaX) ? "drag" : "swipe";
+        if (state.gesture === "drag") setDragConflict(null);
+      }
+
+      if (state.gesture === "drag") {
+        event.preventDefault();
+        const anchorPx = clamp(state.startY - state.columnTop, 0, gridHeight);
+        const currentPx = clamp(touch.clientY - state.columnTop, 0, gridHeight);
+        setDragBox({ top: Math.min(anchorPx, currentPx), height: Math.max(Math.abs(currentPx - anchorPx), 4) });
+      }
+    }
+
+    function handleTouchEnd(event: globalThis.TouchEvent) {
+      const state = touchStateRef.current;
+      touchStateRef.current = null;
+      setDragBox(null);
+      if (!state) return;
+
+      if (state.gesture === "swipe") {
+        const touch = event.changedTouches[0];
+        const deltaX = touch ? touch.clientX - state.startX : 0;
+        if (deltaX > SWIPE_THRESHOLD_PX) {
+          onDateChange(addDays(date, -1));
+        } else if (deltaX < -SWIPE_THRESHOLD_PX) {
+          onDateChange(addDays(date, 1));
+        }
+        return;
+      }
+
+      if (state.gesture !== "drag") return;
+
+      const touch = event.changedTouches[0];
+      const anchorPx = clamp(state.startY - state.columnTop, 0, gridHeight);
+      const currentPx = touch ? clamp(touch.clientY - state.columnTop, 0, gridHeight) : anchorPx;
+      const { startTime, endTime } = dragRangeFor(anchorPx, currentPx);
+      const conflicts = findConflictingBookings(
+        { room_id: activeRoomId, date, start_time: normalizeTimeString(startTime), end_time: normalizeTimeString(endTime) },
+        bookings
+      );
+
+      if (conflicts.length > 0) {
+        if (dragConflictTimeoutRef.current) clearTimeout(dragConflictTimeoutRef.current);
+        setDragConflict({
+          top: offsetForTime(startTime),
+          height: Math.max(offsetForTime(endTime) - offsetForTime(startTime), 22),
+        });
+        dragConflictTimeoutRef.current = setTimeout(() => setDragConflict(null), DRAG_CONFLICT_DISPLAY_MS);
+        return;
+      }
+
+      router.push(`/bookings/new?room=${activeRoomId}&date=${date}&start=${startTime}&end=${endTime}`);
+    }
+
+    el.addEventListener("touchstart", handleTouchStart, { passive: true });
+    el.addEventListener("touchmove", handleTouchMove, { passive: false });
+    el.addEventListener("touchend", handleTouchEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", handleTouchStart);
+      el.removeEventListener("touchmove", handleTouchMove);
+      el.removeEventListener("touchend", handleTouchEnd);
+    };
+  }, [date, gridHeight, roomId, bookings, onDateChange, router]);
+
+  useEffect(() => {
+    return () => {
+      if (dragConflictTimeoutRef.current) clearTimeout(dragConflictTimeoutRef.current);
+    };
+  }, []);
 
   const transitionDirection = useDayTransitionDirection(date);
 
@@ -177,11 +293,9 @@ export function MobileDayCalendar({
         <div
           key={date}
           className={cn(
-            "w-full min-w-0 touch-pan-y rounded-lg border border-line bg-surface",
+            "w-full min-w-0 rounded-lg border border-line bg-surface",
             dayTransitionClassName(transitionDirection)
           )}
-          onTouchStart={handleTouchStart}
-          onTouchEnd={handleTouchEnd}
         >
           <div aria-hidden="true" className="h-6 w-full rounded-t-lg bg-sand-100" />
 
@@ -201,7 +315,11 @@ export function MobileDayCalendar({
               ))}
             </div>
 
-            <div className="relative min-w-0 flex-1" style={{ height: gridHeight }}>
+            <div
+              ref={gridContentRef}
+              className="relative min-w-0 flex-1 touch-pan-y"
+              style={{ height: gridHeight }}
+            >
               {hours.slice(0, -1).map((hour, index) => (
                 <div
                   key={hour}
@@ -211,6 +329,23 @@ export function MobileDayCalendar({
               ))}
 
               <NowLine date={date} />
+
+              {dragBox ? (
+                (() => {
+                  const { startTime, endTime } = dragRangeFor(dragBox.top, dragBox.top + dragBox.height);
+                  return (
+                    <DragCreateOverlay
+                      top={dragBox.top}
+                      height={dragBox.height}
+                      label={`${formatTimeLabel(startTime)} – ${formatTimeLabel(endTime)}`}
+                    />
+                  );
+                })()
+              ) : null}
+
+              {dragConflict ? (
+                <DragCreateOverlay top={dragConflict.top} height={dragConflict.height} label="Overlaps an existing booking" conflict />
+              ) : null}
 
               {loading ? (
                 <p className="p-3 text-small text-ink-500">Loading…</p>
