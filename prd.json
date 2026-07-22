@@ -491,8 +491,8 @@
         "Typecheck passes"
       ],
       "priority": 33,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added supabase/migrations/20260722190000_create_favorite_rooms_schema.sql: favorite_rooms(user_id FK -> auth.users, room_id FK -> rooms, created_at, unique(user_id, room_id)), RLS enabled with select/insert/delete-own policies only (no update policy, matching the story's SELECT/INSERT/DELETE scope) and matching authenticated/service_role grants per existing table conventions. Verified: npx supabase db reset applies the new migration cleanly; psql inspection of \\d favorite_rooms and pg_policies confirms the unique constraint, both FKs, and all three policies scoped to user_id = auth.uid(); npx tsc --noEmit passes."
     },
     {
       "id": "US-034",
