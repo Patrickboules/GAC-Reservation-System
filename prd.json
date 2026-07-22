@@ -548,8 +548,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 37,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Rewrote app/(app)/rooms/page.tsx to render the US-013 RoomCard in a responsive grid (grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4) instead of the old shadcn Card list. Availability dot is computed server-side: fetches today's approved rows from the bookings_schedule view (US-015's RLS-safe room/time/status-only view) alongside the rooms query, and marks a room 'busy' when the current time falls within one of its approved bookings for today, otherwise 'free'. No existing filtering/search behavior existed on the prior /rooms page to preserve (confirmed via git log back to the original US-010 version - it was always a plain unfiltered list), so nothing needed carrying over; empty-rooms case now uses the US-010 EmptyState instead of a bare text line. Verified: npx tsc --noEmit and npm run lint clean; npm run build succeeds (13 routes unchanged). No dev-browser skill in this environment, so ran a local Supabase db reset and drove the real dev server with Playwright using a temporary confirmed test user and a seeded 'busy right now' approved booking on one room (both cleaned up after) at 1280px and 375px - confirmed all 4 seed rooms render as cards in a 4-column desktop grid, the booked room shows 'Busy now' while others show 'Free', clicking a card navigates to /rooms/[id], and zero horizontal scroll at 375px (1-column grid)."
     },
     {
       "id": "US-038",
