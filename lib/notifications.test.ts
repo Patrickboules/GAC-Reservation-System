@@ -2,9 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
 
 import {
+  ensureReminderNotifications,
   formatAdminNewRequestMessage,
   formatApprovedMessage,
   formatCancelledMessage,
+  formatReminderMessage,
   formatRejectedMessage,
   notifyAdminsNewRequest,
   notifyBookingApproved,
@@ -12,6 +14,7 @@ import {
   notifyBookingRejected,
   type BookingSlotSummary,
 } from "./notifications";
+import { toDateString } from "./dates";
 
 const slot: BookingSlotSummary = {
   roomName: "Fellowship Hall",
@@ -50,13 +53,37 @@ describe("message formatters", () => {
       "Mina requested Fellowship Hall on 2026-08-01 from 10:00–11:00."
     );
   });
+
+  it("formats a reminder message", () => {
+    expect(formatReminderMessage(slot)).toBe(
+      "Reminder: your booking for Fellowship Hall on 2026-08-01 from 10:00–11:00 starts soon."
+    );
+  });
 });
 
 interface FakeAdminOptions {
   rooms?: Record<string, { name: string } | undefined>;
   profiles?: Record<string, { display_name: string | null } | undefined>;
   admins?: { id: string }[];
+  bookings?: { id: string; room_id: string; date: string; start_time: string; end_time: string }[];
+  remindedBookingIds?: string[];
   onInsert?: (table: string, rows: unknown) => void;
+}
+
+/** Chainable fake query builder: every filter method returns itself, and it
+ * resolves (via `then`) to `{ data, error: null }` regardless of which
+ * filters were applied — good enough for unit-testing the in-memory logic in
+ * ensureReminderNotifications, which is what these tests exercise. */
+function fakeQuery<T>(data: T) {
+  const builder = {
+    eq: () => builder,
+    in: () => builder,
+    gte: () => builder,
+    lte: () => builder,
+    select: () => builder,
+    then: (resolve: (result: { data: T; error: null }) => void) => resolve({ data, error: null }),
+  };
+  return builder;
 }
 
 function createFakeAdmin(opts: FakeAdminOptions) {
@@ -91,8 +118,14 @@ function createFakeAdmin(opts: FakeAdminOptions) {
           },
         };
       }
+      if (table === "bookings") {
+        return {
+          select: () => fakeQuery(opts.bookings ?? []),
+        };
+      }
       if (table === "notifications") {
         return {
+          select: () => fakeQuery((opts.remindedBookingIds ?? []).map((id) => ({ booking_id: id }))),
           insert: async (rows: unknown) => {
             opts.onInsert?.(table, rows);
             return { error: null };
@@ -103,6 +136,12 @@ function createFakeAdmin(opts: FakeAdminOptions) {
     },
   };
   return client as unknown as SupabaseClient;
+}
+
+function timeOfDate(date: Date): string {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}:${String(
+    date.getSeconds()
+  ).padStart(2, "0")}`;
 }
 
 describe("notifyBookingApproved", () => {
@@ -244,6 +283,99 @@ describe("notifyAdminsNewRequest", () => {
       startTime: "10:00",
       endTime: "11:00",
     });
+
+    expect(inserts).toHaveLength(0);
+  });
+});
+
+describe("ensureReminderNotifications", () => {
+  function slotStartingIn(hours: number) {
+    const at = new Date(Date.now() + hours * 60 * 60 * 1000);
+    return { date: toDateString(at), start_time: timeOfDate(at) };
+  }
+
+  it("inserts a reminder for an approved booking starting within the 24h window", async () => {
+    const inserts: unknown[] = [];
+    const soon = slotStartingIn(2);
+    const admin = createFakeAdmin({
+      rooms: { "room-1": { name: "Fellowship Hall" } },
+      bookings: [
+        { id: "booking-1", room_id: "room-1", date: soon.date, start_time: soon.start_time, end_time: "23:59:00" },
+      ],
+      onInsert: (_table, rows) => inserts.push(rows),
+    });
+
+    await ensureReminderNotifications(admin, "user-1");
+
+    expect(inserts).toEqual([
+      [
+        {
+          user_id: "user-1",
+          type: "reminder",
+          booking_id: "booking-1",
+          message: `Reminder: your booking for Fellowship Hall on ${soon.date} from ${soon.start_time}–23:59:00 starts soon.`,
+        },
+      ],
+    ]);
+  });
+
+  it("does not re-insert a reminder for a booking that already has one", async () => {
+    const inserts: unknown[] = [];
+    const soon = slotStartingIn(2);
+    const admin = createFakeAdmin({
+      rooms: { "room-1": { name: "Fellowship Hall" } },
+      bookings: [
+        { id: "booking-1", room_id: "room-1", date: soon.date, start_time: soon.start_time, end_time: "23:59:00" },
+      ],
+      remindedBookingIds: ["booking-1"],
+      onInsert: (_table, rows) => inserts.push(rows),
+    });
+
+    await ensureReminderNotifications(admin, "user-1");
+
+    expect(inserts).toHaveLength(0);
+  });
+
+  it("skips bookings starting more than 24h from now", async () => {
+    const inserts: unknown[] = [];
+    const far = slotStartingIn(48);
+    const admin = createFakeAdmin({
+      rooms: { "room-1": { name: "Fellowship Hall" } },
+      bookings: [
+        { id: "booking-1", room_id: "room-1", date: far.date, start_time: far.start_time, end_time: "23:59:00" },
+      ],
+      onInsert: (_table, rows) => inserts.push(rows),
+    });
+
+    await ensureReminderNotifications(admin, "user-1");
+
+    expect(inserts).toHaveLength(0);
+  });
+
+  it("skips bookings that have already started", async () => {
+    const inserts: unknown[] = [];
+    const past = slotStartingIn(-1);
+    const admin = createFakeAdmin({
+      rooms: { "room-1": { name: "Fellowship Hall" } },
+      bookings: [
+        { id: "booking-1", room_id: "room-1", date: past.date, start_time: past.start_time, end_time: "23:59:00" },
+      ],
+      onInsert: (_table, rows) => inserts.push(rows),
+    });
+
+    await ensureReminderNotifications(admin, "user-1");
+
+    expect(inserts).toHaveLength(0);
+  });
+
+  it("does nothing when there are no approved bookings", async () => {
+    const inserts: unknown[] = [];
+    const admin = createFakeAdmin({
+      bookings: [],
+      onInsert: (_table, rows) => inserts.push(rows),
+    });
+
+    await ensureReminderNotifications(admin, "user-1");
 
     expect(inserts).toHaveLength(0);
   });

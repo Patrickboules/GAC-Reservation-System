@@ -1,5 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
+import { addDays, parseDateString, todayDateString } from "./dates";
+
 export type NotificationType =
   | "reminder"
   | "approved"
@@ -33,6 +35,10 @@ export function formatCancelledMessage(slot: BookingSlotSummary): string {
 
 export function formatAdminNewRequestMessage(slot: BookingSlotSummary, requesterName: string): string {
   return `${requesterName} requested ${formatSlot(slot)}.`;
+}
+
+export function formatReminderMessage(slot: BookingSlotSummary): string {
+  return `Reminder: your booking for ${formatSlot(slot)} starts soon.`;
 }
 
 export interface NotificationListItem {
@@ -200,5 +206,84 @@ export async function notifyAdminsNewRequest(
   );
   if (error) {
     console.error(`Failed to insert admin_new_request notifications for booking ${params.bookingId}`, error);
+  }
+}
+
+const REMINDER_LEAD_HOURS = 24;
+const POSTGRES_UNIQUE_VIOLATION = "23505";
+
+interface ApprovedBookingRow {
+  id: string;
+  room_id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+}
+
+function startsWithinReminderWindow(date: string, startTime: string, now: Date): boolean {
+  const [hour, minute, second] = startTime.split(":").map(Number);
+  const start = parseDateString(date);
+  start.setHours(hour, minute, second ?? 0, 0);
+  const diffMs = start.getTime() - now.getTime();
+  return diffMs > 0 && diffMs <= REMINDER_LEAD_HOURS * 60 * 60 * 1000;
+}
+
+/** On-demand check (no scheduling infrastructure, per PRD): finds the given
+ * user's approved bookings starting within the next 24h that don't yet have a
+ * reminder notification, and inserts one each. Safe to call on every
+ * notifications-panel/dashboard fetch — a booking is only ever reminded once,
+ * enforced here and by a partial unique index on (booking_id) where
+ * type = 'reminder'. */
+export async function ensureReminderNotifications(admin: SupabaseClient, userId: string): Promise<void> {
+  const today = todayDateString();
+  const tomorrow = addDays(today, 1);
+
+  const { data: bookings } = await admin
+    .from("bookings")
+    .select("id, room_id, date, start_time, end_time")
+    .eq("user_id", userId)
+    .eq("status", "approved")
+    .gte("date", today)
+    .lte("date", tomorrow);
+
+  const now = new Date();
+  const upcoming = ((bookings ?? []) as ApprovedBookingRow[]).filter((b) =>
+    startsWithinReminderWindow(b.date, b.start_time, now)
+  );
+  if (upcoming.length === 0) return;
+
+  const { data: existing } = await admin
+    .from("notifications")
+    .select("booking_id")
+    .eq("type", "reminder")
+    .in(
+      "booking_id",
+      upcoming.map((b) => b.id)
+    );
+
+  const alreadyReminded = new Set(((existing ?? []) as { booking_id: string }[]).map((n) => n.booking_id));
+  const toRemind = upcoming.filter((b) => !alreadyReminded.has(b.id));
+  if (toRemind.length === 0) return;
+
+  const rows = await Promise.all(
+    toRemind.map(async (b) => {
+      const roomName = await getRoomName(admin, b.room_id);
+      return {
+        user_id: userId,
+        type: "reminder" as const,
+        booking_id: b.id,
+        message: formatReminderMessage({
+          roomName,
+          date: b.date,
+          startTime: b.start_time,
+          endTime: b.end_time,
+        }),
+      };
+    })
+  );
+
+  const { error } = await admin.from("notifications").insert(rows);
+  if (error && error.code !== POSTGRES_UNIQUE_VIOLATION) {
+    console.error(`Failed to insert reminder notifications for user ${userId}`, error);
   }
 }

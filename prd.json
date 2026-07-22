@@ -386,8 +386,8 @@
         "Tests pass"
       ],
       "priority": 26,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added lib/notifications.ts's ensureReminderNotifications(admin, userId): queries the user's approved bookings starting within the next 24h, filters out ones that already have a reminder (select on notifications where type='reminder'), and inserts a formatReminderMessage() row for each remaining one. Called from components/shell/desktop-top-bar.tsx and mobile-shell.tsx right before getRecentNotifications(), so it runs on every notifications-panel/top-bar fetch per the PRD's no-new-scheduling-infra decision. Added supabase/migrations/20260722000000_add_reminder_notification_unique_index.sql (partial unique index on notifications(booking_id) where type='reminder') as a DB-level backstop against double-reminding (insert errors with code 23505 are swallowed as a benign race). The reminder panel item's clock icon (CalendarClock, sky-600) was already wired in components/shell/top-bar.tsx's NOTIFICATION_ICONS map from US-025, visually distinct from approved/rejected/cancelled/admin_new_request. Verified: npx tsc --noEmit, npm run lint, npm run build all clean; npm test passes 26/26 (5 new tests covering within-window insert, no-duplicate-on-existing-reminder, skip->24h-out, skip-already-started, and no-approved-bookings); npx supabase db reset applies the new migration cleanly against the local stack."
     },
     {
       "id": "US-027",

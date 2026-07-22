@@ -1,4 +1,5 @@
-import { getRecentNotifications, type NotificationListItem } from "@/lib/notifications";
+import { ensureReminderNotifications, getRecentNotifications, type NotificationListItem } from "@/lib/notifications";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 import { MobileTopBar } from "@/components/shell/mobile-top-bar";
 import { MobileTabBar } from "@/components/shell/mobile-tab-bar";
@@ -34,6 +35,7 @@ export async function MobileShell() {
       role: isAdmin ? "admin" : "member",
     };
 
+    await ensureReminderNotifications(createAdminClient(), user.id);
     const recent = await getRecentNotifications(supabase, user.id);
     notifications = recent.notifications;
     unreadCount = recent.unreadCount;
