@@ -417,8 +417,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 28,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added components/schedule/desktop-resource-grid.tsx (DesktopResourceGrid, shown hidden lg:block) rendering all rooms as CSS-grid columns (min 132px, minmax(132px,1fr)) inside a single overflow-auto container so the sticky room-header row (position: sticky top-0) and sticky time gutter (position: sticky left-0, reusing US-027's lib/schedule/hours.ts scheduleHours/formatHourLabel/offsetForTime/HOUR_ROW_HEIGHT_PX constants) scroll in sync with the body by construction. Added sand-100 off-hours bands above/below the hour grid (same as mobile) and a dynamic left/right edge-fade (scroll-position-tracked) hinting more rooms off-screen. Extracted the previously mobile-only hour-axis helpers (formatHourLabel/offsetForTime/scheduleHours) from components/schedule/mobile-day-calendar.tsx into lib/schedule/hours.ts so both views share one implementation (mobile-day-calendar.tsx now imports them instead of duplicating). Replaced the old date-range ScheduleView (list/calendar tabs) on app/(app)/schedule/page.tsx's desktop slot with the new grid and deleted the now-fully-superseded components/schedule/schedule-view.tsx (zero remaining imports). Verified: npx tsc --noEmit, npm run lint, npm run build all clean (13 routes unchanged). No dev-browser skill in this environment, so drove the real flow with Playwright against the dev server (had to restart the local Supabase stack, which had exited/crashed since the prior session) using a temporary test user + a seeded today booking (both cleaned up after) at 1440px — confirmed room columns render at 143.5px width (>=132px), the seeded booking block shows with its status badge, the time-gutter's '8 AM' label stays at the same x-position before/after scrolling the grid right (sticky), the room header row stays visible after the same scroll (sticky), and re-checked 375px afterward to confirm zero horizontal scroll and the US-027 mobile calendar still renders correctly (no regression)."
     },
     {
       "id": "US-029",

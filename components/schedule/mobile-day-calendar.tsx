@@ -7,8 +7,8 @@ import { IconButton } from "@/components/kit/icon-button";
 import { Select } from "@/components/kit/select";
 import { StatusBadge } from "@/components/kit/status-badge";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
-import { addDays, formatDateLabel, formatTimeLabel, timeToMinutes, todayDateString } from "@/lib/dates";
-import { SCHEDULE_END_HOUR, SCHEDULE_START_HOUR } from "@/lib/schedule/hours";
+import { addDays, formatDateLabel, formatTimeLabel, todayDateString } from "@/lib/dates";
+import { formatHourLabel, HOUR_ROW_HEIGHT_PX, offsetForTime, scheduleHours } from "@/lib/schedule/hours";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -26,25 +26,8 @@ interface DayBooking {
   status: BookingStatus;
 }
 
-/** Row height for one hour, per UI-Redesign-Spec section 3 ("~56px tall"). */
-const HOUR_ROW_HEIGHT_PX = 56;
 /** Minimum horizontal drag (px) before a touch gesture counts as a day-changing swipe. */
 const SWIPE_THRESHOLD_PX = 50;
-
-const RANGE_START_MINUTES = SCHEDULE_START_HOUR * 60;
-const RANGE_END_MINUTES = SCHEDULE_END_HOUR * 60;
-
-function formatHourLabel(hour: number): string {
-  const period = hour >= 12 ? "PM" : "AM";
-  const displayHour = hour % 12 === 0 ? 12 : hour % 12;
-  return `${displayHour} ${period}`;
-}
-
-/** Vertical offset (px) of a "HH:MM:SS" time within the grid, clamped to the visible range. */
-function offsetForTime(time: string): number {
-  const minutes = Math.min(Math.max(timeToMinutes(time), RANGE_START_MINUTES), RANGE_END_MINUTES);
-  return ((minutes - RANGE_START_MINUTES) / 60) * HOUR_ROW_HEIGHT_PX;
-}
 
 /**
  * Mobile single-room resource-day calendar (US-027 baseline): a room selector,
@@ -92,10 +75,7 @@ export function MobileDayCalendar({ rooms }: { rooms: ScheduleRoom[] }) {
     };
   }, [supabase, roomId, date]);
 
-  const hours = useMemo(
-    () => Array.from({ length: SCHEDULE_END_HOUR - SCHEDULE_START_HOUR + 1 }, (_, i) => SCHEDULE_START_HOUR + i),
-    []
-  );
+  const hours = useMemo(() => scheduleHours(), []);
   const gridHeight = (hours.length - 1) * HOUR_ROW_HEIGHT_PX;
 
   const touchStartX = useRef<number | null>(null);

@@ -1,7 +1,7 @@
 import Link from "next/link";
 
+import { DesktopResourceGrid } from "@/components/schedule/desktop-resource-grid";
 import { MobileDayCalendar } from "@/components/schedule/mobile-day-calendar";
-import { ScheduleView } from "@/components/schedule/schedule-view";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 
@@ -26,9 +26,7 @@ export default async function SchedulePage() {
         </div>
       </div>
       <MobileDayCalendar rooms={rooms ?? []} />
-      <div className="hidden lg:block">
-        <ScheduleView rooms={rooms ?? []} />
-      </div>
+      <DesktopResourceGrid rooms={rooms ?? []} />
     </div>
   );
 }
