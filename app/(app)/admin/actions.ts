@@ -33,7 +33,7 @@ async function requireAdmin() {
 export async function approveBooking(formData: FormData) {
   const bookingId = (formData.get("booking_id") as string | null) ?? "";
   if (!bookingId) {
-    redirect("/admin?error=Missing booking id.");
+    redirect("/admin/requests?error=Missing booking id.");
   }
 
   const supabase = await requireAdmin();
@@ -45,10 +45,10 @@ export async function approveBooking(formData: FormData) {
     .single();
 
   if (fetchError || !booking) {
-    redirect("/admin?error=Booking not found.");
+    redirect("/admin/requests?error=Booking not found.");
   }
   if (booking.status !== "pending") {
-    redirect("/admin?error=Only pending requests can be approved.");
+    redirect("/admin/requests?error=Only pending requests can be approved.");
   }
 
   const conflicts = await fetchConflictingBookings(
@@ -65,7 +65,7 @@ export async function approveBooking(formData: FormData) {
 
   if (conflicts.length > 0) {
     redirect(
-      "/admin?error=" +
+      "/admin/requests?error=" +
         encodeURIComponent(
           "This slot now conflicts with another approved or pending booking. Reject or ask the requester to reschedule."
         )
@@ -79,7 +79,7 @@ export async function approveBooking(formData: FormData) {
     .eq("status", "pending");
 
   if (updateError) {
-    redirect("/admin?error=" + encodeURIComponent(updateError.message));
+    redirect("/admin/requests?error=" + encodeURIComponent(updateError.message));
   }
 
   await notifyBookingApproved(createAdminClient(), {
@@ -91,14 +91,14 @@ export async function approveBooking(formData: FormData) {
     endTime: booking.end_time,
   });
 
-  redirect("/admin");
+  redirect("/admin/requests");
 }
 
 export async function rejectBooking(formData: FormData) {
   const bookingId = (formData.get("booking_id") as string | null) ?? "";
   const reason = ((formData.get("reject_reason") as string | null) ?? "").trim() || null;
   if (!bookingId) {
-    redirect("/admin?error=Missing booking id.");
+    redirect("/admin/requests?error=Missing booking id.");
   }
 
   const supabase = await requireAdmin();
@@ -110,10 +110,10 @@ export async function rejectBooking(formData: FormData) {
     .single();
 
   if (fetchError || !booking) {
-    redirect("/admin?error=Booking not found.");
+    redirect("/admin/requests?error=Booking not found.");
   }
   if (booking.status !== "pending") {
-    redirect("/admin?error=Only pending requests can be rejected.");
+    redirect("/admin/requests?error=Only pending requests can be rejected.");
   }
 
   const { error: updateError } = await supabase
@@ -123,7 +123,7 @@ export async function rejectBooking(formData: FormData) {
     .eq("status", "pending");
 
   if (updateError) {
-    redirect("/admin?error=" + encodeURIComponent(updateError.message));
+    redirect("/admin/requests?error=" + encodeURIComponent(updateError.message));
   }
 
   await notifyBookingRejected(createAdminClient(), {
@@ -136,5 +136,5 @@ export async function rejectBooking(formData: FormData) {
     reason,
   });
 
-  redirect("/admin");
+  redirect("/admin/requests");
 }

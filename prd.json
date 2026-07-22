@@ -592,8 +592,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 40,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Moved the existing pending-approval-queue page verbatim to app/(app)/admin/requests/page.tsx (component renamed AdminRequestsPage; its 'Home' button now links to /admin) and updated all redirect targets in app/(app)/admin/actions.ts's approveBooking/rejectBooking from /admin to /admin/requests — no business logic changed, still the same unchanged conflict re-check on approve. Rewrote app/(app)/admin/page.tsx as the new overview: a 3-card KPI row (today's bookings count, pending count, utilization % = approved-booking-hours-today / (room count × US-027's SCHEDULE_START_HOUR..SCHEDULE_END_HOUR span), all in font-mono tabular-nums) plus a Recent activity list (last 10 bookings by updated_at, room name, requester name, US-005 StatusBadge, relative time via lib/dates' formatRelativeTime, a View link to /bookings/[id]) with a US-010 EmptyState when there's no activity. Requester names are fetched via a separate profiles query keyed by user_id (discovered bookings has no direct FK to profiles — both only reference auth.users — so a nested profiles(display_name) embed fails with a PostgREST PGRST200 error; matched the existing pattern already used by the requests-queue page instead). Verified: npx tsc --noEmit, npm run lint, npm run build all clean (14 routes, +1 for the new /admin/requests). No dev-browser skill in this environment, so started the local Supabase stack (db reset applied cleanly) and drove the real flow with Playwright using the seed admin user and two temporary today bookings (one approved, one pending; both deleted after) at 1280px and 375px — confirmed the KPI cards read 2/1/2%, the recent-activity list renders both rows with correct room/requester/status/relative-time, the View link's target booking-detail page renders correctly, /admin/requests still lists the pending booking and its approve/reject actions work, and zero horizontal scroll at 375px. Stopped the local Supabase stack and dev server afterward."
     },
     {
       "id": "US-041",

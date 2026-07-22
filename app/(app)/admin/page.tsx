@@ -1,127 +1,130 @@
 import Link from "next/link";
 
-import { approveBooking, rejectBooking } from "@/app/(app)/admin/actions";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { formatDateLabel, formatTimeLabel } from "@/lib/dates";
+import { StatusBadge } from "@/components/kit/status-badge";
+import { EmptyState } from "@/components/kit/empty-state";
+import type { BookingStatus } from "@/lib/bookings/conflict-check";
+import { formatRelativeTime, timeToMinutes, todayDateString } from "@/lib/dates";
+import { SCHEDULE_END_HOUR, SCHEDULE_START_HOUR } from "@/lib/schedule/hours";
 import { createClient } from "@/lib/supabase/server";
 
-interface PendingBookingRow {
+interface RecentBookingRow {
   id: string;
-  room_id: string;
   user_id: string;
+  status: BookingStatus;
+  updated_at: string;
   date: string;
   start_time: string;
   end_time: string;
-  service: string;
-  notes: string | null;
   rooms: { name: string } | { name: string }[] | null;
 }
 
-function roomName(rooms: PendingBookingRow["rooms"]): string {
-  if (!rooms) return "Unknown room";
-  return Array.isArray(rooms) ? (rooms[0]?.name ?? "Unknown room") : rooms.name;
+function singular<T>(value: T | T[] | null): T | null {
+  if (!value) return null;
+  return Array.isArray(value) ? (value[0] ?? null) : value;
 }
 
-export default async function AdminHome({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
-  const { error } = await searchParams;
+export default async function AdminDashboardPage() {
   const supabase = await createClient();
+  const today = todayDateString();
+  const scheduleHours = SCHEDULE_END_HOUR - SCHEDULE_START_HOUR;
 
-  const { data: bookings } = await supabase
-    .from("bookings")
-    .select(
-      "id, room_id, user_id, date, start_time, end_time, service, notes, rooms(name)"
-    )
-    .eq("status", "pending")
-    .order("date", { ascending: true })
-    .order("start_time", { ascending: true });
+  const [todayBookings, pendingCount, recentActivity] = await Promise.all([
+    supabase
+      .from("bookings")
+      .select("id, start_time, end_time, status")
+      .eq("date", today),
+    supabase
+      .from("bookings")
+      .select("id", { count: "exact", head: true })
+      .eq("status", "pending"),
+    supabase
+      .from("bookings")
+      .select("id, user_id, status, updated_at, date, start_time, end_time, rooms(name)")
+      .order("updated_at", { ascending: false })
+      .limit(10),
+  ]);
 
-  const pending = (bookings ?? []) as PendingBookingRow[];
+  const todayRows = todayBookings.data ?? [];
+  const approvedTodayHours = todayRows
+    .filter((row) => row.status === "approved")
+    .reduce((sum, row) => sum + (timeToMinutes(row.end_time) - timeToMinutes(row.start_time)) / 60, 0);
 
-  const userIds = [...new Set(pending.map((booking) => booking.user_id))];
-  const { data: profiles } = userIds.length
-    ? await supabase.from("profiles").select("id, display_name").in("id", userIds)
+  const { count: roomCount } = await supabase
+    .from("rooms")
+    .select("id", { count: "exact", head: true });
+
+  const totalRoomHours = (roomCount ?? 0) * scheduleHours;
+  const utilization = totalRoomHours > 0 ? Math.round((approvedTodayHours / totalRoomHours) * 100) : 0;
+
+  const activity = (recentActivity.data ?? []) as unknown as RecentBookingRow[];
+
+  // bookings.user_id has no direct FK to profiles (both reference auth.users),
+  // so PostgREST can't embed profiles(display_name) — fetch names separately.
+  const activityUserIds = [...new Set(activity.map((row) => row.user_id))];
+  const { data: activityProfiles } = activityUserIds.length
+    ? await supabase.from("profiles").select("id, display_name").in("id", activityUserIds)
     : { data: [] as { id: string; display_name: string | null }[] };
-
   const requesterNameById = new Map(
-    (profiles ?? []).map((profile) => [profile.id, profile.display_name ?? "Unknown member"])
+    (activityProfiles ?? []).map((profile) => [profile.id, profile.display_name ?? "Unknown member"])
   );
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-4 p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-semibold">Approval queue</h1>
-          <p className="text-sm text-muted-foreground">Pending room/hall requests.</p>
-        </div>
-        <Button variant="outline" render={<Link href="/">Home</Link>} />
+    <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 p-4">
+      <div>
+        <h1 className="text-display font-display text-ink-900">Dashboard</h1>
+        <p className="text-body text-ink-500">Overview of today&rsquo;s schedule and recent activity.</p>
       </div>
 
-      {error ? (
-        <p role="alert" className="text-sm text-destructive">
-          {error}
-        </p>
-      ) : null}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+          <p className="text-caption text-ink-500">Today&rsquo;s bookings</p>
+          <p className="font-mono text-display tabular-nums text-ink-900">{todayRows.length}</p>
+        </div>
+        <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+          <p className="text-caption text-ink-500">Pending requests</p>
+          <p className="font-mono text-display tabular-nums text-ink-900">{pendingCount.count ?? 0}</p>
+        </div>
+        <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+          <p className="text-caption text-ink-500">Utilization today</p>
+          <p className="font-mono text-display tabular-nums text-ink-900">{utilization}%</p>
+        </div>
+      </div>
 
-      {pending.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No pending requests.</p>
-      ) : (
-        <ul className="flex flex-col gap-3">
-          {pending.map((booking) => (
-            <li key={booking.id}>
-              <Card>
-                <CardHeader>
-                  <CardTitle>{roomName(booking.rooms)}</CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3 text-sm">
-                  <div className="text-muted-foreground">
-                    {requesterNameById.get(booking.user_id) ?? "Unknown member"} ·{" "}
-                    {formatDateLabel(booking.date)} · {formatTimeLabel(booking.start_time)}–
-                    {formatTimeLabel(booking.end_time)} · {booking.service}
+      <div className="flex flex-col gap-3">
+        <h2 className="text-h3 font-display text-ink-900">Recent activity</h2>
+        {activity.length === 0 ? (
+          <EmptyState
+            title="No activity yet"
+            description="Booking requests and status changes will show up here."
+          />
+        ) : (
+          <ul className="flex flex-col divide-y divide-line rounded-lg border border-line bg-surface">
+            {activity.map((row) => {
+              const room = singular(row.rooms);
+              return (
+                <li key={row.id} className="flex items-center justify-between gap-3 p-3">
+                  <div className="flex flex-col gap-0.5">
+                    <p className="text-small text-ink-900">
+                      {room?.name ?? "Unknown room"} ·{" "}
+                      {requesterNameById.get(row.user_id) ?? "Unknown member"}
+                    </p>
+                    <p className="text-caption text-ink-500">{formatRelativeTime(row.updated_at)}</p>
                   </div>
-                  {booking.notes ? (
-                    <div className="text-muted-foreground">Notes: {booking.notes}</div>
-                  ) : null}
-
-                  <div className="flex flex-wrap items-end gap-2">
-                    <form action={approveBooking}>
-                      <input type="hidden" name="booking_id" value={booking.id} />
-                      <Button type="submit">Approve</Button>
-                    </form>
-
-                    <form
-                      action={rejectBooking}
-                      className="flex flex-1 flex-wrap items-end gap-2"
+                  <div className="flex items-center gap-3">
+                    <StatusBadge status={row.status} />
+                    <Link
+                      href={`/bookings/${row.id}`}
+                      className="text-small text-sky-600 hover:underline"
                     >
-                      <input type="hidden" name="booking_id" value={booking.id} />
-                      <div className="flex min-w-40 flex-1 flex-col gap-1">
-                        <Label htmlFor={`reject_reason_${booking.id}`} className="sr-only">
-                          Rejection reason (optional)
-                        </Label>
-                        <Textarea
-                          id={`reject_reason_${booking.id}`}
-                          name="reject_reason"
-                          placeholder="Reason (optional)"
-                          className="min-h-9"
-                        />
-                      </div>
-                      <Button type="submit" variant="destructive">
-                        Reject
-                      </Button>
-                    </form>
+                      View
+                    </Link>
                   </div>
-                </CardContent>
-              </Card>
-            </li>
-          ))}
-        </ul>
-      )}
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </div>
     </div>
   );
 }
