@@ -62,6 +62,7 @@ interface RoomCardProps {
   headerColorClassName?: string
   density?: "grid" | "list"
   href?: string
+  onClick?: () => void
   className?: string
 }
 
@@ -76,6 +77,7 @@ function RoomCard({
   headerColorClassName = "bg-sky-100",
   density = "grid",
   href,
+  onClick,
   className,
 }: RoomCardProps) {
   const visibleAmenities = (amenities ?? []).slice(0, MAX_VISIBLE_AMENITIES)
@@ -143,6 +145,7 @@ function RoomCard({
     return (
       <Link
         href={href ?? `/rooms/${id}`}
+        onClick={onClick}
         data-slot="room-card"
         className={cn(
           "flex items-stretch gap-3 overflow-hidden rounded-lg border border-line bg-surface shadow-sm transition-colors hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
@@ -168,6 +171,7 @@ function RoomCard({
   return (
     <Link
       href={href ?? `/rooms/${id}`}
+      onClick={onClick}
       data-slot="room-card"
       className={cn(
         "flex flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",

@@ -63,6 +63,8 @@ interface MobileDayCalendarProps {
   onDateChange: (date: string) => void;
   favoriteRoomIds: ReadonlySet<string>;
   onToggleFavorite: (roomId: string) => void;
+  /** Pre-selects this room on first render, e.g. from the global availability search (US-039). */
+  initialRoomId?: string;
 }
 
 /**
@@ -78,9 +80,12 @@ export function MobileDayCalendar({
   onDateChange,
   favoriteRoomIds,
   onToggleFavorite,
+  initialRoomId,
 }: MobileDayCalendarProps) {
   const supabase = useMemo(() => createClient(), []);
-  const [roomId, setRoomId] = useState<string | null>(rooms[0]?.id ?? null);
+  const [roomId, setRoomId] = useState<string | null>(
+    () => rooms.find((room) => room.id === initialRoomId)?.id ?? rooms[0]?.id ?? null
+  );
   const [bookings, setBookings] = useState<DayBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

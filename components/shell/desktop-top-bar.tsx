@@ -36,11 +36,17 @@ export async function DesktopTopBar() {
     unreadCount = recent.unreadCount;
   }
 
+  const { data: rooms } = await supabase
+    .from("rooms")
+    .select("id, name, capacity, amenities, location")
+    .order("name");
+
   return (
     <TopBar
       profile={profile}
       notifications={notifications}
       unreadCount={unreadCount}
+      rooms={rooms ?? []}
       variant="desktop"
       className="hidden lg:flex"
     />

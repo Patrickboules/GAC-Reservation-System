@@ -121,11 +121,14 @@ export function DesktopResourceGrid({
   date,
   favoriteRoomIds,
   onToggleFavorite,
+  initialRoomId,
 }: {
   rooms: ScheduleRoom[];
   date: string;
   favoriteRoomIds: ReadonlySet<string>;
   onToggleFavorite: (roomId: string) => void;
+  /** Scrolls this room's column into view once on mount, e.g. from the global availability search (US-039). */
+  initialRoomId?: string;
 }) {
   const supabase = useMemo(() => createClient(), []);
   const [bookings, setBookings] = useState<DayBooking[]>([]);
@@ -211,6 +214,16 @@ export function DesktopResourceGrid({
     if (!container || !column) return;
     container.scrollTo({ left: column.offsetLeft - TIME_GUTTER_WIDTH_PX, behavior: "smooth" });
   }
+
+  const hasScrolledToInitialRoom = useRef(false);
+  useEffect(() => {
+    if (hasScrolledToInitialRoom.current || !initialRoomId) return;
+    const container = scrollRef.current;
+    const column = roomColumnRefs.current.get(initialRoomId);
+    if (!container || !column) return;
+    container.scrollTo({ left: column.offsetLeft - TIME_GUTTER_WIDTH_PX });
+    hasScrolledToInitialRoom.current = true;
+  }, [initialRoomId, visibleRooms]);
 
   useEffect(() => {
     const el = scrollRef.current;

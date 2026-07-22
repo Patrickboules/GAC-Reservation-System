@@ -41,9 +41,19 @@ export async function MobileShell() {
     unreadCount = recent.unreadCount;
   }
 
+  const { data: rooms } = await supabase
+    .from("rooms")
+    .select("id, name, capacity, amenities, location")
+    .order("name");
+
   return (
     <>
-      <MobileTopBar profile={profile} notifications={notifications} unreadCount={unreadCount} />
+      <MobileTopBar
+        profile={profile}
+        notifications={notifications}
+        unreadCount={unreadCount}
+        rooms={rooms ?? []}
+      />
       <MobileTabBar isAdmin={isAdmin} />
     </>
   );

@@ -13,6 +13,10 @@ import { Avatar } from "@/components/kit/avatar";
 import { IconButton } from "@/components/kit/icon-button";
 import { RoleBadge, type MemberRole } from "@/components/kit/role-badge";
 import {
+  GlobalAvailabilitySearch,
+  type GlobalSearchRoom,
+} from "@/components/shell/global-availability-search";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuGroup,
@@ -50,6 +54,8 @@ interface TopBarProps {
   unreadCount?: number;
   /** Left-side slot populated by calendar pages (US-027/US-028); blank until then. */
   dateContext?: React.ReactNode;
+  /** Rooms available to the global availability search (US-039). Defaults to empty. */
+  rooms?: GlobalSearchRoom[];
   variant?: "desktop" | "mobile";
   className?: string;
 }
@@ -59,6 +65,7 @@ export function TopBar({
   notifications = [],
   unreadCount = 0,
   dateContext,
+  rooms = [],
   variant = "desktop",
   className,
 }: TopBarProps) {
@@ -223,16 +230,14 @@ export function TopBar({
       </div>
 
       <Modal open={searchOpen} onOpenChange={setSearchOpen}>
-        <ModalContent>
+        <ModalContent className="md:max-w-2xl">
           <ModalHeader>
             <ModalTitle>Find a room</ModalTitle>
             <ModalDescription>
-              Search by date, time, and capacity — coming soon.
+              Search by date, time, capacity, and amenities.
             </ModalDescription>
           </ModalHeader>
-          <div className="py-6 text-center text-small text-ink-500">
-            Room availability search will appear here.
-          </div>
+          <GlobalAvailabilitySearch rooms={rooms} onResultSelect={() => setSearchOpen(false)} />
         </ModalContent>
       </Modal>
     </header>

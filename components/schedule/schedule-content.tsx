@@ -18,15 +18,28 @@ import {
   type ScheduleRoom,
 } from "@/lib/rooms-filters";
 
+const DATE_STRING_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
 interface ScheduleContentProps {
   rooms: ScheduleRoom[];
   initialFavoriteRoomIds: string[];
+  /** Pre-fills the selected day, e.g. from the global availability search (US-039). */
+  initialDate?: string;
+  /** Pre-selects a room in the mobile view and scrolls it into view on the desktop grid (US-039). */
+  initialRoomId?: string;
 }
 
 /** Owns the selected day, room filters, and pinned rooms (US-034) so the day strip and both calendar views stay in sync. */
-export function ScheduleContent({ rooms, initialFavoriteRoomIds }: ScheduleContentProps) {
+export function ScheduleContent({
+  rooms,
+  initialFavoriteRoomIds,
+  initialDate,
+  initialRoomId,
+}: ScheduleContentProps) {
   const toast = useToast();
-  const [date, setDate] = useState(() => todayDateString());
+  const [date, setDate] = useState(() =>
+    initialDate && DATE_STRING_PATTERN.test(initialDate) ? initialDate : todayDateString()
+  );
   const [filters, setFilters] = useState<RoomFilterState>(EMPTY_ROOM_FILTERS);
   const [favoriteRoomIds, setFavoriteRoomIds] = useState(() => new Set(initialFavoriteRoomIds));
 
@@ -82,12 +95,14 @@ export function ScheduleContent({ rooms, initialFavoriteRoomIds }: ScheduleConte
         onDateChange={setDate}
         favoriteRoomIds={favoriteRoomIds}
         onToggleFavorite={handleToggleFavorite}
+        initialRoomId={initialRoomId}
       />
       <DesktopResourceGrid
         rooms={groupedRooms}
         date={date}
         favoriteRoomIds={favoriteRoomIds}
         onToggleFavorite={handleToggleFavorite}
+        initialRoomId={initialRoomId}
       />
     </div>
   );

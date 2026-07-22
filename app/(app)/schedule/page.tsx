@@ -4,7 +4,12 @@ import { ScheduleContent } from "@/components/schedule/schedule-content";
 import { Button } from "@/components/ui/button";
 import { createClient } from "@/lib/supabase/server";
 
-export default async function SchedulePage() {
+export default async function SchedulePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ room?: string; date?: string }>;
+}) {
+  const { room, date } = await searchParams;
   const supabase = await createClient();
   const [{ data: rooms }, { data: userData }] = await Promise.all([
     supabase
@@ -35,7 +40,12 @@ export default async function SchedulePage() {
           <Button variant="outline" render={<Link href="/">Home</Link>} />
         </div>
       </div>
-      <ScheduleContent rooms={rooms ?? []} initialFavoriteRoomIds={favoriteRoomIds} />
+      <ScheduleContent
+        rooms={rooms ?? []}
+        initialFavoriteRoomIds={favoriteRoomIds}
+        initialDate={date}
+        initialRoomId={room}
+      />
     </div>
   );
 }
