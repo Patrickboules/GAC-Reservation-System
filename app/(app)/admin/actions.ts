@@ -1,11 +1,19 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { fetchConflictingBookings } from "@/lib/bookings/conflict-check";
 import { notifyBookingApproved, notifyBookingRejected } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+
+export interface BookingActionResult {
+  id: string;
+  ok: boolean;
+  error?: string;
+}
 
 async function requireAdmin() {
   const supabase = await createClient();
@@ -30,14 +38,15 @@ async function requireAdmin() {
   return supabase;
 }
 
-export async function approveBooking(formData: FormData) {
-  const bookingId = (formData.get("booking_id") as string | null) ?? "";
-  if (!bookingId) {
-    redirect("/admin/requests?error=Missing booking id.");
-  }
-
-  const supabase = await requireAdmin();
-
+/**
+ * Shared approve logic reused by the single-row and bulk approve actions below —
+ * re-runs the same approved-only conflict re-check as a race-condition guard,
+ * regardless of which entry point triggered it.
+ */
+async function approveBookingById(
+  supabase: SupabaseClient,
+  bookingId: string
+): Promise<Omit<BookingActionResult, "id">> {
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
     .select("id, user_id, room_id, date, start_time, end_time, status")
@@ -45,10 +54,10 @@ export async function approveBooking(formData: FormData) {
     .single();
 
   if (fetchError || !booking) {
-    redirect("/admin/requests?error=Booking not found.");
+    return { ok: false, error: "Booking not found." };
   }
   if (booking.status !== "pending") {
-    redirect("/admin/requests?error=Only pending requests can be approved.");
+    return { ok: false, error: "Only pending requests can be approved." };
   }
 
   const conflicts = await fetchConflictingBookings(
@@ -64,12 +73,10 @@ export async function approveBooking(formData: FormData) {
   );
 
   if (conflicts.length > 0) {
-    redirect(
-      "/admin/requests?error=" +
-        encodeURIComponent(
-          "This slot now conflicts with another approved or pending booking. Reject or ask the requester to reschedule."
-        )
-    );
+    return {
+      ok: false,
+      error: "This slot now conflicts with another approved booking.",
+    };
   }
 
   const { error: updateError } = await supabase
@@ -79,7 +86,7 @@ export async function approveBooking(formData: FormData) {
     .eq("status", "pending");
 
   if (updateError) {
-    redirect("/admin/requests?error=" + encodeURIComponent(updateError.message));
+    return { ok: false, error: updateError.message };
   }
 
   await notifyBookingApproved(createAdminClient(), {
@@ -91,17 +98,19 @@ export async function approveBooking(formData: FormData) {
     endTime: booking.end_time,
   });
 
-  redirect("/admin/requests");
+  return { ok: true };
 }
 
-export async function rejectBooking(formData: FormData) {
-  const bookingId = (formData.get("booking_id") as string | null) ?? "";
-  const reason = ((formData.get("reject_reason") as string | null) ?? "").trim() || null;
-  if (!bookingId) {
-    redirect("/admin/requests?error=Missing booking id.");
+/** Shared reject logic reused by the single-row and bulk reject actions below. */
+async function rejectBookingById(
+  supabase: SupabaseClient,
+  bookingId: string,
+  reason: string
+): Promise<Omit<BookingActionResult, "id">> {
+  const trimmedReason = reason.trim();
+  if (!trimmedReason) {
+    return { ok: false, error: "A rejection reason is required." };
   }
-
-  const supabase = await requireAdmin();
 
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
@@ -110,20 +119,20 @@ export async function rejectBooking(formData: FormData) {
     .single();
 
   if (fetchError || !booking) {
-    redirect("/admin/requests?error=Booking not found.");
+    return { ok: false, error: "Booking not found." };
   }
   if (booking.status !== "pending") {
-    redirect("/admin/requests?error=Only pending requests can be rejected.");
+    return { ok: false, error: "Only pending requests can be rejected." };
   }
 
   const { error: updateError } = await supabase
     .from("bookings")
-    .update({ status: "rejected", reject_reason: reason })
+    .update({ status: "rejected", reject_reason: trimmedReason })
     .eq("id", bookingId)
     .eq("status", "pending");
 
   if (updateError) {
-    redirect("/admin/requests?error=" + encodeURIComponent(updateError.message));
+    return { ok: false, error: updateError.message };
   }
 
   await notifyBookingRejected(createAdminClient(), {
@@ -133,8 +142,52 @@ export async function rejectBooking(formData: FormData) {
     date: booking.date,
     startTime: booking.start_time,
     endTime: booking.end_time,
-    reason,
+    reason: trimmedReason,
   });
 
-  redirect("/admin/requests");
+  return { ok: true };
+}
+
+export async function approveBookingAction(bookingId: string): Promise<BookingActionResult> {
+  const supabase = await requireAdmin();
+  const result = await approveBookingById(supabase, bookingId);
+  revalidatePath("/admin/requests");
+  return { id: bookingId, ...result };
+}
+
+export async function rejectBookingAction(
+  bookingId: string,
+  reason: string
+): Promise<BookingActionResult> {
+  const supabase = await requireAdmin();
+  const result = await rejectBookingById(supabase, bookingId, reason);
+  revalidatePath("/admin/requests");
+  return { id: bookingId, ...result };
+}
+
+/** Bulk-approves each row, re-running the conflict re-check per row and reporting which rows failed. */
+export async function bulkApproveBookingsAction(
+  bookingIds: string[]
+): Promise<BookingActionResult[]> {
+  const supabase = await requireAdmin();
+  const results: BookingActionResult[] = [];
+  for (const id of bookingIds) {
+    results.push({ id, ...(await approveBookingById(supabase, id)) });
+  }
+  revalidatePath("/admin/requests");
+  return results;
+}
+
+/** Bulk-rejects each row with one shared required reason, reporting which rows failed. */
+export async function bulkRejectBookingsAction(
+  bookingIds: string[],
+  reason: string
+): Promise<BookingActionResult[]> {
+  const supabase = await requireAdmin();
+  const results: BookingActionResult[] = [];
+  for (const id of bookingIds) {
+    results.push({ id, ...(await rejectBookingById(supabase, id, reason)) });
+  }
+  revalidatePath("/admin/requests");
+  return results;
 }
