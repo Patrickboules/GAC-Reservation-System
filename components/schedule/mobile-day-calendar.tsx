@@ -14,6 +14,7 @@ import { BOOKING_TIME_STEP_MINUTES } from "@/lib/bookings/time-granularity";
 import { addDays, formatTimeLabel, minutesToTime, normalizeTimeString, timeToMinutes } from "@/lib/dates";
 import type { ScheduleRoom } from "@/lib/rooms-filters";
 import { dayTransitionClassName, useDayTransitionDirection } from "@/lib/schedule/day-transition";
+import { handleScheduleGridKeyDown } from "@/lib/schedule/event-block-navigation";
 import { layoutOverlappingEvents } from "@/lib/schedule/event-layout";
 import {
   formatHourLabel,
@@ -322,6 +323,8 @@ export function MobileDayCalendar({
 
             <div
               ref={gridContentRef}
+              data-schedule-grid
+              onKeyDown={handleScheduleGridKeyDown}
               className="relative min-w-0 flex-1 touch-pan-y"
               style={{ height: gridHeight }}
             >

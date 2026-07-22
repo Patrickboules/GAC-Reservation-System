@@ -126,7 +126,7 @@ function SheetLink({
       className={cn(
         "flex items-center gap-3 rounded-md px-3 py-2 text-body font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
         active
-          ? "bg-sky-100 text-sky-600"
+          ? "bg-sky-100 text-sky-700"
           : "text-ink-500 hover:bg-sky-50 hover:text-ink-700",
       )}
     >

@@ -71,13 +71,16 @@
   --color-sand-100: #f4eee3;
   --color-sand-200: #e9dfce;
 
-  --color-status-approved-fg: #0f9d6b;
+  /* fg values are darkened slightly from the spec's hex so status-badge text
+     (text-caption, ~12px, not "large text") clears WCAG AA's 4.5:1 against
+     its own bg — the spec hues as documented resolve to as low as 2.96:1. */
+  --color-status-approved-fg: #0c7f56;
   --color-status-approved-bg: #e4f7ef;
-  --color-status-pending-fg: #c77a06;
+  --color-status-pending-fg: #9a5f05;
   --color-status-pending-bg: #fbefd6;
-  --color-status-rejected-fg: #d93a2b;
+  --color-status-rejected-fg: #c73224;
   --color-status-rejected-bg: #fce7e4;
-  --color-status-cancelled-fg: #64707d;
+  --color-status-cancelled-fg: #636f7c;
   --color-status-cancelled-bg: #eef1f5;
 
   --color-role-member-fg: #1b4fb0;

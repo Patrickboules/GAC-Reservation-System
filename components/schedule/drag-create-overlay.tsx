@@ -21,7 +21,7 @@ export function DragCreateOverlay({ top, height, label, conflict }: DragCreateOv
         "pointer-events-none absolute inset-x-0.5 z-20 flex items-center justify-center overflow-hidden rounded-sm border-2 border-dashed px-1 text-center text-caption font-medium",
         conflict
           ? "border-status-rejected-fg bg-status-rejected-bg text-status-rejected-fg"
-          : "border-sky-600 bg-sky-100/80 text-sky-600"
+          : "border-sky-600 bg-sky-100/80 text-sky-700"
       )}
     >
       <span className="truncate">{label}</span>

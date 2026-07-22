@@ -13,7 +13,7 @@ import {
   ModalTitle,
 } from "@/components/kit/modal"
 import type { BookingStatus } from "@/lib/bookings/conflict-check"
-import { formatTimeLabel } from "@/lib/dates"
+import { formatTimeLabel, timeToMinutes } from "@/lib/dates"
 import { serviceColor } from "@/lib/schedule/service-colors"
 import { cn } from "@/lib/utils"
 
@@ -45,6 +45,12 @@ export interface EventBlockProps {
   columnIndex?: number
   /** Total overlapping columns in this booking's cluster. */
   columnCount?: number
+  /**
+   * 0-based position of this event's room among the currently-visible rooms,
+   * used for left/right arrow-key navigation between room columns (US-046).
+   * Defaults to 0, which is correct for single-room views (e.g. mobile).
+   */
+  roomIndex?: number
   className?: string
 }
 
@@ -66,6 +72,7 @@ function EventBlock({
   height,
   columnIndex = 0,
   columnCount = 1,
+  roomIndex = 0,
   className,
 }: EventBlockProps) {
   const [hoverOpen, setHoverOpen] = React.useState(false)
@@ -80,6 +87,16 @@ function EventBlock({
 
   const widthPct = 100 / columnCount
   const leftPct = widthPct * columnIndex
+  const startMinutes = timeToMinutes(startTime)
+
+  function handleFocus(event: React.FocusEvent<HTMLButtonElement>) {
+    setHoverOpen(true)
+    // Tracked on the grid container (US-046) so arrow-key navigation has a
+    // stable "current event" reference even if DOM focus transiently lands
+    // elsewhere (e.g. a closing popover) — see handleScheduleGridKeyDown.
+    const grid = event.currentTarget.closest<HTMLElement>("[data-schedule-grid]")
+    if (grid) grid.dataset.focusedEventId = id
+  }
 
   return (
     <>
@@ -89,10 +106,12 @@ function EventBlock({
           type="button"
           data-slot="event-block"
           data-event-id={id}
+          data-room-index={roomIndex}
+          data-start-minutes={startMinutes}
           aria-label={ariaLabel}
           onMouseEnter={() => setHoverOpen(true)}
           onMouseLeave={() => setHoverOpen(false)}
-          onFocus={() => setHoverOpen(true)}
+          onFocus={handleFocus}
           onBlur={() => setHoverOpen(false)}
           onClick={() => setDetailOpen(true)}
           style={{
@@ -146,7 +165,11 @@ function EventBlock({
 
         <Popover.Portal>
           <Popover.Positioner anchor={triggerRef} side="right" sideOffset={8} className="z-40 outline-none">
-            <Popover.Popup className="w-64 rounded-md border border-line bg-white p-3 shadow-md outline-none">
+            <Popover.Popup
+              initialFocus={false}
+              finalFocus={false}
+              className="w-64 rounded-md border border-line bg-white p-3 shadow-md outline-none"
+            >
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate font-display text-small text-ink-900">{roomName}</span>

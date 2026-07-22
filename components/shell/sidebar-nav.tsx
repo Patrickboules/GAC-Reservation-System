@@ -101,7 +101,7 @@ function NavLink({
         "relative flex items-center gap-3 rounded-md px-3 py-2 text-body font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
         collapsed && "justify-center px-0",
         active
-          ? "bg-sky-100 text-sky-600"
+          ? "bg-sky-100 text-sky-700"
           : "text-ink-500 hover:bg-sky-50 hover:text-ink-700",
       )}
     >

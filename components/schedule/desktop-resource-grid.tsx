@@ -14,6 +14,7 @@ import { findConflictingBookings, type BookingStatus } from "@/lib/bookings/conf
 import { formatTimeLabel, minutesToTime, normalizeTimeString, timeToMinutes } from "@/lib/dates";
 import { buildingGroupSpans, type ScheduleRoom } from "@/lib/rooms-filters";
 import { dayTransitionClassName, useDayTransitionDirection } from "@/lib/schedule/day-transition";
+import { handleScheduleGridKeyDown } from "@/lib/schedule/event-block-navigation";
 import { layoutOverlappingEvents } from "@/lib/schedule/event-layout";
 import {
   formatHourLabel,
@@ -369,7 +370,12 @@ export function DesktopResourceGrid({
           description="Turn off “Hide free rooms” to see the full grid."
         />
       ) : (
-      <div ref={scrollRef} className="w-full min-w-0 overflow-auto rounded-lg border border-line bg-surface">
+      <div
+        ref={scrollRef}
+        data-schedule-grid
+        onKeyDown={handleScheduleGridKeyDown}
+        className="w-full min-w-0 overflow-auto rounded-lg border border-line bg-surface"
+      >
         <div
           key={date}
           className={cn("grid", dayTransitionClassName(transitionDirection))}
@@ -449,7 +455,7 @@ export function DesktopResourceGrid({
             <NowLine date={date} />
           </div>
 
-          {visibleRooms.map((room) => {
+          {visibleRooms.map((room, roomIndex) => {
             const roomBookings = laidOutBookingsByRoom.get(room.id) ?? [];
             const drag = isDragging && renderDrag?.roomId === room.id ? renderDrag : null;
             const conflict = dragConflict?.roomId === room.id ? dragConflict : null;
@@ -482,6 +488,7 @@ export function DesktopResourceGrid({
                       startTime={booking.start_time}
                       endTime={booking.end_time}
                       status={booking.status}
+                      roomIndex={roomIndex}
                       top={top}
                       height={height}
                       columnIndex={columnIndex}

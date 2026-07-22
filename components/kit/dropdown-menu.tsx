@@ -60,6 +60,7 @@ function DropdownMenuItem({
       className={cn(
         "flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-small text-ink-700 outline-none select-none",
         "data-[highlighted]:bg-sky-50 data-[highlighted]:text-ink-900",
+        "focus-visible:ring-2 focus-visible:ring-sky-300",
         variant === "danger" &&
           "text-status-rejected-fg data-[highlighted]:bg-status-rejected-bg data-[highlighted]:text-status-rejected-fg",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
@@ -81,6 +82,7 @@ function DropdownMenuCheckboxItem({
       className={cn(
         "flex cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-8 text-small text-ink-700 outline-none select-none",
         "data-[highlighted]:bg-sky-50 data-[highlighted]:text-ink-900",
+        "focus-visible:ring-2 focus-visible:ring-sky-300",
         "data-[disabled]:pointer-events-none data-[disabled]:opacity-50",
         className
       )}
