@@ -48,5 +48,5 @@ function StatusBadge({ status, dot = false, className }: StatusBadgeProps) {
   )
 }
 
-export { StatusBadge, statusBadgeVariants }
+export { StatusBadge, statusBadgeVariants, STATUS_LABELS }
 export type { StatusBadgeProps }

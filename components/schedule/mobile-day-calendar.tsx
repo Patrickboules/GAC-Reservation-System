@@ -3,14 +3,15 @@
 import { useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
 
 import { Select } from "@/components/kit/select";
-import { StatusBadge } from "@/components/kit/status-badge";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
-import { addDays, formatTimeLabel } from "@/lib/dates";
+import { addDays } from "@/lib/dates";
 import { dayTransitionClassName, useDayTransitionDirection } from "@/lib/schedule/day-transition";
+import { layoutOverlappingEvents } from "@/lib/schedule/event-layout";
 import { formatHourLabel, HOUR_ROW_HEIGHT_PX, offsetForTime, scheduleHours } from "@/lib/schedule/hours";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
+import { EventBlock } from "./event-block";
 import { NowLine } from "./now-line";
 
 export interface ScheduleRoom {
@@ -107,6 +108,8 @@ export function MobileDayCalendar({ rooms, date, onDateChange }: MobileDayCalend
   const transitionDirection = useDayTransitionDirection(date);
 
   const roomOptions = useMemo(() => rooms.map((room) => ({ value: room.id, label: room.name })), [rooms]);
+  const selectedRoomName = rooms.find((room) => room.id === roomId)?.name ?? "Room";
+  const laidOutBookings = useMemo(() => layoutOverlappingEvents(bookings), [bookings]);
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-3 lg:hidden">
@@ -171,21 +174,23 @@ export function MobileDayCalendar({ rooms, date, onDateChange }: MobileDayCalend
               ) : bookings.length === 0 ? (
                 <p className="p-3 text-small text-ink-500">No bookings for this day.</p>
               ) : (
-                bookings.map((booking) => {
+                laidOutBookings.map(({ event: booking, columnIndex, columnCount }) => {
                   const top = offsetForTime(booking.start_time);
                   const bottom = offsetForTime(booking.end_time);
                   const height = Math.max(bottom - top, 22);
                   return (
-                    <div
+                    <EventBlock
                       key={booking.id}
-                      style={{ top, height }}
-                      className="absolute inset-x-1 flex flex-col justify-center gap-1 overflow-hidden rounded-md border-l-4 border-sky-600 bg-sky-50 px-2 py-1"
-                    >
-                      <span className="truncate font-mono text-caption text-ink-900">
-                        {formatTimeLabel(booking.start_time)} – {formatTimeLabel(booking.end_time)}
-                      </span>
-                      <StatusBadge status={booking.status} />
-                    </div>
+                      id={booking.id}
+                      roomName={selectedRoomName}
+                      startTime={booking.start_time}
+                      endTime={booking.end_time}
+                      status={booking.status}
+                      top={top}
+                      height={height}
+                      columnIndex={columnIndex}
+                      columnCount={columnCount}
+                    />
                   );
                 })
               )}

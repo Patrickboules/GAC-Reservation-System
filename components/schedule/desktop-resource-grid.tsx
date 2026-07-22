@@ -2,14 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { StatusBadge } from "@/components/kit/status-badge";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
-import { formatTimeLabel } from "@/lib/dates";
 import { dayTransitionClassName, useDayTransitionDirection } from "@/lib/schedule/day-transition";
+import { layoutOverlappingEvents } from "@/lib/schedule/event-layout";
 import { formatHourLabel, HOUR_ROW_HEIGHT_PX, offsetForTime, scheduleHours } from "@/lib/schedule/hours";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
+import { EventBlock } from "./event-block";
 import { NowLine } from "./now-line";
 
 export interface ScheduleRoom {
@@ -74,17 +74,21 @@ export function DesktopResourceGrid({ rooms, date }: { rooms: ScheduleRoom[]; da
     };
   }, [supabase, rooms.length, date]);
 
-  const bookingsByRoom = useMemo(() => {
-    const map = new Map<string, DayBooking[]>();
+  const laidOutBookingsByRoom = useMemo(() => {
+    const grouped = new Map<string, DayBooking[]>();
     for (const booking of bookings) {
-      const existing = map.get(booking.room_id);
+      const existing = grouped.get(booking.room_id);
       if (existing) {
         existing.push(booking);
       } else {
-        map.set(booking.room_id, [booking]);
+        grouped.set(booking.room_id, [booking]);
       }
     }
-    return map;
+    const laidOut = new Map<string, ReturnType<typeof layoutOverlappingEvents<DayBooking>>>();
+    for (const [roomId, roomBookings] of grouped) {
+      laidOut.set(roomId, layoutOverlappingEvents(roomBookings));
+    }
+    return laidOut;
   }, [bookings]);
 
   const hours = useMemo(() => scheduleHours(), []);
@@ -165,7 +169,7 @@ export function DesktopResourceGrid({ rooms, date }: { rooms: ScheduleRoom[]; da
           </div>
 
           {rooms.map((room) => {
-            const roomBookings = bookingsByRoom.get(room.id) ?? [];
+            const roomBookings = laidOutBookingsByRoom.get(room.id) ?? [];
             return (
               <div key={room.id} className="relative border-r border-line/60 last:border-r-0" style={{ height: gridHeight }}>
                 {hours.slice(0, -1).map((hour, index) => (
@@ -178,21 +182,23 @@ export function DesktopResourceGrid({ rooms, date }: { rooms: ScheduleRoom[]; da
 
                 <NowLine date={date} showDot={false} />
 
-                {roomBookings.map((booking) => {
+                {roomBookings.map(({ event: booking, columnIndex, columnCount }) => {
                   const top = offsetForTime(booking.start_time);
                   const bottom = offsetForTime(booking.end_time);
                   const height = Math.max(bottom - top, 22);
                   return (
-                    <div
+                    <EventBlock
                       key={booking.id}
-                      style={{ top, height }}
-                      className="absolute inset-x-1 flex flex-col justify-center gap-1 overflow-hidden rounded-md border-l-4 border-sky-600 bg-sky-50 px-2 py-1"
-                    >
-                      <span className="truncate font-mono text-caption text-ink-900">
-                        {formatTimeLabel(booking.start_time)}–{formatTimeLabel(booking.end_time)}
-                      </span>
-                      <StatusBadge status={booking.status} />
-                    </div>
+                      id={booking.id}
+                      roomName={room.name}
+                      startTime={booking.start_time}
+                      endTime={booking.end_time}
+                      status={booking.status}
+                      top={top}
+                      height={height}
+                      columnIndex={columnIndex}
+                      columnCount={columnCount}
+                    />
                   );
                 })}
               </div>
