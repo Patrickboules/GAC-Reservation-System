@@ -15,7 +15,7 @@ export interface BookingActionResult {
   error?: string;
 }
 
-async function requireAdmin() {
+export async function requireAdmin() {
   const supabase = await createClient();
   const {
     data: { user },
