@@ -563,8 +563,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 38,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Rewrote app/(app)/rooms/[id]/page.tsx: a color header banner (bg-sky-100, same default as the US-013 RoomCard header since category_color doesn't exist until US-042), capacity/location line, an amenity grid (icon via the now-exported `amenityIcon` helper from components/kit/room-card.tsx, reused rather than duplicated + label), a usage-rules list (rules is a single free-text column in the current schema, so it's split on newlines into <li> items — today's seed data is one line per room, rendering as a single-item list), and a new mini 7-day availability strip (queries bookings_schedule for this room's approved bookings over the next 7 days, one dot+label per day, reusing the free/busy status-token colors already established by RoomCard/EventBlock). The 'Book this room' primary CTA links to /bookings/new?room={id}, which the existing US-017 BookingSheet already reads via searchParams to pre-fill the room — no new wiring needed there. Empty fields still fall back to 'Not specified' via the existing lib/rooms.ts formatRoomField. Verified: npx tsc --noEmit, npm run lint, npm run build all clean (13 routes unchanged). No dev-browser skill in this environment, so started the local Supabase stack (already had .env pointed at it from a prior session) and drove the real flow with a Playwright script using a temporary confirmed test user and a seeded today 10-11am approved Choir Room booking (both cleaned up after, stack stopped afterward) at 1280px and 375px — confirmed the header/capacity/location/amenity icons+labels/rules list/CTA all render, the strip shows 'Busy' for today and 'Free' for the other 6 days, zero horizontal scroll at both viewports, and clicking 'Book this room' opens the booking sheet with the room pre-selected."
     },
     {
       "id": "US-039",

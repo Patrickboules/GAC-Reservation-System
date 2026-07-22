@@ -43,6 +43,8 @@ function amenityIcon(amenity: string) {
   return AMENITY_ICONS[amenity.trim().toLowerCase()] ?? Tag
 }
 
+export { amenityIcon }
+
 const MAX_VISIBLE_AMENITIES = 4
 
 type RoomCardAvailability = "free" | "busy"
