@@ -691,8 +691,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 47,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "No code changes needed: both animation systems named in this story's acceptance criteria already implement the required reduced-motion fallback, added proactively during their own stories. components/kit/modal.tsx (US-008) has motion-reduce:data-[starting-style]:translate-y-0 / motion-reduce:data-[ending-style]:translate-y-0 (mobile sheet) and equivalent desktop scale/translate zeroing, leaving only the opacity fade. app/globals.css's schedule-day-slide-right/-left keyframes (US-029, used by lib/schedule/day-transition.ts + components/schedule/mobile-day-calendar.tsx and desktop-resource-grid.tsx) are re-declared inside a @media (prefers-reduced-motion: reduce) block with the translateX removed, same technique. components/kit/toast.tsx also already carries the same motion-reduce pattern (from US-009), so no gaps were found elsewhere either. Verified: npx tsc --noEmit, npm run lint, npm run build all clean (17 routes unchanged). No dev-browser skill in this environment, so started the local Supabase stack (db reset applied cleanly) and drove a Playwright script against the dev server with browser context reducedMotion:'reduce', using the seed admin user — confirmed the booking-sheet Modal's [data-slot=modal-content] computed transform is 'none' immediately after opening (no slide/scale) at a 390px mobile viewport, and confirmed the day-strip's freshly-mounted .animate-schedule-slide-right element's computed transform is 'none' immediately after clicking 'Next day' at 1440px (no translateX, opacity-only fade). Stopped the local Supabase stack and dev server afterward; no test data was created (used the existing seed admin user only)."
     },
     {
       "id": "US-048",
