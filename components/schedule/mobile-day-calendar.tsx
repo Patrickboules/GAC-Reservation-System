@@ -1,7 +1,9 @@
 "use client";
 
+import { Pin, PinOff } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type TouchEvent } from "react";
 
+import { IconButton } from "@/components/kit/icon-button";
 import { Select } from "@/components/kit/select";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
 import { addDays } from "@/lib/dates";
@@ -33,14 +35,24 @@ interface MobileDayCalendarProps {
   rooms: ScheduleRoom[];
   date: string;
   onDateChange: (date: string) => void;
+  favoriteRoomIds: ReadonlySet<string>;
+  onToggleFavorite: (roomId: string) => void;
 }
 
 /**
  * Mobile single-room resource-day calendar (US-027 baseline): a room selector,
  * an hour axis down the side, and that room's bookings as full-width blocks
  * for the selected day. Swipe or the day strip (US-029) change the day.
+ * `rooms` is expected pre-ordered by the caller (sortRoomsByFavorite, US-034)
+ * so pinned rooms sort first in the selector.
  */
-export function MobileDayCalendar({ rooms, date, onDateChange }: MobileDayCalendarProps) {
+export function MobileDayCalendar({
+  rooms,
+  date,
+  onDateChange,
+  favoriteRoomIds,
+  onToggleFavorite,
+}: MobileDayCalendarProps) {
   const supabase = useMemo(() => createClient(), []);
   const [roomId, setRoomId] = useState<string | null>(rooms[0]?.id ?? null);
   const [bookings, setBookings] = useState<DayBooking[]>([]);
@@ -111,20 +123,47 @@ export function MobileDayCalendar({ rooms, date, onDateChange }: MobileDayCalend
 
   const transitionDirection = useDayTransitionDirection(date);
 
-  const roomOptions = useMemo(() => rooms.map((room) => ({ value: room.id, label: room.name })), [rooms]);
+  const roomOptions = useMemo(
+    () =>
+      rooms.map((room) => ({
+        value: room.id,
+        label: favoriteRoomIds.has(room.id) ? (
+          <span className="flex items-center gap-1.5">
+            <Pin aria-hidden="true" className="size-3.5 shrink-0 fill-sky-600 text-sky-600" />
+            {room.name}
+          </span>
+        ) : (
+          room.name
+        ),
+      })),
+    [rooms, favoriteRoomIds]
+  );
   const selectedRoomName = rooms.find((room) => room.id === roomId)?.name ?? "Room";
   const laidOutBookings = useMemo(() => layoutOverlappingEvents(bookings), [bookings]);
+  const selectedRoomIsFavorite = roomId ? favoriteRoomIds.has(roomId) : false;
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-3 lg:hidden">
-      <Select
-        label="Room"
-        placeholder="Select a room"
-        options={roomOptions}
-        value={roomId}
-        onValueChange={(value) => setRoomId(value)}
-        disabled={rooms.length === 0}
-      />
+      <div className="flex items-end gap-2">
+        <Select
+          label="Room"
+          placeholder="Select a room"
+          options={roomOptions}
+          value={roomId}
+          onValueChange={(value) => setRoomId(value)}
+          disabled={rooms.length === 0}
+          wrapperClassName="flex-1"
+        />
+        <IconButton
+          label={selectedRoomIsFavorite ? `Unpin ${selectedRoomName}` : `Pin ${selectedRoomName}`}
+          tooltip={selectedRoomIsFavorite ? "Unpin room" : "Pin room"}
+          variant={selectedRoomIsFavorite ? "primary" : "secondary"}
+          disabled={!roomId}
+          onClick={() => roomId && onToggleFavorite(roomId)}
+        >
+          {selectedRoomIsFavorite ? <Pin className="fill-current" /> : <PinOff />}
+        </IconButton>
+      </div>
 
       {error ? (
         <p role="alert" className="text-small text-status-rejected-fg">

@@ -110,6 +110,13 @@ export function groupRoomsByBuilding(rooms: ScheduleRoom[]): ScheduleRoom[] {
   });
 }
 
+/** Floats pinned rooms (US-034/favorite_rooms) to the front, stable-sorting everything else in place. */
+export function sortRoomsByFavorite(rooms: ScheduleRoom[], favoriteRoomIds: ReadonlySet<string>): ScheduleRoom[] {
+  const favorites = rooms.filter((room) => favoriteRoomIds.has(room.id));
+  const rest = rooms.filter((room) => !favoriteRoomIds.has(room.id));
+  return [...favorites, ...rest];
+}
+
 export interface RoomBuildingGroup {
   building: string | null;
   count: number;

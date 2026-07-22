@@ -6,10 +6,18 @@ import { createClient } from "@/lib/supabase/server";
 
 export default async function SchedulePage() {
   const supabase = await createClient();
-  const { data: rooms } = await supabase
-    .from("rooms")
-    .select("id, name, capacity, amenities, building, floor, room_type")
-    .order("name");
+  const [{ data: rooms }, { data: userData }] = await Promise.all([
+    supabase
+      .from("rooms")
+      .select("id, name, capacity, amenities, building, floor, room_type")
+      .order("name"),
+    supabase.auth.getUser(),
+  ]);
+
+  const { data: favorites } = userData.user
+    ? await supabase.from("favorite_rooms").select("room_id").eq("user_id", userData.user.id)
+    : { data: null };
+  const favoriteRoomIds = (favorites ?? []).map((favorite) => favorite.room_id);
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-4 p-4">
@@ -27,7 +35,7 @@ export default async function SchedulePage() {
           <Button variant="outline" render={<Link href="/">Home</Link>} />
         </div>
       </div>
-      <ScheduleContent rooms={rooms ?? []} />
+      <ScheduleContent rooms={rooms ?? []} initialFavoriteRoomIds={favoriteRoomIds} />
     </div>
   );
 }

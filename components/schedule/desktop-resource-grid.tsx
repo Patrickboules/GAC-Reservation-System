@@ -1,7 +1,9 @@
 "use client";
 
+import { Pin, PinOff } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { IconButton } from "@/components/kit/icon-button";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
 import { buildingGroupSpans, type ScheduleRoom } from "@/lib/rooms-filters";
 import { dayTransitionClassName, useDayTransitionDirection } from "@/lib/schedule/day-transition";
@@ -36,10 +38,20 @@ const GROUP_HEADER_HEIGHT_PX = 28;
  * row height, and off-hours styling (lib/schedule/hours.ts).
  *
  * `rooms` is expected pre-ordered by the caller (e.g. via groupRoomsByBuilding,
- * US-032) so same-building rooms are contiguous and can share one sticky
- * group header spanning their columns.
+ * US-032, with pinned rooms floated first, US-034) so same-building rooms are
+ * contiguous and can share one sticky group header spanning their columns.
  */
-export function DesktopResourceGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: string }) {
+export function DesktopResourceGrid({
+  rooms,
+  date,
+  favoriteRoomIds,
+  onToggleFavorite,
+}: {
+  rooms: ScheduleRoom[];
+  date: string;
+  favoriteRoomIds: ReadonlySet<string>;
+  onToggleFavorite: (roomId: string) => void;
+}) {
   const supabase = useMemo(() => createClient(), []);
   const [bookings, setBookings] = useState<DayBooking[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,16 +177,29 @@ export function DesktopResourceGrid({ rooms, date }: { rooms: ScheduleRoom[]; da
             style={{ top: headerTopOffset }}
             className="sticky left-0 z-20 border-r border-b border-line bg-surface"
           />
-          {rooms.map((room) => (
-            <div
-              key={room.id}
-              title={room.name}
-              style={{ top: headerTopOffset }}
-              className="sticky z-10 truncate border-b border-line bg-surface px-3 py-2 font-display text-small text-ink-900"
-            >
-              {room.name}
-            </div>
-          ))}
+          {rooms.map((room) => {
+            const isFavorite = favoriteRoomIds.has(room.id);
+            return (
+              <div
+                key={room.id}
+                title={room.name}
+                style={{ top: headerTopOffset }}
+                className="sticky z-10 flex items-center justify-between gap-1 truncate border-b border-line bg-surface px-2 py-1 font-display text-small text-ink-900"
+              >
+                <span className="truncate">{room.name}</span>
+                <IconButton
+                  label={isFavorite ? `Unpin ${room.name}` : `Pin ${room.name}`}
+                  tooltip={isFavorite ? "Unpin room" : "Pin room"}
+                  variant="ghost"
+                  size="sm"
+                  className={cn("size-6", isFavorite && "text-sky-600")}
+                  onClick={() => onToggleFavorite(room.id)}
+                >
+                  {isFavorite ? <Pin className="fill-current" /> : <PinOff />}
+                </IconButton>
+              </div>
+            );
+          })}
 
           <div aria-hidden="true" className="sticky left-0 z-10 bg-sand-100" style={{ height: OFF_HOURS_BAND_PX }} />
           {rooms.map((room) => (
