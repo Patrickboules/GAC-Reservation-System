@@ -1,0 +1,64 @@
+{
+  "project": "GAC Reservations",
+  "branchName": "ralph/vercel-deployment",
+  "description": "Vercel Production Deployment Pipeline — wire the repo so pushes to main auto-deploy to Vercel and PRs are gated by GitHub Actions CI. Source: tasks/prd-vercel-deployment.md. Note: the source PRD's US-003/US-004/US-005 (creating the Vercel project, adding env vars in its dashboard, and confirming a live deploy) require a human with Vercel/GitHub account access and cannot be performed or verified by an autonomous coding agent. This prd.json only covers the subset that's achievable and objectively checkable from the repo itself (config files, CI workflow, docs); the remaining manual dashboard steps are captured as a checklist in US-004's DEPLOYMENT.md for the project owner to complete by hand.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Add .env.example and verify a clean, reproducible build",
+      "description": "As a developer, I want the repo to build reproducibly from a fresh clone/CI runner so Vercel's build doesn't fail on missing config and no secrets leak into the repo.",
+      "acceptanceCriteria": [
+        "Add .env.example at repo root listing NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, NEXT_PUBLIC_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY, each with a placeholder value and a one-line comment on where to find it in the Supabase dashboard",
+        "Confirm .gitignore excludes .env (add it if missing) and that `git log --all --full-history -- .env` returns no commits",
+        "`rm -rf .next && npm run build` succeeds using the existing local .env",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Added .env.example (4 vars with placeholder values + dashboard location comments); updated .gitignore's negation from !.env.local.example to !.env.example and deleted the old .env.local.example; confirmed `.env` has never been committed; clean `rm -rf .next && npm run build` and `npx tsc --noEmit` both pass."
+    },
+    {
+      "id": "US-002",
+      "title": "Add GitHub Actions CI workflow for pull requests",
+      "description": "As a developer, I want every PR into main to automatically run typecheck, lint, and tests so a broken change is caught before merge, independent of Vercel's own build step.",
+      "acceptanceCriteria": [
+        "Add .github/workflows/ci.yml triggered on pull_request targeting main and on push to main",
+        "Workflow installs dependencies with npm ci (with npm dependency caching) and runs, as separate steps: npx tsc --noEmit, npm run lint, npm test",
+        "Any failing step fails the workflow run",
+        "Workflow does not require real Supabase credentials to pass — typecheck/lint/test must not depend on live DB access; if any existing test needs env vars just to run (not to hit a real DB), stub them with dummy values in the workflow env",
+        "Typecheck passes",
+        "Tests pass"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Added .github/workflows/ci.yml (Node 20, npm ci with cache) triggered on PRs to main and pushes to main; runs tsc --noEmit, lint, test as separate steps with placeholder Supabase env vars (no real credentials needed since tests/typecheck don't hit a live DB). Verified locally: typecheck, lint, and `npm test` (41 tests) all pass."
+    },
+    {
+      "id": "US-003",
+      "title": "Restrict Vercel deployments to the main branch via vercel.json",
+      "description": "As the project owner, I want only the main branch to produce a Vercel deployment, configured in version-controlled code rather than relying solely on a manual dashboard toggle.",
+      "acceptanceCriteria": [
+        "Add vercel.json at repo root with a git.deploymentEnabled setting that enables deployments only for \"main\" and disables all other branches via the \"*\" wildcard",
+        "package.json's existing build script remains the single build command (no separate/divergent Vercel-only build override introduced)",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Added vercel.json with git.deploymentEnabled: {\"main\": true, \"*\": false} to restrict deployments to the main branch. package.json's build script (`next build --turbopack`) is untouched. Typecheck passes."
+    },
+    {
+      "id": "US-004",
+      "title": "Document the deployment pipeline and remaining manual setup",
+      "description": "As a developer, I want a written record of how the deploy pipeline works and an explicit checklist of the manual Vercel/GitHub dashboard steps the project owner still needs to do by hand, since those can't be performed by an autonomous coding agent.",
+      "acceptanceCriteria": [
+        "Add DEPLOYMENT.md covering: how production deploys are triggered (push to main), where production env vars live (Vercel's Production environment scope, matching the names in .env.example from US-001), how CI gates PRs (US-002), and the vercel.json branch restriction (US-003)",
+        "DEPLOYMENT.md includes an explicit manual-steps checklist for the human: create/connect the GitHub repo, create a Vercel project importing that repo, set Production Branch to main, add the four env vars from .env.example under Vercel's Production scope, and verify `next build --turbopack` succeeds on a real Vercel build — with a documented fallback of dropping `--turbopack` from package.json's build script if it fails there",
+        "CLAUDE.md updated with a short pointer to DEPLOYMENT.md",
+        "Typecheck passes"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Added DEPLOYMENT.md covering deploy trigger, env var scope, CI gate, and vercel.json branch restriction, plus a manual-steps checklist (create/connect repo, create Vercel project, set Production Branch, add env vars, verify build with --turbopack fallback). Added a pointer to DEPLOYMENT.md in CLAUDE.md. Typecheck passes."
+    }
+  ]
+}

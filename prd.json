@@ -1,64 +1,189 @@
 {
   "project": "GAC Reservations",
-  "branchName": "ralph/vercel-deployment",
-  "description": "Vercel Production Deployment Pipeline — wire the repo so pushes to main auto-deploy to Vercel and PRs are gated by GitHub Actions CI. Source: tasks/prd-vercel-deployment.md. Note: the source PRD's US-003/US-004/US-005 (creating the Vercel project, adding env vars in its dashboard, and confirming a live deploy) require a human with Vercel/GitHub account access and cannot be performed or verified by an autonomous coding agent. This prd.json only covers the subset that's achievable and objectively checkable from the repo itself (config files, CI workflow, docs); the remaining manual dashboard steps are captured as a checklist in US-004's DEPLOYMENT.md for the project owner to complete by hand.",
+  "branchName": "ralph/schedule-timeline-grid",
+  "description": "Schedule Timeline Grid (Rooms-as-Rows Rewrite) — replace the column-per-room desktop grid and single-room mobile calendar with one responsive timeline grid (rooms as rows, time as a horizontal axis) that scales to 30 rooms, preserving drag-to-create, pin/favorite, hide-free-rooms, building groups, keyboard navigation, and the now-line. Source: tasks/prd-schedule-timeline-grid.md.",
   "userStories": [
     {
       "id": "US-001",
-      "title": "Add .env.example and verify a clean, reproducible build",
-      "description": "As a developer, I want the repo to build reproducibly from a fresh clone/CI runner so Vercel's build doesn't fail on missing config and no secrets leak into the repo.",
+      "title": "Horizontal time-axis math utilities",
+      "description": "As a developer, I need percentage-based time-to-position conversion functions (the horizontal-axis equivalent of the existing pixel-based offsetForTime/timeForOffset in lib/schedule/hours.ts) so every component that positions something along the time axis shares one implementation.",
       "acceptanceCriteria": [
-        "Add .env.example at repo root listing NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY, NEXT_PUBLIC_SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY, each with a placeholder value and a one-line comment on where to find it in the Supabase dashboard",
-        "Confirm .gitignore excludes .env (add it if missing) and that `git log --all --full-history -- .env` returns no commits",
-        "`rm -rf .next && npm run build` succeeds using the existing local .env",
-        "Typecheck passes"
-      ],
-      "priority": 1,
-      "passes": true,
-      "notes": "Added .env.example (4 vars with placeholder values + dashboard location comments); updated .gitignore's negation from !.env.local.example to !.env.example and deleted the old .env.local.example; confirmed `.env` has never been committed; clean `rm -rf .next && npm run build` and `npx tsc --noEmit` both pass."
-    },
-    {
-      "id": "US-002",
-      "title": "Add GitHub Actions CI workflow for pull requests",
-      "description": "As a developer, I want every PR into main to automatically run typecheck, lint, and tests so a broken change is caught before merge, independent of Vercel's own build step.",
-      "acceptanceCriteria": [
-        "Add .github/workflows/ci.yml triggered on pull_request targeting main and on push to main",
-        "Workflow installs dependencies with npm ci (with npm dependency caching) and runs, as separate steps: npx tsc --noEmit, npm run lint, npm test",
-        "Any failing step fails the workflow run",
-        "Workflow does not require real Supabase credentials to pass — typecheck/lint/test must not depend on live DB access; if any existing test needs env vars just to run (not to hit a real DB), stub them with dummy values in the workflow env",
+        "percentForTime(time) returns 0 at SCHEDULE_START_HOUR and 100 at SCHEDULE_END_HOUR (existing constants: 8 and 23), clamped for times outside that range",
+        "timeForPercent(percent) is the inverse, snapped to BOOKING_TIME_STEP_MINUTES the same way the existing timeForOffset is",
+        "A gridline helper returns hour and half-hour marks as percentages across the operating window, for the time header and background gridlines to share",
+        "Existing vertical offsetForTime/timeForOffset stay in place untouched until US-012 removes them, so nothing else in the app breaks mid-refactor",
         "Typecheck passes",
         "Tests pass"
       ],
+      "priority": 1,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-002",
+      "title": "Horizontal now-line",
+      "description": "As a member checking the schedule, I want the current-time indicator to be a vertical line at today's current time (not a horizontal one), matching the new left-to-right time axis.",
+      "acceptanceCriteria": [
+        "useNowOffsetPx's logic is adapted (or a new hook added) to return a 0-100 percent position via US-001's percentForTime, still null whenever the viewed date isn't today, still refreshing every 60 seconds",
+        "NowLine renders a 2px accent-colored vertical line at left: X% with a small dot at the top, spanning the full height of its container (previously a horizontal line spanning full width)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
       "priority": 2,
-      "passes": true,
-      "notes": "Added .github/workflows/ci.yml (Node 20, npm ci with cache) triggered on PRs to main and pushes to main; runs tsc --noEmit, lint, test as separate steps with placeholder Supabase env vars (no real credentials needed since tests/typecheck don't hit a live DB). Verified locally: typecheck, lint, and `npm test` (41 tests) all pass."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-003",
-      "title": "Restrict Vercel deployments to the main branch via vercel.json",
-      "description": "As the project owner, I want only the main branch to produce a Vercel deployment, configured in version-controlled code rather than relying solely on a manual dashboard toggle.",
+      "title": "Horizontal event block",
+      "description": "As a member scanning the schedule, I want each booking rendered as a horizontal block positioned by time, showing as much detail as its width allows.",
       "acceptanceCriteria": [
-        "Add vercel.json at repo root with a git.deploymentEnabled setting that enables deployments only for \"main\" and disables all other branches via the \"*\" wildcard",
-        "package.json's existing build script remains the single build command (no separate/divergent Vercel-only build override introduced)",
-        "Typecheck passes"
+        "EventBlock positions itself by left/width percentages (via US-001) instead of the current top/height + column-based left/width; top/height become its lane position within the room row (for concurrent-overlap stacking, see US-005)",
+        "At rendered width >=90px: title/service, time range, and requester name all show (existing priority order)",
+        "Between 40-90px: title only, truncated with ellipsis",
+        "Below 40px: no text at all, just the colored block; hovering/focusing shows the existing kit Tooltip with the full title, time range, and requester",
+        "DragCreateOverlay is updated to the same left/width horizontal positioning, keeping its existing pending/conflict styling",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 3,
-      "passes": true,
-      "notes": "Added vercel.json with git.deploymentEnabled: {\"main\": true, \"*\": false} to restrict deployments to the main branch. package.json's build script (`next build --turbopack`) is untouched. Typecheck passes."
+      "passes": false,
+      "notes": ""
     },
     {
       "id": "US-004",
-      "title": "Document the deployment pipeline and remaining manual setup",
-      "description": "As a developer, I want a written record of how the deploy pipeline works and an explicit checklist of the manual Vercel/GitHub dashboard steps the project owner still needs to do by hand, since those can't be performed by an autonomous coding agent.",
+      "title": "TimelineGrid skeleton — sticky room column, sticky time header",
+      "description": "As a member on any device, I want one calendar component (not a separate mobile/desktop pair) with a room column that stays visible on the left and a time header that stays visible at the top while I scroll.",
       "acceptanceCriteria": [
-        "Add DEPLOYMENT.md covering: how production deploys are triggered (push to main), where production env vars live (Vercel's Production environment scope, matching the names in .env.example from US-001), how CI gates PRs (US-002), and the vercel.json branch restriction (US-003)",
-        "DEPLOYMENT.md includes an explicit manual-steps checklist for the human: create/connect the GitHub repo, create a Vercel project importing that repo, set Production Branch to main, add the four env vars from .env.example under Vercel's Production scope, and verify `next build --turbopack` succeeds on a real Vercel build — with a documented fallback of dropping `--turbopack` from package.json's build script if it fails there",
-        "CLAUDE.md updated with a short pointer to DEPLOYMENT.md",
-        "Typecheck passes"
+        "New components/schedule/timeline-grid.tsx, built mobile-first and responsive, not yet wired with real bookings (structural shell only for this story)",
+        "Room column is position: sticky; left: 0; each cell shows room name, \"cap. N\" as secondary text (nothing if capacity is null), and a thin colored left bar using the room's existing category_color",
+        "Frozen column width: 140px at >=1024px, 100px between 768-1023px, ~88px below 768px",
+        "Time header is position: sticky; top: 0 inside the scroll container; hour labels every 1 hour when the container is >=1100px wide, every 2 hours below that; vertical hairline gridlines at each hour, a lighter half-hour gridline when the rendered per-hour width has room for one",
+        "Renders correctly with a temporary 30-room fixture (removed after verification) without layout breaking",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
       ],
       "priority": 4,
-      "passes": true,
-      "notes": "Added DEPLOYMENT.md covering deploy trigger, env var scope, CI gate, and vercel.json branch restriction, plus a manual-steps checklist (create/connect repo, create Vercel project, set Production Branch, add env vars, verify build with --turbopack fallback). Added a pointer to DEPLOYMENT.md in CLAUDE.md. Typecheck passes."
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-005",
+      "title": "Wire bookings into TimelineGrid rows",
+      "description": "As a member, I want to actually see each room's bookings for the selected day, positioned along the time axis, with overlapping bookings in the same room stacked instead of hidden behind each other.",
+      "acceptanceCriteria": [
+        "Fetches the selected date's bookings from bookings_schedule the same way the current components do, and renders them as EventBlocks (US-003) positioned via percentForTime (US-001) inside their room's row",
+        "Bookings that overlap in time within the same room stack into vertical lanes (reusing lib/schedule/event-layout.ts's existing overlap-clustering — its columnIndex/columnCount output reinterpreted as lane position instead of side-by-side columns); the room row grows tall enough to fit its tallest lane stack",
+        "Loading/error/empty states reuse the existing kit LoadingState/ErrorState/EmptyState components",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 5,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-006",
+      "title": "Now-line wired into TimelineGrid",
+      "description": "As a member viewing today's schedule, I want to see the current-time line running down through all visible rooms.",
+      "acceptanceCriteria": [
+        "US-002's horizontal NowLine renders inside TimelineGrid, spanning the full height of all currently-visible room rows, only when the viewed date is today",
+        "No now-line renders for any other date",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 6,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-007",
+      "title": "Drag-to-create bookings along the time axis (mouse)",
+      "description": "As a member on desktop or tablet, I want to click-drag across empty space in a room's row to create a booking for that time range, like I can today (just horizontally now instead of vertically).",
+      "acceptanceCriteria": [
+        "Mouse-dragging horizontally within an empty area of a room row shows a live ghost overlay (US-003's DragCreateOverlay) with the dragged time range, using timeForPercent (US-001)",
+        "Releasing with no conflict routes to /bookings/new prefilled with room, date, start, and end — unchanged from today's behavior",
+        "Releasing over a conflict shows the existing conflict-warning overlay for ~3 seconds and does not navigate",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 7,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-008",
+      "title": "Drag-to-create bookings along the time axis (touch)",
+      "description": "As a member on a phone or tablet, I want to still be able to create a booking by dragging, without that gesture fighting with scrolling the timeline horizontally to see other times.",
+      "acceptanceCriteria": [
+        "A plain horizontal touch-drag scrolls the timeline (native scroll) — this is the primary way to see the full operating window on a narrow screen",
+        "A press-and-hold (~300ms, no movement) arms drag-create mode with a brief visual cue; horizontal movement after that draws the live ghost overlay and behaves like US-007 (same conflict check, same redirect)",
+        "A drag started without the hold never triggers drag-create — it's always a scroll",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 8,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-009",
+      "title": "Keyboard navigation between booking blocks",
+      "description": "As a keyboard user, I want arrow keys to move between bookings in a way that matches the new row-per-room layout.",
+      "acceptanceCriteria": [
+        "lib/schedule/event-block-navigation.ts updated: ArrowLeft/ArrowRight move focus to the previous/next booking within the same room row (time order) — this is what ArrowUp/ArrowDown did in the old column layout",
+        "ArrowUp/ArrowDown move focus to the nearest-start-time booking in the room row above/below — this is what ArrowLeft/ArrowRight did in the old column layout",
+        "Reuses EventBlock's existing data-room-index/data-start-minutes attributes, no new data attributes needed",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 9,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-010",
+      "title": "Pin/favorite rooms and \"Hide free rooms\" in TimelineGrid",
+      "description": "As a member, I want to still be able to pin rooms I use often to the top of the list and hide rooms with nothing booked, same as today.",
+      "acceptanceCriteria": [
+        "Each room row has the existing pin/unpin IconButton; pinned rooms float to the top via the existing sortRoomsByFavorite (unchanged)",
+        "A \"Hide free rooms\" toggle above the grid hides rows with zero bookings for the selected date; shows an EmptyState if that leaves nothing visible",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 10,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-011",
+      "title": "Building group headers in TimelineGrid",
+      "description": "As a member browsing a multi-building venue, I want same-building rooms visually grouped, same as the current desktop grid.",
+      "acceptanceCriteria": [
+        "Consecutive same-building room rows (via the existing buildingGroupSpans) render under one sticky building-name header, adapted from the old column-spanning header to a row-spanning one",
+        "Rooms without a building sort last and render without a group header, matching current behavior",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 11,
+      "passes": false,
+      "notes": ""
+    },
+    {
+      "id": "US-012",
+      "title": "Replace old components and wire schedule-content.tsx",
+      "description": "As a developer, I want the old column-per-room components fully removed once TimelineGrid covers everything they did, so there's one calendar implementation, not two.",
+      "acceptanceCriteria": [
+        "components/schedule/schedule-content.tsx renders a single <TimelineGrid> for every breakpoint — no more lg:hidden / hidden lg:block split between two components",
+        "components/schedule/desktop-resource-grid.tsx and components/schedule/mobile-day-calendar.tsx deleted, with no remaining imports anywhere",
+        "Now-dead code removed, including the old vertical offsetForTime/timeForOffset in lib/schedule/hours.ts if nothing else references them",
+        "Lint reports no unused exports/imports",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill"
+      ],
+      "priority": 12,
+      "passes": false,
+      "notes": ""
     }
   ]
 }
