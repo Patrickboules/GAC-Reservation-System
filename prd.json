@@ -43,8 +43,8 @@
         "Typecheck passes"
       ],
       "priority": 3,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added vercel.json with git.deploymentEnabled: {\"main\": true, \"*\": false} to restrict deployments to the main branch. package.json's build script (`next build --turbopack`) is untouched. Typecheck passes."
     },
     {
       "id": "US-004",
