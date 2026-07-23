@@ -30,8 +30,8 @@
         "Tests pass"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added .github/workflows/ci.yml (Node 20, npm ci with cache) triggered on PRs to main and pushes to main; runs tsc --noEmit, lint, test as separate steps with placeholder Supabase env vars (no real credentials needed since tests/typecheck don't hit a live DB). Verified locally: typecheck, lint, and `npm test` (41 tests) all pass."
     },
     {
       "id": "US-003",

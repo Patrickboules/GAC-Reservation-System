@@ -2,3 +2,4 @@
 Started: Thu Jul 23 23:08:21 EEST 2026
 ---
 US-001: added .env.example (replacing .env.local.example), fixed .gitignore negation pattern, confirmed .env never committed; clean build (rm -rf .next && npm run build) and typecheck pass.
+US-002: added .github/workflows/ci.yml (PR + push-to-main triggers, npm ci with cache, tsc/lint/test steps, placeholder Supabase env vars); typecheck, lint, and npm test (41 tests) all pass locally.
