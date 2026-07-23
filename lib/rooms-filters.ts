@@ -7,6 +7,8 @@ export interface ScheduleRoom {
   building: string | null;
   floor: string | null;
   room_type: string | null;
+  /** Calendar palette key (lib/rooms/category-colors.ts), null if unset. */
+  category_color: string | null;
 }
 
 interface CapacityBucket {

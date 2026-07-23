@@ -64,8 +64,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 4,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added components/schedule/timeline-grid.tsx: a flexbox-based (not CSS grid) rooms-as-rows shell with a sticky room column (left:0, w-[88px]/md:100px/lg:140px, colored category_color bar + name + \"cap. N\") and a sticky time header (top:0) inside a max-h-[70vh] overflow-auto pane so the sticky positioning has a real internal scroll container to stick within (bare overflow-auto with no bound height doesn't scroll, so sticky is a no-op against it - verified this the hard way with a real browser check before adding the max-height). Hour labels/gridlines reuse US-001's timeAxisGridlines; label density switches 1hr/2hr at a measured (ResizeObserver) axis width of 1100px, half-hour gridlines show once per-hour width >=48px, and the axis has a min-width of 560px so 2-hour-step labels never collide on narrow phones (verified overlapping pixel rects at 420px before raising it) - forcing native horizontal scroll on mobile, which anticipates US-008. Added category_color to ScheduleRoom (lib/rooms-filters.ts) and the schedule page's room query select. Typecheck, lint, and npm test (53 tests) pass. Verified in the real dev server (linked remote Supabase, temp admin-API-created test user, deleted after) via a temporary 30-room fixture page (deleted after verification): confirmed responsive column widths at 390/800/1400px, confirmed the header and room column genuinely stay pinned during both vertical (internal pane) and horizontal (mobile, axis min-width forces scroll) scrolling, confirmed hour-label density and half-hour-gridline thresholds switch at the right measured widths, and caught/fixed two real rendering bugs along the way (sticky header not sticking without a bounded scroll container; hour-label text clipping/colliding at narrow widths)."
     },
     {
       "id": "US-005",
