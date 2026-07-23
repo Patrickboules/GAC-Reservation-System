@@ -10,6 +10,8 @@ US-001 is complete: a Next.js 15 (App Router, TypeScript, Tailwind, shadcn/ui) a
 
 GAC Reservations: a mobile-first, auth-gated room/hall booking system for Gawargious & Ava Antonious. Members (servants, scoutsmen, guides) browse room schedules, check availability, and submit booking requests; admins approve/reject from a queue. Full spec lives in `tasks/prd-gac-reservations-v1.md` (canonical/detailed PRD) and `prd_plans/V1_prd.md` (earlier draft — the tasks/ version supersedes it, e.g. it clarifies that the **entire app requires authentication**, including schedule browsing).
 
+See `DEPLOYMENT.md` for how the Vercel production deploy pipeline and PR CI gate work, plus the manual dashboard setup checklist.
+
 ### Planned tech stack (per PRD — not yet implemented)
 
 - Next.js 15 (App Router) + TypeScript, hosted on Vercel

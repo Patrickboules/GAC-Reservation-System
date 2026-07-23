@@ -57,8 +57,8 @@
         "Typecheck passes"
       ],
       "priority": 4,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added DEPLOYMENT.md covering deploy trigger, env var scope, CI gate, and vercel.json branch restriction, plus a manual-steps checklist (create/connect repo, create Vercel project, set Production Branch, add env vars, verify build with --turbopack fallback). Added a pointer to DEPLOYMENT.md in CLAUDE.md. Typecheck passes."
     }
   ]
 }
