@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { toDateString } from "@/lib/dates";
-import { offsetForTime } from "@/lib/schedule/hours";
+import { percentForTime } from "@/lib/schedule/hours";
 
 /** How often the now-line position refreshes while the tab stays open. */
 const REFRESH_INTERVAL_MS = 60_000;
@@ -15,11 +15,11 @@ function currentTimeOfDay(now: Date): string {
 }
 
 /**
- * Pixel offset (within the schedule grid's coordinate system, see lib/schedule/hours.ts)
- * of the current time, or null when `date` isn't today. Recomputes on an interval so the
+ * Horizontal position (0-100) along the time axis (see lib/schedule/hours.ts) of the
+ * current time, or null when `date` isn't today. Recomputes on an interval so the
  * now-line moves without a page reload while the tab stays open.
  */
-export function useNowOffsetPx(date: string): number | null {
+export function useNowOffsetPercent(date: string): number | null {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -28,5 +28,5 @@ export function useNowOffsetPx(date: string): number | null {
   }, []);
 
   if (toDateString(now) !== date) return null;
-  return offsetForTime(currentTimeOfDay(now));
+  return percentForTime(currentTimeOfDay(now));
 }

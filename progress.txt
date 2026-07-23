@@ -2,3 +2,4 @@
 Started: Fri Jul 24 2026
 ---
 US-001: added percentForTime/timeForPercent/timeAxisGridlines to lib/schedule/hours.ts (horizontal equivalents of offsetForTime/timeForOffset, which stay untouched); added lib/schedule/hours.test.ts and a vitest.config.ts path alias so hours.ts's existing "@/" imports resolve under vitest; typecheck, lint, and npm test (53 tests) all pass.
+US-002: renamed lib/schedule/now-line.ts's useNowOffsetPx to useNowOffsetPercent (percentForTime-based); components/schedule/now-line.tsx now renders a vertical border-l-2 line at left:X% with the dot at top-left, spanning full height, instead of the old horizontal border-t-2/top-offset line. typecheck and lint pass; verified against the real dev server (linked remote Supabase) with a temp Playwright test user/seeded booking — rendered left:% matches percentForTime math exactly and disappears on non-today dates.

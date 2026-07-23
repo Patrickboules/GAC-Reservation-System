@@ -30,8 +30,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 2,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Renamed useNowOffsetPx to useNowOffsetPercent in lib/schedule/now-line.ts (now uses US-001's percentForTime, same 60s refresh/null-unless-today logic). NowLine now renders a vertical border-l-2 line at left:X% spanning inset-y-0 with the dot repositioned to the top-left, replacing the old horizontal border-t-2/top-offset line. Typecheck and lint pass; verified against the real dev server (linked remote Supabase) with a temp Playwright-driven test user/seeded booking — confirmed the rendered style is left:<percent>% matching percentForTime math exactly, and that it disappears when navigating to a different date."
     },
     {
       "id": "US-003",
