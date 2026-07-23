@@ -47,8 +47,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 3,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "EventBlock now positions left/width via percentForTime(startTime/endTime) instead of column-based left/width; top/height are now caller-supplied lane position (px). Rendered width is measured via ResizeObserver (border-box) and drives 3 density tiers: >=90px full (time/service/requester, unchanged), 40-89px title-only (service, falling back to time label) truncated, <40px no text (existing hover/focus Popover still shows full details regardless of tier). DragCreateOverlay now takes left/width percent props (from percentForTime) instead of top/height. Updated the two old call sites (desktop-resource-grid.tsx, mobile-day-calendar.tsx) to match the new prop contracts so the app still compiles/runs; per this PRD's established precedent (US-002 already made NowLine vertical in these same soon-to-be-deleted components), their old vertical-time visual correctness is not preserved mid-refactor - they're replaced wholesale by TimelineGrid in US-004/US-005/US-012. Typecheck, lint, and vitest (53 tests) pass. Verified in a real browser against the linked remote Supabase (temp signed-up test user + seeded booking, cleaned up after): confirmed EventBlock renders without crashing, computed time labels are correct, and forcing the block's rendered width through 200/70/60/45/20px confirmed the three density tiers exactly at the 90/40px boundaries; hover on a collapsed block still showed the full popover; a mouse drag produced a correctly time-labeled ghost overlay via the new left/width props with no console errors."
     },
     {
       "id": "US-004",

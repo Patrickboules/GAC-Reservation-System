@@ -14,6 +14,7 @@ import {
 } from "@/components/kit/modal"
 import type { BookingStatus } from "@/lib/bookings/conflict-check"
 import { formatTimeLabel, timeToMinutes } from "@/lib/dates"
+import { percentForTime } from "@/lib/schedule/hours"
 import { serviceColor } from "@/lib/schedule/service-colors"
 import { cn } from "@/lib/utils"
 
@@ -24,8 +25,10 @@ const STATUS_DOT_CLASSES: Record<BookingStatus, string> = {
   cancelled: "bg-status-cancelled-fg",
 }
 
-/** Blocks shorter than this collapse to a single time-only line (density guard, spec 4.3). */
-const COLLAPSE_HEIGHT_PX = 40
+/** At or above this rendered width (px), the block shows title/service, time range, and requester. */
+const FULL_DETAIL_MIN_WIDTH_PX = 90
+/** At or above this rendered width (px, below FULL_DETAIL_MIN_WIDTH_PX), the block shows a truncated title only. */
+const TITLE_ONLY_MIN_WIDTH_PX = 40
 
 export interface EventBlockProps {
   id: string
@@ -37,14 +40,10 @@ export interface EventBlockProps {
   service?: string | null
   /** Requester's display name; omitted for scheduling views that don't expose other members' identities. */
   requesterName?: string | null
-  /** Absolute top offset in px within the caller's hour grid. */
+  /** Vertical (px) offset of this event's lane within its room row, for stacking concurrent overlaps (US-005). */
   top: number
-  /** Absolute height in px within the caller's hour grid. */
+  /** Vertical (px) height of this event's lane within its room row. */
   height: number
-  /** 0-based column among bookings that overlap this one in time (lib/schedule/event-layout.ts). */
-  columnIndex?: number
-  /** Total overlapping columns in this booking's cluster. */
-  columnCount?: number
   /**
    * 0-based position of this event's room among the currently-visible rooms,
    * used for left/right arrow-key navigation between room columns (US-046).
@@ -55,10 +54,11 @@ export interface EventBlockProps {
 }
 
 /**
- * A single booking rendered on the resource-day calendar (US-031): time range,
- * category color by service, requester, and a status dot; collapses to a
- * time-only line when short. Hover shows a summary popover, click opens a
- * detail sheet.
+ * A single booking rendered as a horizontal block positioned along the time
+ * axis: time range, category color by service, requester, and a status dot;
+ * text density drops as rendered width shrinks, down to a bare colored block.
+ * Hover/focus always shows a summary popover regardless of density; click
+ * opens a detail sheet.
  */
 function EventBlock({
   id,
@@ -70,23 +70,33 @@ function EventBlock({
   requesterName,
   top,
   height,
-  columnIndex = 0,
-  columnCount = 1,
   roomIndex = 0,
   className,
 }: EventBlockProps) {
   const [hoverOpen, setHoverOpen] = React.useState(false)
   const [detailOpen, setDetailOpen] = React.useState(false)
   const triggerRef = React.useRef<HTMLButtonElement>(null)
+  const [renderedWidth, setRenderedWidth] = React.useState(0)
 
-  const collapsed = height < COLLAPSE_HEIGHT_PX
+  React.useEffect(() => {
+    const el = triggerRef.current
+    if (!el) return
+    const observer = new ResizeObserver(() => {
+      setRenderedWidth(el.getBoundingClientRect().width)
+    })
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  const fullDetail = renderedWidth >= FULL_DETAIL_MIN_WIDTH_PX
+  const titleOnly = !fullDetail && renderedWidth >= TITLE_ONLY_MIN_WIDTH_PX
   const cancelled = status === "cancelled"
   const timeLabel = `${formatTimeLabel(startTime)}–${formatTimeLabel(endTime)}`
   const { accent, tint } = serviceColor(service)
   const ariaLabel = `${roomName}, ${timeLabel}, ${STATUS_LABELS[status]}`
 
-  const widthPct = 100 / columnCount
-  const leftPct = widthPct * columnIndex
+  const leftPct = percentForTime(startTime)
+  const widthPct = percentForTime(endTime) - leftPct
   const startMinutes = timeToMinutes(startTime)
 
   function handleFocus(event: React.FocusEvent<HTMLButtonElement>) {
@@ -117,8 +127,8 @@ function EventBlock({
           style={{
             top,
             height,
-            left: `calc(${leftPct}% + 4px)`,
-            width: `calc(${widthPct}% - 8px)`,
+            left: `calc(${leftPct}% + 1px)`,
+            width: `calc(${widthPct}% - 2px)`,
           }}
           className={cn(
             "absolute flex flex-col justify-center gap-0.5 overflow-hidden rounded-md border border-l-4 px-2 py-1 text-left outline-none transition-shadow",
@@ -130,16 +140,16 @@ function EventBlock({
             className
           )}
         >
-          <span
-            className={cn(
-              "truncate font-mono text-caption text-ink-900",
-              cancelled && "text-ink-500 line-through"
-            )}
-          >
-            {timeLabel}
-          </span>
-          {!collapsed && (
+          {fullDetail && (
             <>
+              <span
+                className={cn(
+                  "truncate font-mono text-caption text-ink-900",
+                  cancelled && "text-ink-500 line-through"
+                )}
+              >
+                {timeLabel}
+              </span>
               {service && (
                 <span
                   className={cn(
@@ -160,6 +170,16 @@ function EventBlock({
                 />
               </span>
             </>
+          )}
+          {titleOnly && (
+            <span
+              className={cn(
+                "truncate text-caption text-ink-900",
+                cancelled && "text-ink-500 line-through"
+              )}
+            >
+              {service ?? timeLabel}
+            </span>
           )}
         </button>
 

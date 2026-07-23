@@ -20,6 +20,7 @@ import {
   formatHourLabel,
   HOUR_ROW_HEIGHT_PX,
   offsetForTime,
+  percentForTime,
   scheduleHours,
   timeForOffset,
 } from "@/lib/schedule/hours";
@@ -49,6 +50,9 @@ const GESTURE_COMMIT_THRESHOLD_PX = 10;
 
 /** How long a post-drop conflict warning stays visible before fading (US-036). */
 const DRAG_CONFLICT_DISPLAY_MS = 3000;
+
+/** Minimum rendered width (percent of the operating window) for a drag overlay, so brief drags stay visible. */
+const MIN_DRAG_OVERLAY_WIDTH_PERCENT = 2;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -140,7 +144,7 @@ export function MobileDayCalendar({
   const gridContentRef = useRef<HTMLDivElement>(null);
   const touchStateRef = useRef<TouchGestureState | null>(null);
   const [dragBox, setDragBox] = useState<{ top: number; height: number } | null>(null);
-  const [dragConflict, setDragConflict] = useState<{ top: number; height: number } | null>(null);
+  const [dragConflict, setDragConflict] = useState<{ left: number; width: number } | null>(null);
   const dragConflictTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function dragRangeFor(anchorPx: number, currentPx: number) {
@@ -219,9 +223,10 @@ export function MobileDayCalendar({
 
       if (conflicts.length > 0) {
         if (dragConflictTimeoutRef.current) clearTimeout(dragConflictTimeoutRef.current);
+        const left = percentForTime(startTime);
         setDragConflict({
-          top: offsetForTime(startTime),
-          height: Math.max(offsetForTime(endTime) - offsetForTime(startTime), 22),
+          left,
+          width: Math.max(percentForTime(endTime) - left, MIN_DRAG_OVERLAY_WIDTH_PERCENT),
         });
         dragConflictTimeoutRef.current = setTimeout(() => setDragConflict(null), DRAG_CONFLICT_DISPLAY_MS);
         return;
@@ -341,10 +346,12 @@ export function MobileDayCalendar({
               {dragBox ? (
                 (() => {
                   const { startTime, endTime } = dragRangeFor(dragBox.top, dragBox.top + dragBox.height);
+                  const left = percentForTime(startTime);
+                  const width = Math.max(percentForTime(endTime) - left, MIN_DRAG_OVERLAY_WIDTH_PERCENT);
                   return (
                     <DragCreateOverlay
-                      top={dragBox.top}
-                      height={dragBox.height}
+                      left={left}
+                      width={width}
                       label={`${formatTimeLabel(startTime)} – ${formatTimeLabel(endTime)}`}
                     />
                   );
@@ -352,7 +359,7 @@ export function MobileDayCalendar({
               ) : null}
 
               {dragConflict ? (
-                <DragCreateOverlay top={dragConflict.top} height={dragConflict.height} label="Overlaps an existing booking" conflict />
+                <DragCreateOverlay left={dragConflict.left} width={dragConflict.width} label="Overlaps an existing booking" conflict />
               ) : null}
 
               {error ? (
@@ -371,7 +378,7 @@ export function MobileDayCalendar({
                 laidOutBookings.map(({ event: booking, columnIndex, columnCount }) => {
                   const top = offsetForTime(booking.start_time);
                   const bottom = offsetForTime(booking.end_time);
-                  const height = Math.max(bottom - top, 22);
+                  const height = Math.max(bottom - top, 22) / columnCount;
                   return (
                     <EventBlock
                       key={booking.id}
@@ -380,10 +387,8 @@ export function MobileDayCalendar({
                       startTime={booking.start_time}
                       endTime={booking.end_time}
                       status={booking.status}
-                      top={top}
+                      top={columnIndex * height}
                       height={height}
-                      columnIndex={columnIndex}
-                      columnCount={columnCount}
                     />
                   );
                 })

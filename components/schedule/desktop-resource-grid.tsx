@@ -19,6 +19,7 @@ import {
   formatHourLabel,
   HOUR_ROW_HEIGHT_PX,
   offsetForTime,
+  percentForTime,
   scheduleHours,
   timeForOffset,
 } from "@/lib/schedule/hours";
@@ -32,6 +33,8 @@ import { NowLine } from "./now-line";
 
 /** How long a post-drop conflict warning stays visible before fading (US-036). */
 const DRAG_CONFLICT_DISPLAY_MS = 3000;
+/** Minimum rendered width (percent of the operating window) for a drag overlay, so brief drags stay visible. */
+const MIN_DRAG_OVERLAY_WIDTH_PERCENT = 2;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -196,7 +199,7 @@ export function DesktopResourceGrid({
   const dragRef = useRef<ActiveDrag | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [renderDrag, setRenderDrag] = useState<ActiveDrag | null>(null);
-  const [dragConflict, setDragConflict] = useState<{ roomId: string; top: number; height: number } | null>(null);
+  const [dragConflict, setDragConflict] = useState<{ roomId: string; left: number; width: number } | null>(null);
   const dragConflictTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   function dragRangeFor(anchorPx: number, currentPx: number) {
@@ -255,10 +258,11 @@ export function DesktopResourceGrid({
 
       if (conflicts.length > 0) {
         if (dragConflictTimeoutRef.current) clearTimeout(dragConflictTimeoutRef.current);
+        const left = percentForTime(startTime);
         setDragConflict({
           roomId: finished.roomId,
-          top: offsetForTime(startTime),
-          height: Math.max(offsetForTime(endTime) - offsetForTime(startTime), 22),
+          left,
+          width: Math.max(percentForTime(endTime) - left, MIN_DRAG_OVERLAY_WIDTH_PERCENT),
         });
         dragConflictTimeoutRef.current = setTimeout(() => setDragConflict(null), DRAG_CONFLICT_DISPLAY_MS);
         return;
@@ -431,10 +435,8 @@ export function DesktopResourceGrid({
                       endTime={booking.end_time}
                       status={booking.status}
                       roomIndex={roomIndex}
-                      top={top}
-                      height={height}
-                      columnIndex={columnIndex}
-                      columnCount={columnCount}
+                      top={columnIndex * height}
+                      height={height / columnCount}
                     />
                   );
                 })}
@@ -442,12 +444,12 @@ export function DesktopResourceGrid({
                 {drag ? (
                   (() => {
                     const { startTime, endTime } = dragRangeFor(drag.anchorPx, drag.currentPx);
-                    const top = Math.min(drag.anchorPx, drag.currentPx);
-                    const height = Math.max(Math.abs(drag.currentPx - drag.anchorPx), 4);
+                    const left = percentForTime(startTime);
+                    const width = Math.max(percentForTime(endTime) - left, MIN_DRAG_OVERLAY_WIDTH_PERCENT);
                     return (
                       <DragCreateOverlay
-                        top={top}
-                        height={height}
+                        left={left}
+                        width={width}
                         label={`${formatTimeLabel(startTime)} – ${formatTimeLabel(endTime)}`}
                       />
                     );
@@ -455,7 +457,7 @@ export function DesktopResourceGrid({
                 ) : null}
 
                 {conflict ? (
-                  <DragCreateOverlay top={conflict.top} height={conflict.height} label="Overlaps an existing booking" conflict />
+                  <DragCreateOverlay left={conflict.left} width={conflict.width} label="Overlaps an existing booking" conflict />
                 ) : null}
               </div>
             );
