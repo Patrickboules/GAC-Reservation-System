@@ -16,8 +16,8 @@
         "Tests pass"
       ],
       "priority": 1,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added percentForTime/timeForPercent/timeAxisGridlines to lib/schedule/hours.ts alongside the untouched vertical offsetForTime/timeForOffset. Added lib/schedule/hours.test.ts (11 tests). Also added resolve.alias for \"@\" to vitest.config.ts since hours.ts's pre-existing \"@/lib/dates\" import wasn't resolvable under vitest before this story's test file exercised it."
     },
     {
       "id": "US-002",
