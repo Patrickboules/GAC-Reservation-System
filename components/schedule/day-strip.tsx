@@ -8,9 +8,8 @@ import { IconButton } from "@/components/kit/icon-button";
 import { addDays, parseDateString, todayDateString } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
-/** Pills rendered before/after the selected day, so the strip re-centers as the day changes. */
-const DAYS_BEFORE = 5;
-const DAYS_AFTER = 13;
+/** Booking horizon: today plus the next 6 days (7 days total). */
+const DAYS_AFTER = 6;
 
 interface DayStripProps {
   date: string;
@@ -18,15 +17,18 @@ interface DayStripProps {
 }
 
 /**
- * Horizontally scrollable day-pill strip (US-029): tapping a pill jumps the
- * calendar to that day, arrow buttons step one day, and "Today" snaps back
- * to the current date. Shared by both the mobile and desktop schedule views.
+ * Day-pill strip (US-029) scoped to the bookable window — today through
+ * today+7 days. Tapping a pill jumps the calendar to that day, arrow buttons
+ * step one day (clamped to the window), and "Today" snaps back to the
+ * current date. Shared by both the mobile and desktop schedule views.
  */
 export function DayStrip({ date, onDateChange }: DayStripProps) {
-  const days = useMemo(() => {
-    const start = addDays(date, -DAYS_BEFORE);
-    return Array.from({ length: DAYS_BEFORE + DAYS_AFTER + 1 }, (_, i) => addDays(start, i));
-  }, [date]);
+  const today = todayDateString();
+  const lastDay = useMemo(() => addDays(today, DAYS_AFTER), [today]);
+  const days = useMemo(
+    () => Array.from({ length: DAYS_AFTER + 1 }, (_, i) => addDays(today, i)),
+    [today]
+  );
 
   const selectedRef = useRef<HTMLButtonElement>(null);
 
@@ -34,11 +36,17 @@ export function DayStrip({ date, onDateChange }: DayStripProps) {
     selectedRef.current?.scrollIntoView({ block: "nearest", inline: "center" });
   }, [date]);
 
-  const isToday = date === todayDateString();
+  const isToday = date === today;
+  const isFirstDay = date <= today;
+  const isLastDay = date >= lastDay;
 
   return (
     <div className="flex w-full min-w-0 items-center gap-2">
-      <IconButton label="Previous day" onClick={() => onDateChange(addDays(date, -1))}>
+      <IconButton
+        label="Previous day"
+        onClick={() => onDateChange(addDays(date, -1))}
+        disabled={isFirstDay}
+      >
         <ChevronLeft aria-hidden="true" />
       </IconButton>
 
@@ -72,11 +80,15 @@ export function DayStrip({ date, onDateChange }: DayStripProps) {
         })}
       </div>
 
-      <IconButton label="Next day" onClick={() => onDateChange(addDays(date, 1))}>
+      <IconButton
+        label="Next day"
+        onClick={() => onDateChange(addDays(date, 1))}
+        disabled={isLastDay}
+      >
         <ChevronRight aria-hidden="true" />
       </IconButton>
 
-      <Button variant="secondary" size="sm" onClick={() => onDateChange(todayDateString())} disabled={isToday}>
+      <Button variant="secondary" size="sm" onClick={() => onDateChange(today)} disabled={isToday}>
         Today
       </Button>
     </div>

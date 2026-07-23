@@ -12,10 +12,12 @@ import {
   DoorClosed,
   Inbox,
   LayoutDashboard,
+  LogOut,
   PanelLeftClose,
   PanelLeftOpen,
 } from "lucide-react";
 
+import { logout } from "@/app/logout/actions";
 import { cn } from "@/lib/utils";
 import { IconButton } from "@/components/kit/icon-button";
 
@@ -191,6 +193,22 @@ export function SidebarNav({ isAdmin }: SidebarNavProps) {
           </>
         )}
       </nav>
+
+      <div className="border-t border-line p-3">
+        <button
+          type="button"
+          onClick={() => {
+            void logout();
+          }}
+          className={cn(
+            "flex w-full items-center gap-3 rounded-md px-3 py-2 text-body font-medium text-ink-500 transition-colors hover:bg-sky-50 hover:text-ink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+            collapsed && "justify-center px-0",
+          )}
+        >
+          <LogOut className="size-5 shrink-0" />
+          {!collapsed && <span className="truncate">Log out</span>}
+        </button>
+      </div>
     </aside>
   );
 }

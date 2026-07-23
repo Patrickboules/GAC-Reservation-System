@@ -1,7 +1,6 @@
 "use client";
 
-import { Combobox } from "@base-ui/react/combobox";
-import { Pin, PinOff, Search, X } from "lucide-react";
+import { Pin, PinOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 
@@ -46,55 +45,6 @@ interface ActiveDrag {
 }
 
 export type { ScheduleRoom };
-
-interface RoomComboItem {
-  value: string;
-  label: string;
-}
-
-/** Searchable room jump for the desktop grid (US-035): scrolls the grid to the selected room's column. */
-function RoomQuickJump({ rooms, onJump }: { rooms: ScheduleRoom[]; onJump: (roomId: string) => void }) {
-  const items = useMemo<RoomComboItem[]>(() => rooms.map((room) => ({ value: room.id, label: room.name })), [rooms]);
-
-  return (
-    <Combobox.Root<RoomComboItem>
-      items={items}
-      onValueChange={(next) => {
-        if (next) onJump(next.value);
-      }}
-    >
-      <Combobox.InputGroup className="flex h-9 w-full items-center gap-1.5 rounded-md border border-line bg-white px-2.5 text-sm text-ink-900 focus-within:border-sky-600 focus-within:ring-2 focus-within:ring-sky-300 sm:w-56">
-        <Search aria-hidden="true" className="size-4 shrink-0 text-ink-500" />
-        <Combobox.Input
-          placeholder="Jump to room…"
-          aria-label="Jump to room"
-          className="w-full min-w-0 bg-transparent text-sm outline-none placeholder:text-ink-500"
-        />
-        <Combobox.Clear aria-label="Clear" className="shrink-0 text-ink-500 outline-none hover:text-ink-700">
-          <X aria-hidden="true" className="size-4" />
-        </Combobox.Clear>
-      </Combobox.InputGroup>
-      <Combobox.Portal>
-        <Combobox.Positioner sideOffset={4} className="z-50 outline-none">
-          <Combobox.Popup className="max-h-64 w-56 overflow-y-auto rounded-md border border-line bg-white p-1 shadow-md outline-none">
-            <Combobox.Empty className="px-2.5 py-2 text-small text-ink-500">No rooms found.</Combobox.Empty>
-            <Combobox.List>
-              {(item: RoomComboItem) => (
-                <Combobox.Item
-                  key={item.value}
-                  value={item}
-                  className="cursor-pointer rounded-sm px-2.5 py-2 text-sm text-ink-900 outline-none select-none data-[highlighted]:bg-sky-50"
-                >
-                  {item.label}
-                </Combobox.Item>
-              )}
-            </Combobox.List>
-          </Combobox.Popup>
-        </Combobox.Positioner>
-      </Combobox.Portal>
-    </Combobox.Root>
-  );
-}
 
 interface DayBooking {
   id: string;
@@ -211,13 +161,6 @@ export function DesktopResourceGrid({
   const roomColumnRefs = useRef(new Map<string, HTMLDivElement>());
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
-
-  function scrollToRoom(roomId: string) {
-    const container = scrollRef.current;
-    const column = roomColumnRefs.current.get(roomId);
-    if (!container || !column) return;
-    container.scrollTo({ left: column.offsetLeft - TIME_GUTTER_WIDTH_PX, behavior: "smooth" });
-  }
 
   const hasScrolledToInitialRoom = useRef(false);
   useEffect(() => {
@@ -352,7 +295,6 @@ export function DesktopResourceGrid({
   return (
     <div className="relative hidden w-full min-w-0 lg:block">
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <RoomQuickJump rooms={visibleRooms} onJump={scrollToRoom} />
         <Button
           type="button"
           variant={hideFreeRooms ? "primary" : "secondary"}

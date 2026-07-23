@@ -44,6 +44,7 @@ function Button({
   size,
   loading = false,
   disabled,
+  nativeButton,
   children,
   ...props
 }: ButtonProps) {
@@ -53,6 +54,7 @@ function Button({
       data-loading={loading || undefined}
       aria-busy={loading || undefined}
       disabled={disabled || loading}
+      nativeButton={nativeButton ?? !props.render}
       className={cn(buttonVariants({ variant, size, className }))}
       {...props}
     >
