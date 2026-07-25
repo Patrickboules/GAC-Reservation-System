@@ -1,18 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 
 import { EmptyState } from "@/components/kit/empty-state";
 import { ErrorState } from "@/components/kit/error-state";
 import { LoadingState } from "@/components/kit/loading-state";
-import type { BookingStatus } from "@/lib/bookings/conflict-check";
+import { findConflictingBookings, type BookingStatus } from "@/lib/bookings/conflict-check";
+import { BOOKING_TIME_STEP_MINUTES } from "@/lib/bookings/time-granularity";
+import { formatTimeLabel, minutesToTime, normalizeTimeString, timeToMinutes } from "@/lib/dates";
 import type { ScheduleRoom } from "@/lib/rooms-filters";
 import { ROOM_CATEGORY_COLOR_SWATCH_CLASSES, isRoomCategoryColor } from "@/lib/rooms/category-colors";
 import { layoutOverlappingEvents } from "@/lib/schedule/event-layout";
-import { formatHourLabel, SCHEDULE_START_HOUR, timeAxisGridlines } from "@/lib/schedule/hours";
+import { formatHourLabel, percentForTime, SCHEDULE_START_HOUR, timeAxisGridlines, timeForPercent } from "@/lib/schedule/hours";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
+import { DragCreateOverlay } from "./drag-create-overlay";
 import { EventBlock } from "./event-block";
 import { NowLine } from "./now-line";
 
@@ -47,6 +51,27 @@ const AXIS_MIN_WIDTH_PX = 560;
 
 const OPERATING_WINDOW_HOURS = timeAxisGridlines().filter((mark) => !mark.isHalfHour).length - 1;
 
+/** How long a post-drop conflict warning stays visible before fading (US-007). */
+const DRAG_CONFLICT_DISPLAY_MS = 3000;
+
+/** Minimum rendered width (percent of the operating window) for a drag overlay, so brief drags stay visible. */
+const MIN_DRAG_OVERLAY_WIDTH_PERCENT = 2;
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+/** In-flight horizontal drag across a room row's time axis. */
+interface ActiveDrag {
+  roomId: string;
+  /** Viewport-left of the axis element, so mousemove can convert clientX -> percent. */
+  axisLeft: number;
+  /** Rendered width of the axis element (px). */
+  axisWidth: number;
+  anchorPercent: number;
+  currentPercent: number;
+}
+
 function categoryColorBarClassName(categoryColor: string | null): string {
   if (categoryColor && isRoomCategoryColor(categoryColor)) {
     return ROOM_CATEGORY_COLOR_SWATCH_CLASSES[categoryColor];
@@ -73,8 +98,9 @@ function roomRowHeight(laneCount: number): number {
  * Responsive rooms-as-rows / time-as-horizontal-axis schedule grid: a sticky
  * room column on the left, a sticky hour header on top, scaling to many
  * rooms via vertical scroll. Fetches and renders the selected date's
- * bookings (US-005), stacking same-room overlaps into vertical lanes. Not
- * yet wired to the now-line (US-006) or drag-to-create (US-007/US-008).
+ * bookings (US-005), stacking same-room overlaps into vertical lanes, with
+ * the now-line (US-006) and mouse drag-to-create (US-007). Touch drag-create
+ * is US-008.
  */
 export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: string }) {
   const axisRef = useRef<HTMLDivElement>(null);
@@ -128,7 +154,7 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
     };
   }, [supabase, rooms.length, date]);
 
-  const laidOutBookingsByRoom = useMemo(() => {
+  const bookingsByRoom = useMemo(() => {
     const grouped = new Map<string, DayBooking[]>();
     for (const booking of bookings) {
       const existing = grouped.get(booking.room_id);
@@ -138,12 +164,117 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
         grouped.set(booking.room_id, [booking]);
       }
     }
+    return grouped;
+  }, [bookings]);
+
+  const laidOutBookingsByRoom = useMemo(() => {
     const laidOut = new Map<string, ReturnType<typeof layoutOverlappingEvents<DayBooking>>>();
-    for (const [roomId, roomBookings] of grouped) {
+    for (const [roomId, roomBookings] of bookingsByRoom) {
       laidOut.set(roomId, layoutOverlappingEvents(roomBookings));
     }
     return laidOut;
-  }, [bookings]);
+  }, [bookingsByRoom]);
+
+  const router = useRouter();
+
+  const dragRef = useRef<ActiveDrag | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [renderDrag, setRenderDrag] = useState<ActiveDrag | null>(null);
+  const [dragConflict, setDragConflict] = useState<{ roomId: string; left: number; width: number } | null>(null);
+  const dragConflictTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function dragRangeFor(anchorPercent: number, currentPercent: number) {
+    const startTime = timeForPercent(Math.min(anchorPercent, currentPercent));
+    let endTime = timeForPercent(Math.max(anchorPercent, currentPercent));
+    if (endTime === startTime) {
+      endTime = minutesToTime(timeToMinutes(startTime) + BOOKING_TIME_STEP_MINUTES);
+    }
+    return { startTime, endTime };
+  }
+
+  function percentFromClientX(clientX: number, axisLeft: number, axisWidth: number): number {
+    if (axisWidth <= 0) return 0;
+    return clamp(((clientX - axisLeft) / axisWidth) * 100, 0, 100);
+  }
+
+  function handleAxisMouseDown(event: ReactMouseEvent<HTMLDivElement>, roomId: string) {
+    if (event.button !== 0) return;
+    // A mousedown on an existing booking (a <button>) shouldn't start a drag.
+    if ((event.target as HTMLElement).closest("button")) return;
+    const rect = event.currentTarget.getBoundingClientRect();
+    const percent = percentFromClientX(event.clientX, rect.left, rect.width);
+    const next: ActiveDrag = {
+      roomId,
+      axisLeft: rect.left,
+      axisWidth: rect.width,
+      anchorPercent: percent,
+      currentPercent: percent,
+    };
+    dragRef.current = next;
+    setRenderDrag(next);
+    setDragConflict(null);
+    setIsDragging(true);
+  }
+
+  useEffect(() => {
+    if (!isDragging) return;
+
+    function handleMouseMove(event: globalThis.MouseEvent) {
+      const current = dragRef.current;
+      if (!current) return;
+      const percent = percentFromClientX(event.clientX, current.axisLeft, current.axisWidth);
+      const next = { ...current, currentPercent: percent };
+      dragRef.current = next;
+      setRenderDrag(next);
+    }
+
+    function handleMouseUp() {
+      setIsDragging(false);
+      const finished = dragRef.current;
+      dragRef.current = null;
+      setRenderDrag(null);
+      if (!finished) return;
+
+      const { startTime, endTime } = dragRangeFor(finished.anchorPercent, finished.currentPercent);
+      const roomBookings = bookingsByRoom.get(finished.roomId) ?? [];
+      const conflicts = findConflictingBookings(
+        {
+          room_id: finished.roomId,
+          date,
+          start_time: normalizeTimeString(startTime),
+          end_time: normalizeTimeString(endTime),
+        },
+        roomBookings
+      );
+
+      if (conflicts.length > 0) {
+        if (dragConflictTimeoutRef.current) clearTimeout(dragConflictTimeoutRef.current);
+        const left = percentForTime(startTime);
+        setDragConflict({
+          roomId: finished.roomId,
+          left,
+          width: Math.max(percentForTime(endTime) - left, MIN_DRAG_OVERLAY_WIDTH_PERCENT),
+        });
+        dragConflictTimeoutRef.current = setTimeout(() => setDragConflict(null), DRAG_CONFLICT_DISPLAY_MS);
+        return;
+      }
+
+      router.push(`/bookings/new?room=${finished.roomId}&date=${date}&start=${startTime}&end=${endTime}`);
+    }
+
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [isDragging, bookingsByRoom, date, router]);
+
+  useEffect(() => {
+    return () => {
+      if (dragConflictTimeoutRef.current) clearTimeout(dragConflictTimeoutRef.current);
+    };
+  }, []);
 
   const gridlines = useMemo(() => timeAxisGridlines(), []);
   const hourWidthPx = axisWidth > 0 ? axisWidth / OPERATING_WINDOW_HOURS : 0;
@@ -219,6 +350,8 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
             {rooms.map((room, roomIndex) => {
             const roomBookings = laidOutBookingsByRoom.get(room.id) ?? [];
             const laneCount = roomBookings.reduce((max, { columnCount }) => Math.max(max, columnCount), 0);
+            const drag = isDragging && renderDrag?.roomId === room.id ? renderDrag : null;
+            const conflict = dragConflict?.roomId === room.id ? dragConflict : null;
             return (
               <div key={room.id} className="flex" style={{ height: roomRowHeight(laneCount) }}>
                 <div
@@ -236,7 +369,11 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
                     )}
                   </div>
                 </div>
-                <div className="relative min-w-0 flex-1 border-b border-line/60" style={{ minWidth: AXIS_MIN_WIDTH_PX }}>
+                <div
+                  className="relative min-w-0 flex-1 cursor-crosshair border-b border-line/60"
+                  style={{ minWidth: AXIS_MIN_WIDTH_PX }}
+                  onMouseDown={(event) => handleAxisMouseDown(event, room.id)}
+                >
                   {visibleGridlines.map((mark) => (
                     <div
                       key={`${room.id}-${mark.hour}-${mark.isHalfHour}`}
@@ -258,6 +395,25 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
                       height={EVENT_LANE_HEIGHT_PX}
                     />
                   ))}
+
+                  {drag
+                    ? (() => {
+                        const { startTime, endTime } = dragRangeFor(drag.anchorPercent, drag.currentPercent);
+                        const left = percentForTime(startTime);
+                        const width = Math.max(percentForTime(endTime) - left, MIN_DRAG_OVERLAY_WIDTH_PERCENT);
+                        return (
+                          <DragCreateOverlay
+                            left={left}
+                            width={width}
+                            label={`${formatTimeLabel(startTime)} – ${formatTimeLabel(endTime)}`}
+                          />
+                        );
+                      })()
+                    : null}
+
+                  {conflict ? (
+                    <DragCreateOverlay left={conflict.left} width={conflict.width} label="Overlaps an existing booking" conflict />
+                  ) : null}
                 </div>
               </div>
             );
