@@ -54,9 +54,9 @@ export function handleScheduleGridKeyDown(event: React.KeyboardEvent<HTMLElement
 
 export interface NavigableEvent {
   id: string;
-  /** Position of the containing room column among currently-visible rooms. */
+  /** Position of the containing room row among currently-visible rooms. */
   roomIndex: number;
-  /** Start time in minutes since midnight, for ordering within a room column. */
+  /** Start time in minutes since midnight, for ordering within a room row. */
   startMinutes: number;
 }
 
@@ -64,10 +64,11 @@ export type EventNavigationDirection = "up" | "down" | "left" | "right";
 
 /**
  * Given the full set of currently-rendered event blocks, finds the id of the
- * event that arrow-key navigation should move focus to from `currentId`
- * (US-046): up/down step through the same room column in time order,
- * left/right jump to the nearest-start-time event in the next non-empty
- * room column in that direction. Returns null when there's nowhere to go.
+ * event that arrow-key navigation should move focus to from `currentId`. In
+ * the rows-as-rooms timeline layout (US-009): left/right step through the same
+ * room row in time order (matching the horizontal time axis), up/down jump to
+ * the nearest-start-time event in the next non-empty room row in that
+ * direction. Returns null when there's nowhere to go.
  */
 export function findNextEventBlockId(
   events: NavigableEvent[],
@@ -77,20 +78,20 @@ export function findNextEventBlockId(
   const current = events.find((event) => event.id === currentId);
   if (!current) return null;
 
-  if (direction === "up" || direction === "down") {
-    const sameColumn = events
+  if (direction === "left" || direction === "right") {
+    const sameRow = events
       .filter((event) => event.roomIndex === current.roomIndex)
       .sort((a, b) => a.startMinutes - b.startMinutes);
-    const index = sameColumn.findIndex((event) => event.id === currentId);
-    const targetIndex = direction === "up" ? index - 1 : index + 1;
-    return sameColumn[targetIndex]?.id ?? null;
+    const index = sameRow.findIndex((event) => event.id === currentId);
+    const targetIndex = direction === "left" ? index - 1 : index + 1;
+    return sameRow[targetIndex]?.id ?? null;
   }
 
   const roomIndexes = Array.from(new Set(events.map((event) => event.roomIndex))).sort(
     (a, b) => a - b
   );
   const currentPos = roomIndexes.indexOf(current.roomIndex);
-  const targetPos = direction === "left" ? currentPos - 1 : currentPos + 1;
+  const targetPos = direction === "up" ? currentPos - 1 : currentPos + 1;
   const targetRoomIndex = roomIndexes[targetPos];
   if (targetRoomIndex === undefined) return null;
 

@@ -138,8 +138,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 9,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Swapped findNextEventBlockId's direction handling for the rows-as-rooms layout: ArrowLeft/ArrowRight now step through the same room row in start-time order (prev/next) — what up/down did in the old column layout — and ArrowUp/ArrowDown jump to the nearest-start-time booking in the next non-empty room row above/below — what left/right did. Reuses EventBlock's existing data-room-index/data-start-minutes/data-event-id attributes (roomIndex reinterpreted as row index); no new attributes. Also wired handleScheduleGridKeyDown + data-schedule-grid onto TimelineGrid's scroll container (it was previously only on the soon-to-be-deleted desktop/mobile components) so keyboard nav works in the new grid. Updated event-block-navigation.test.ts to the swapped directions. Typecheck, lint, vitest (53) pass. Browser-verified with Playwright via a temp public fixture page rendering real EventBlocks in 3 room rows inside the wired data-schedule-grid container (page + temp middleware public-path allowance both removed after): all 6 cases passed — ArrowRight a1->a2 (same row next time), ArrowLeft a2->a1, ArrowRight past last stays put, ArrowDown a1(09:00)->b1(09:30) (row below nearest start), ArrowUp c1(10:00)->b1(09:30) (row above nearest start), ArrowUp from first row stays put."
     },
     {
       "id": "US-010",

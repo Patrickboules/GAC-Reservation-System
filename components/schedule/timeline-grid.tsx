@@ -19,6 +19,7 @@ import { BOOKING_TIME_STEP_MINUTES } from "@/lib/bookings/time-granularity";
 import { formatTimeLabel, minutesToTime, normalizeTimeString, timeToMinutes } from "@/lib/dates";
 import type { ScheduleRoom } from "@/lib/rooms-filters";
 import { ROOM_CATEGORY_COLOR_SWATCH_CLASSES, isRoomCategoryColor } from "@/lib/rooms/category-colors";
+import { handleScheduleGridKeyDown } from "@/lib/schedule/event-block-navigation";
 import { layoutOverlappingEvents } from "@/lib/schedule/event-layout";
 import { formatHourLabel, percentForTime, SCHEDULE_START_HOUR, timeAxisGridlines, timeForPercent } from "@/lib/schedule/hours";
 import { createClient } from "@/lib/supabase/client";
@@ -436,7 +437,11 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-2">
-      <div className="max-h-[70vh] w-full min-w-0 overflow-auto rounded-lg border border-line bg-surface">
+      <div
+        data-schedule-grid
+        onKeyDown={handleScheduleGridKeyDown}
+        className="max-h-[70vh] w-full min-w-0 overflow-auto rounded-lg border border-line bg-surface"
+      >
         <div className="flex min-w-0 flex-col">
           <div className="sticky top-0 z-20 flex">
             <div
