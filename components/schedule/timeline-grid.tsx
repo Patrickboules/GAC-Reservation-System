@@ -1,5 +1,6 @@
 "use client";
 
+import { Pin, PinOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -11,13 +12,15 @@ import {
   type TouchEvent as ReactTouchEvent,
 } from "react";
 
+import { Button } from "@/components/kit/button";
 import { EmptyState } from "@/components/kit/empty-state";
 import { ErrorState } from "@/components/kit/error-state";
+import { IconButton } from "@/components/kit/icon-button";
 import { LoadingState } from "@/components/kit/loading-state";
 import { findConflictingBookings, type BookingStatus } from "@/lib/bookings/conflict-check";
 import { BOOKING_TIME_STEP_MINUTES } from "@/lib/bookings/time-granularity";
 import { formatTimeLabel, minutesToTime, normalizeTimeString, timeToMinutes } from "@/lib/dates";
-import type { ScheduleRoom } from "@/lib/rooms-filters";
+import { sortRoomsByFavorite, type ScheduleRoom } from "@/lib/rooms-filters";
 import { ROOM_CATEGORY_COLOR_SWATCH_CLASSES, isRoomCategoryColor } from "@/lib/rooms/category-colors";
 import { handleScheduleGridKeyDown } from "@/lib/schedule/event-block-navigation";
 import { layoutOverlappingEvents } from "@/lib/schedule/event-layout";
@@ -143,9 +146,20 @@ function roomRowHeight(laneCount: number): number {
  * rooms via vertical scroll. Fetches and renders the selected date's
  * bookings (US-005), stacking same-room overlaps into vertical lanes, with
  * the now-line (US-006), mouse drag-to-create (US-007), and touch
- * press-and-hold drag-to-create (US-008).
+ * press-and-hold drag-to-create (US-008). Pinned rooms float to the top and a
+ * "Hide free rooms" toggle drops rows with nothing booked (US-010).
  */
-export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: string }) {
+export function TimelineGrid({
+  rooms,
+  date,
+  favoriteRoomIds,
+  onToggleFavorite,
+}: {
+  rooms: ScheduleRoom[];
+  date: string;
+  favoriteRoomIds: ReadonlySet<string>;
+  onToggleFavorite: (roomId: string) => void;
+}) {
   const axisRef = useRef<HTMLDivElement>(null);
   const [axisWidth, setAxisWidth] = useState(0);
 
@@ -164,6 +178,7 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
   const [bookings, setBookings] = useState<DayBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [hideFreeRooms, setHideFreeRooms] = useState(false);
 
   useEffect(() => {
     if (rooms.length === 0) {
@@ -217,6 +232,15 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
     }
     return laidOut;
   }, [bookingsByRoom]);
+
+  // Pinned rooms float to the top; "Hide free rooms" then drops any room with
+  // no bookings for the selected date (US-010).
+  const busyRoomIds = useMemo(() => new Set(bookings.map((booking) => booking.room_id)), [bookings]);
+  const sortedRooms = useMemo(() => sortRoomsByFavorite(rooms, favoriteRoomIds), [rooms, favoriteRoomIds]);
+  const visibleRooms = useMemo(
+    () => (hideFreeRooms ? sortedRooms.filter((room) => busyRoomIds.has(room.id)) : sortedRooms),
+    [sortedRooms, hideFreeRooms, busyRoomIds]
+  );
 
   const router = useRouter();
 
@@ -437,6 +461,24 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-2">
+      <div className="flex flex-wrap items-center gap-2">
+        <Button
+          type="button"
+          variant={hideFreeRooms ? "primary" : "secondary"}
+          size="sm"
+          aria-pressed={hideFreeRooms}
+          onClick={() => setHideFreeRooms((current) => !current)}
+        >
+          Hide free rooms
+        </Button>
+      </div>
+
+      {hideFreeRooms && visibleRooms.length === 0 ? (
+        <EmptyState
+          title="No rooms have bookings"
+          description="Turn off “Hide free rooms” to see the full grid."
+        />
+      ) : (
       <div
         data-schedule-grid
         onKeyDown={handleScheduleGridKeyDown}
@@ -492,27 +534,38 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
               </div>
             </div>
 
-            {rooms.map((room, roomIndex) => {
+            {visibleRooms.map((room, roomIndex) => {
             const roomBookings = laidOutBookingsByRoom.get(room.id) ?? [];
             const laneCount = roomBookings.reduce((max, { columnCount }) => Math.max(max, columnCount), 0);
             const drag = renderDrag?.roomId === room.id ? renderDrag : null;
             const conflict = dragConflict?.roomId === room.id ? dragConflict : null;
+            const isFavorite = favoriteRoomIds.has(room.id);
             return (
               <div key={room.id} className="flex" style={{ height: roomRowHeight(laneCount) }}>
                 <div
                   title={room.name}
                   className={cn(
-                    "sticky left-0 z-10 flex shrink-0 items-stretch gap-1.5 overflow-hidden border-r border-b border-line bg-surface pr-1",
+                    "sticky left-0 z-10 flex shrink-0 items-stretch gap-1 overflow-hidden border-r border-b border-line bg-surface pr-0.5",
                     ROOM_COLUMN_CLASSES
                   )}
                 >
                   <span aria-hidden="true" className={cn("w-1 shrink-0", categoryColorBarClassName(room.category_color))} />
-                  <div className="flex min-w-0 flex-1 flex-col justify-center overflow-hidden py-1">
+                  <div className="flex min-w-0 flex-1 flex-col justify-center overflow-hidden py-1 pl-0.5">
                     <span className="truncate font-display text-small text-ink-900">{room.name}</span>
                     {room.capacity !== null && (
                       <span className="truncate font-mono text-caption text-ink-500">cap. {room.capacity}</span>
                     )}
                   </div>
+                  <IconButton
+                    label={isFavorite ? `Unpin ${room.name}` : `Pin ${room.name}`}
+                    tooltip={isFavorite ? "Unpin room" : "Pin room"}
+                    variant="ghost"
+                    size="sm"
+                    className={cn("size-6 shrink-0 self-center", isFavorite && "text-sky-600")}
+                    onClick={() => onToggleFavorite(room.id)}
+                  >
+                    {isFavorite ? <Pin className="fill-current" /> : <PinOff />}
+                  </IconButton>
                 </div>
                 <div
                   className="relative min-w-0 flex-1 cursor-crosshair border-b border-line/60"
@@ -567,6 +620,7 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
           </div>
         </div>
       </div>
+      )}
 
       {error ? (
         <ErrorState description={error} />

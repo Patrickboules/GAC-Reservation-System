@@ -152,8 +152,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 10,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "TimelineGrid now takes favoriteRoomIds/onToggleFavorite props: each room row has the existing kit IconButton (Pin/PinOff) to pin/unpin, and rooms are run through the unchanged sortRoomsByFavorite so pinned rooms float to the top. A \"Hide free rooms\" toggle Button above the grid filters rows down to rooms whose id appears in the selected date's fetched bookings; when that leaves nothing, an EmptyState (\"No rooms have bookings\") renders in place of the grid. Typecheck, lint, vitest (53) pass. Browser-verified against real remote Supabase via a temp authed fixture page + seeded test user booking the last two rooms by name (all deleted after): all 4 rooms rendered with 4 pin buttons; Hide free rooms left only the two booked rooms; pinning Youth Room floated it to the top; on an all-free date, Hide free rooms replaced the grid with the EmptyState."
     },
     {
       "id": "US-011",
