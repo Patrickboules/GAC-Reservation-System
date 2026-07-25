@@ -3,6 +3,7 @@
 import { Pin, PinOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
+  Fragment,
   useCallback,
   useEffect,
   useMemo,
@@ -20,7 +21,7 @@ import { LoadingState } from "@/components/kit/loading-state";
 import { findConflictingBookings, type BookingStatus } from "@/lib/bookings/conflict-check";
 import { BOOKING_TIME_STEP_MINUTES } from "@/lib/bookings/time-granularity";
 import { formatTimeLabel, minutesToTime, normalizeTimeString, timeToMinutes } from "@/lib/dates";
-import { sortRoomsByFavorite, type ScheduleRoom } from "@/lib/rooms-filters";
+import { buildingGroupSpans, groupRoomsByBuilding, sortRoomsByFavorite, type ScheduleRoom } from "@/lib/rooms-filters";
 import { ROOM_CATEGORY_COLOR_SWATCH_CLASSES, isRoomCategoryColor } from "@/lib/rooms/category-colors";
 import { handleScheduleGridKeyDown } from "@/lib/schedule/event-block-navigation";
 import { layoutOverlappingEvents } from "@/lib/schedule/event-layout";
@@ -37,6 +38,9 @@ const ROOM_COLUMN_CLASSES = "w-[88px] md:w-[100px] lg:w-[140px]";
 
 /** Sticky time-header row height. */
 const TIME_HEADER_HEIGHT_PX = 32;
+
+/** Sticky building-group header row height (US-011). */
+const GROUP_HEADER_HEIGHT_PX = 28;
 
 /** Minimum room-row height; grows to fit stacked concurrent bookings (US-005). */
 const ROOM_ROW_MIN_HEIGHT_PX = 56;
@@ -233,14 +237,31 @@ export function TimelineGrid({
     return laidOut;
   }, [bookingsByRoom]);
 
-  // Pinned rooms float to the top; "Hide free rooms" then drops any room with
-  // no bookings for the selected date (US-010).
+  // Group rooms into contiguous same-building runs, then float pinned rooms to
+  // the top (US-010). sortRoomsByFavorite is stable, so within the favorites and
+  // within the rest each building run stays together for US-011's group headers.
+  // "Hide free rooms" then drops any room with no bookings for the selected date.
   const busyRoomIds = useMemo(() => new Set(bookings.map((booking) => booking.room_id)), [bookings]);
-  const sortedRooms = useMemo(() => sortRoomsByFavorite(rooms, favoriteRoomIds), [rooms, favoriteRoomIds]);
+  const sortedRooms = useMemo(
+    () => sortRoomsByFavorite(groupRoomsByBuilding(rooms), favoriteRoomIds),
+    [rooms, favoriteRoomIds]
+  );
   const visibleRooms = useMemo(
     () => (hideFreeRooms ? sortedRooms.filter((room) => busyRoomIds.has(room.id)) : sortedRooms),
     [sortedRooms, hideFreeRooms, busyRoomIds]
   );
+
+  // Consecutive same-building rooms share one row-spanning group header (US-011);
+  // startIndex keeps each room's global row index stable for keyboard nav.
+  const roomGroups = useMemo(() => {
+    const groups: { building: string | null; rooms: ScheduleRoom[]; startIndex: number }[] = [];
+    let startIndex = 0;
+    for (const span of buildingGroupSpans(visibleRooms)) {
+      groups.push({ building: span.building, rooms: visibleRooms.slice(startIndex, startIndex + span.count), startIndex });
+      startIndex += span.count;
+    }
+    return groups;
+  }, [visibleRooms]);
 
   const router = useRouter();
 
@@ -534,8 +555,29 @@ export function TimelineGrid({
               </div>
             </div>
 
-            {visibleRooms.map((room, roomIndex) => {
-            const roomBookings = laidOutBookingsByRoom.get(room.id) ?? [];
+            {roomGroups.map((group, groupIndex) => (
+              <Fragment key={`group-${groupIndex}`}>
+                {group.building !== null ? (
+                  <div className="flex" style={{ height: GROUP_HEADER_HEIGHT_PX }}>
+                    <div
+                      title={group.building}
+                      className={cn(
+                        "sticky left-0 z-10 flex items-center truncate border-r border-b border-line bg-sand-50 px-2 font-medium text-caption text-ink-500",
+                        ROOM_COLUMN_CLASSES
+                      )}
+                    >
+                      {group.building}
+                    </div>
+                    <div
+                      aria-hidden="true"
+                      className="min-w-0 flex-1 border-b border-line bg-sand-50"
+                      style={{ minWidth: AXIS_MIN_WIDTH_PX }}
+                    />
+                  </div>
+                ) : null}
+                {group.rooms.map((room, roomInGroupIndex) => {
+                  const roomIndex = group.startIndex + roomInGroupIndex;
+                  const roomBookings = laidOutBookingsByRoom.get(room.id) ?? [];
             const laneCount = roomBookings.reduce((max, { columnCount }) => Math.max(max, columnCount), 0);
             const drag = renderDrag?.roomId === room.id ? renderDrag : null;
             const conflict = dragConflict?.roomId === room.id ? dragConflict : null;
@@ -616,7 +658,9 @@ export function TimelineGrid({
                 </div>
               </div>
             );
-          })}
+                })}
+              </Fragment>
+            ))}
           </div>
         </div>
       </div>

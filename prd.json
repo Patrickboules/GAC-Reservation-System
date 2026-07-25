@@ -166,8 +166,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 11,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "TimelineGrid now groups rooms into contiguous same-building runs via groupRoomsByBuilding before sortRoomsByFavorite (stable, so favorites float to top while each building run stays contiguous), then renders one row-spanning header per run from buildingGroupSpans: a sticky left-0 building-name cell (ROOM_COLUMN_CLASSES width) + a flex-1 bg-sand-50 spacer band, only when the run's building is non-null. Null-building rooms sort last and render with no header (per criteria, unlike the old grid's 'Other' label). roomGroups tracks each run's startIndex so per-room global row index (keyboard nav) stays stable. Typecheck, lint, vitest (53) pass. Browser-verified against the dev server via a temp routable fixture page (5 rooms: 2xBuilding A, 1xBuilding B, 2xnull) + a temp middleware public-path allowance (both removed after): exactly 2 sticky(left-0) headers rendered — 'Building A' over Choir+Youth Room, 'Building B' over Antonious Hall — with Storage+Kitchen last and headerless; no console errors. (Note: the prior iteration's fixture folder was named __fixture-us011, which Next.js treats as a private non-routed folder and 404s, so it had never actually served — re-verified with a routable name.)"
     },
     {
       "id": "US-012",
