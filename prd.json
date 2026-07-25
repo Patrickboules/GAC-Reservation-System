@@ -123,8 +123,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 8,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Added touch drag-create to TimelineGrid alongside the existing mouse path. onTouchStart on a room row's axis (ignoring touches on an existing booking button or multi-touch) records the anchor and starts a 300ms (TOUCH_HOLD_ARM_MS) hold timer; a global non-passive touchmove listener cancels the timer and stands down (native scroll) if the finger moves >10px before it fires, or once armed calls preventDefault() and draws the live DragCreateOverlay ghost via timeForPercent. Arming shows the ghost as a visual cue + navigator.vibrate(15). touchend reuses a new shared finalizeDragRange callback (extracted from US-007's mouseup) for the conflict-overlay-3s-vs-router.push decision. Moved pure dragRangeFor/percentFromClientX to module scope; render now shows renderDrag regardless of mouse/touch. Typecheck, lint, vitest (53) pass. Browser-verified against real remote Supabase via a temp authed fixture page + seeded approved 10:00-11:00 booking (both deleted after), driving CDP Input.dispatchTouchEvent on a 390px hasTouch viewport: hold+drag over empty Choir Room space -> ghost + navigated to /bookings/new?room&date&start=14:00&end=15:00; hold+drag from empty space into Antonious Hall's booking -> ghost then 'Overlaps an existing booking' overlay, no navigation, auto-dismissed within 3s; a no-hold immediate drag -> never showed a ghost, scrolled the timeline (scrollLeft +190px), no navigation."
     },
     {
       "id": "US-009",

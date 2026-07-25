@@ -1,7 +1,15 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type TouchEvent as ReactTouchEvent,
+} from "react";
 
 import { EmptyState } from "@/components/kit/empty-state";
 import { ErrorState } from "@/components/kit/error-state";
@@ -57,6 +65,12 @@ const DRAG_CONFLICT_DISPLAY_MS = 3000;
 /** Minimum rendered width (percent of the operating window) for a drag overlay, so brief drags stay visible. */
 const MIN_DRAG_OVERLAY_WIDTH_PERCENT = 2;
 
+/** Press-and-hold duration (ms) a stationary touch must last before it arms drag-create mode (US-008). */
+const TOUCH_HOLD_ARM_MS = 300;
+
+/** Movement (px) during the hold window that cancels arming and lets the gesture stay a native scroll (US-008). */
+const TOUCH_HOLD_MOVE_TOLERANCE_PX = 10;
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
@@ -70,6 +84,34 @@ interface ActiveDrag {
   axisWidth: number;
   anchorPercent: number;
   currentPercent: number;
+}
+
+/** In-flight touch gesture on a room row, undecided (scroll vs. create) until the hold arms it (US-008). */
+interface TouchDrag {
+  roomId: string;
+  axisLeft: number;
+  axisWidth: number;
+  startClientX: number;
+  startClientY: number;
+  anchorPercent: number;
+  currentPercent: number;
+  armed: boolean;
+}
+
+/** Time range spanned by a drag between two axis percentages, snapped and never zero-width. */
+function dragRangeFor(anchorPercent: number, currentPercent: number) {
+  const startTime = timeForPercent(Math.min(anchorPercent, currentPercent));
+  let endTime = timeForPercent(Math.max(anchorPercent, currentPercent));
+  if (endTime === startTime) {
+    endTime = minutesToTime(timeToMinutes(startTime) + BOOKING_TIME_STEP_MINUTES);
+  }
+  return { startTime, endTime };
+}
+
+/** Convert a viewport clientX to a 0-100 percentage across an axis element. */
+function percentFromClientX(clientX: number, axisLeft: number, axisWidth: number): number {
+  if (axisWidth <= 0) return 0;
+  return clamp(((clientX - axisLeft) / axisWidth) * 100, 0, 100);
 }
 
 function categoryColorBarClassName(categoryColor: string | null): string {
@@ -99,8 +141,8 @@ function roomRowHeight(laneCount: number): number {
  * room column on the left, a sticky hour header on top, scaling to many
  * rooms via vertical scroll. Fetches and renders the selected date's
  * bookings (US-005), stacking same-room overlaps into vertical lanes, with
- * the now-line (US-006) and mouse drag-to-create (US-007). Touch drag-create
- * is US-008.
+ * the now-line (US-006), mouse drag-to-create (US-007), and touch
+ * press-and-hold drag-to-create (US-008).
  */
 export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: string }) {
   const axisRef = useRef<HTMLDivElement>(null);
@@ -183,19 +225,43 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
   const [dragConflict, setDragConflict] = useState<{ roomId: string; left: number; width: number } | null>(null);
   const dragConflictTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  function dragRangeFor(anchorPercent: number, currentPercent: number) {
-    const startTime = timeForPercent(Math.min(anchorPercent, currentPercent));
-    let endTime = timeForPercent(Math.max(anchorPercent, currentPercent));
-    if (endTime === startTime) {
-      endTime = minutesToTime(timeToMinutes(startTime) + BOOKING_TIME_STEP_MINUTES);
-    }
-    return { startTime, endTime };
-  }
+  // Touch drag-create (US-008): a stationary press-and-hold arms create mode; a
+  // moving touch stays a native horizontal scroll of the timeline.
+  const touchDragRef = useRef<TouchDrag | null>(null);
+  const touchHoldTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [touchActive, setTouchActive] = useState(false);
 
-  function percentFromClientX(clientX: number, axisLeft: number, axisWidth: number): number {
-    if (axisWidth <= 0) return 0;
-    return clamp(((clientX - axisLeft) / axisWidth) * 100, 0, 100);
-  }
+  /** Shared drop handler for mouse (US-007) and touch (US-008): conflict warning or redirect. */
+  const finalizeDragRange = useCallback(
+    (roomId: string, anchorPercent: number, currentPercent: number) => {
+      const { startTime, endTime } = dragRangeFor(anchorPercent, currentPercent);
+      const roomBookings = bookingsByRoom.get(roomId) ?? [];
+      const conflicts = findConflictingBookings(
+        {
+          room_id: roomId,
+          date,
+          start_time: normalizeTimeString(startTime),
+          end_time: normalizeTimeString(endTime),
+        },
+        roomBookings
+      );
+
+      if (conflicts.length > 0) {
+        if (dragConflictTimeoutRef.current) clearTimeout(dragConflictTimeoutRef.current);
+        const left = percentForTime(startTime);
+        setDragConflict({
+          roomId,
+          left,
+          width: Math.max(percentForTime(endTime) - left, MIN_DRAG_OVERLAY_WIDTH_PERCENT),
+        });
+        dragConflictTimeoutRef.current = setTimeout(() => setDragConflict(null), DRAG_CONFLICT_DISPLAY_MS);
+        return;
+      }
+
+      router.push(`/bookings/new?room=${roomId}&date=${date}&start=${startTime}&end=${endTime}`);
+    },
+    [bookingsByRoom, date, router]
+  );
 
   function handleAxisMouseDown(event: ReactMouseEvent<HTMLDivElement>, roomId: string) {
     if (event.button !== 0) return;
@@ -234,32 +300,7 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
       dragRef.current = null;
       setRenderDrag(null);
       if (!finished) return;
-
-      const { startTime, endTime } = dragRangeFor(finished.anchorPercent, finished.currentPercent);
-      const roomBookings = bookingsByRoom.get(finished.roomId) ?? [];
-      const conflicts = findConflictingBookings(
-        {
-          room_id: finished.roomId,
-          date,
-          start_time: normalizeTimeString(startTime),
-          end_time: normalizeTimeString(endTime),
-        },
-        roomBookings
-      );
-
-      if (conflicts.length > 0) {
-        if (dragConflictTimeoutRef.current) clearTimeout(dragConflictTimeoutRef.current);
-        const left = percentForTime(startTime);
-        setDragConflict({
-          roomId: finished.roomId,
-          left,
-          width: Math.max(percentForTime(endTime) - left, MIN_DRAG_OVERLAY_WIDTH_PERCENT),
-        });
-        dragConflictTimeoutRef.current = setTimeout(() => setDragConflict(null), DRAG_CONFLICT_DISPLAY_MS);
-        return;
-      }
-
-      router.push(`/bookings/new?room=${finished.roomId}&date=${date}&start=${startTime}&end=${endTime}`);
+      finalizeDragRange(finished.roomId, finished.anchorPercent, finished.currentPercent);
     }
 
     window.addEventListener("mousemove", handleMouseMove);
@@ -268,7 +309,106 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleMouseUp);
     };
-  }, [isDragging, bookingsByRoom, date, router]);
+  }, [isDragging, finalizeDragRange]);
+
+  function handleAxisTouchStart(event: ReactTouchEvent<HTMLDivElement>, roomId: string) {
+    // Multi-touch (pinch/zoom) or a touch on an existing booking button is never a create gesture.
+    if (event.touches.length !== 1) return;
+    if ((event.target as HTMLElement).closest("button")) return;
+    const touch = event.touches[0];
+    const rect = event.currentTarget.getBoundingClientRect();
+    const anchorPercent = percentFromClientX(touch.clientX, rect.left, rect.width);
+    touchDragRef.current = {
+      roomId,
+      axisLeft: rect.left,
+      axisWidth: rect.width,
+      startClientX: touch.clientX,
+      startClientY: touch.clientY,
+      anchorPercent,
+      currentPercent: anchorPercent,
+      armed: false,
+    };
+    setDragConflict(null);
+    setTouchActive(true);
+
+    if (touchHoldTimerRef.current) clearTimeout(touchHoldTimerRef.current);
+    touchHoldTimerRef.current = setTimeout(() => {
+      const state = touchDragRef.current;
+      if (!state) return;
+      // Held still long enough: arm create mode and cue it (ghost overlay + haptic tick).
+      state.armed = true;
+      setRenderDrag({
+        roomId: state.roomId,
+        axisLeft: state.axisLeft,
+        axisWidth: state.axisWidth,
+        anchorPercent: state.anchorPercent,
+        currentPercent: state.currentPercent,
+      });
+      if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+        navigator.vibrate(15);
+      }
+    }, TOUCH_HOLD_ARM_MS);
+  }
+
+  useEffect(() => {
+    if (!touchActive) return;
+
+    function stopTouch(): TouchDrag | null {
+      if (touchHoldTimerRef.current) {
+        clearTimeout(touchHoldTimerRef.current);
+        touchHoldTimerRef.current = null;
+      }
+      const finished = touchDragRef.current;
+      touchDragRef.current = null;
+      setRenderDrag(null);
+      setTouchActive(false);
+      return finished;
+    }
+
+    function handleTouchMove(event: globalThis.TouchEvent) {
+      const state = touchDragRef.current;
+      if (!state) return;
+      const touch = event.touches[0];
+      if (!touch) return;
+
+      if (!state.armed) {
+        const moved = Math.hypot(touch.clientX - state.startClientX, touch.clientY - state.startClientY);
+        if (moved > TOUCH_HOLD_MOVE_TOLERANCE_PX) {
+          // Moved before the hold armed create mode -> it's a scroll; stand down and let native scroll run.
+          stopTouch();
+        }
+        return;
+      }
+
+      // Armed: draw the live ghost and suppress native scrolling for this gesture.
+      event.preventDefault();
+      const percent = percentFromClientX(touch.clientX, state.axisLeft, state.axisWidth);
+      state.currentPercent = percent;
+      setRenderDrag({
+        roomId: state.roomId,
+        axisLeft: state.axisLeft,
+        axisWidth: state.axisWidth,
+        anchorPercent: state.anchorPercent,
+        currentPercent: percent,
+      });
+    }
+
+    function handleTouchEnd() {
+      const finished = stopTouch();
+      if (finished?.armed) {
+        finalizeDragRange(finished.roomId, finished.anchorPercent, finished.currentPercent);
+      }
+    }
+
+    window.addEventListener("touchmove", handleTouchMove, { passive: false });
+    window.addEventListener("touchend", handleTouchEnd);
+    window.addEventListener("touchcancel", handleTouchEnd);
+    return () => {
+      window.removeEventListener("touchmove", handleTouchMove);
+      window.removeEventListener("touchend", handleTouchEnd);
+      window.removeEventListener("touchcancel", handleTouchEnd);
+    };
+  }, [touchActive, finalizeDragRange]);
 
   useEffect(() => {
     return () => {
@@ -350,7 +490,7 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
             {rooms.map((room, roomIndex) => {
             const roomBookings = laidOutBookingsByRoom.get(room.id) ?? [];
             const laneCount = roomBookings.reduce((max, { columnCount }) => Math.max(max, columnCount), 0);
-            const drag = isDragging && renderDrag?.roomId === room.id ? renderDrag : null;
+            const drag = renderDrag?.roomId === room.id ? renderDrag : null;
             const conflict = dragConflict?.roomId === room.id ? dragConflict : null;
             return (
               <div key={room.id} className="flex" style={{ height: roomRowHeight(laneCount) }}>
@@ -373,6 +513,7 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
                   className="relative min-w-0 flex-1 cursor-crosshair border-b border-line/60"
                   style={{ minWidth: AXIS_MIN_WIDTH_PX }}
                   onMouseDown={(event) => handleAxisMouseDown(event, room.id)}
+                  onTouchStart={(event) => handleAxisTouchStart(event, room.id)}
                 >
                   {visibleGridlines.map((mark) => (
                     <div
