@@ -182,8 +182,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 12,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "schedule-content.tsx now renders a single <TimelineGrid> for all breakpoints (removed the MobileDayCalendar/DesktopResourceGrid pair and their lg:hidden/hidden lg:block split, plus the now-dead mobileRooms/groupedRooms memos and unused sortRoomsByFavorite/groupRoomsByBuilding/initialRoomId prop). Deleted components/schedule/desktop-resource-grid.tsx and mobile-day-calendar.tsx; grep confirms no remaining imports of either, and no references to the removed vertical offsetForTime/timeForOffset/scheduleHours/HOUR_ROW_HEIGHT_PX (all removed from lib/schedule/hours.ts; the SCHEDULE_START/END_HOUR constants stay, still used by admin reports). Typecheck, lint (clean, no unused imports/exports), and vitest (53) pass. Production build succeeds including /schedule. Browser-verified against real remote Supabase via a temp confirmed test user (deleted after): logged in and loaded /schedule at 390/800/1400px - exactly one [data-schedule-grid] container at every breakpoint (no split), sticky room column with 4 rooms + 'cap. N' + colored bars, building group headers, pin toggles, Hide free rooms toggle, and the now-line all rendering, with zero console errors."
     }
   ]
 }
