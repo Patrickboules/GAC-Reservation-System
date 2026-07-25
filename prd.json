@@ -79,8 +79,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 5,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "TimelineGrid now fetches the selected date's bookings from bookings_schedule (same select/order as mobile-day-calendar, minus the single-room filter so all rooms load), groups them by room, and runs each room's set through the existing layoutOverlappingEvents. columnIndex/columnCount are reinterpreted as vertical lanes: each EventBlock gets top = padding + columnIndex*44px, and the room row height grows to max(56, laneCount*44 + 12). Loading/error/empty reuse kit LoadingState/ErrorState/EmptyState. Typecheck, lint, vitest (53) pass. Browser-verified against real remote Supabase via a temp fixture page (deleted after) with a temp confirmed test user + seeded bookings (deleted after): 4 seeded bookings rendered as EventBlocks positioned by percentForTime (10:00 -> left 13.33%); two overlapping same-room bookings stacked into lanes (top 6px vs 50px) while a later non-overlapping one reset to lane 0 (top 6px); no console errors."
     },
     {
       "id": "US-006",

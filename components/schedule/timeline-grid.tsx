@@ -3,10 +3,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { EmptyState } from "@/components/kit/empty-state";
+import { ErrorState } from "@/components/kit/error-state";
+import { LoadingState } from "@/components/kit/loading-state";
+import type { BookingStatus } from "@/lib/bookings/conflict-check";
 import type { ScheduleRoom } from "@/lib/rooms-filters";
 import { ROOM_CATEGORY_COLOR_SWATCH_CLASSES, isRoomCategoryColor } from "@/lib/rooms/category-colors";
+import { layoutOverlappingEvents } from "@/lib/schedule/event-layout";
 import { formatHourLabel, SCHEDULE_START_HOUR, timeAxisGridlines } from "@/lib/schedule/hours";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
+
+import { EventBlock } from "./event-block";
 
 /** Frozen room-column width per breakpoint (US-004), matching the room-cell classes below. */
 const ROOM_COLUMN_CLASSES = "w-[88px] md:w-[100px] lg:w-[140px]";
@@ -14,8 +21,14 @@ const ROOM_COLUMN_CLASSES = "w-[88px] md:w-[100px] lg:w-[140px]";
 /** Sticky time-header row height. */
 const TIME_HEADER_HEIGHT_PX = 32;
 
-/** Default room-row height for this structural shell; US-005 grows it to fit stacked bookings. */
-const ROOM_ROW_HEIGHT_PX = 56;
+/** Minimum room-row height; grows to fit stacked concurrent bookings (US-005). */
+const ROOM_ROW_MIN_HEIGHT_PX = 56;
+
+/** Height of a single event lane within a room row. */
+const EVENT_LANE_HEIGHT_PX = 44;
+
+/** Vertical space above the first lane and below the last lane within a room row. */
+const ROW_VERTICAL_PADDING_PX = 6;
 
 /** Time-axis (post-frozen-column) rendered width at/above which hour labels show every hour; below it, every 2 hours to avoid crowding. */
 const DENSE_HOUR_LABELS_MIN_WIDTH_PX = 1100;
@@ -40,14 +53,29 @@ function categoryColorBarClassName(categoryColor: string | null): string {
   return "bg-line";
 }
 
+interface DayBooking {
+  id: string;
+  room_id: string;
+  date: string;
+  start_time: string;
+  end_time: string;
+  status: BookingStatus;
+}
+
+/** A room row's height needs to fit its tallest concurrent-overlap lane stack. */
+function roomRowHeight(laneCount: number): number {
+  if (laneCount === 0) return ROOM_ROW_MIN_HEIGHT_PX;
+  return Math.max(ROOM_ROW_MIN_HEIGHT_PX, laneCount * EVENT_LANE_HEIGHT_PX + 2 * ROW_VERTICAL_PADDING_PX);
+}
+
 /**
- * Responsive rooms-as-rows / time-as-horizontal-axis schedule grid (US-004
- * skeleton): a sticky room column on the left, a sticky hour header on top,
- * scaling to many rooms via vertical scroll. Not yet wired to real bookings
- * (US-005), the now-line (US-006), or drag-to-create (US-007/US-008) — this
- * story only establishes the frozen layout and time axis.
+ * Responsive rooms-as-rows / time-as-horizontal-axis schedule grid: a sticky
+ * room column on the left, a sticky hour header on top, scaling to many
+ * rooms via vertical scroll. Fetches and renders the selected date's
+ * bookings (US-005), stacking same-room overlaps into vertical lanes. Not
+ * yet wired to the now-line (US-006) or drag-to-create (US-007/US-008).
  */
-export function TimelineGrid({ rooms }: { rooms: ScheduleRoom[] }) {
+export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: string }) {
   const axisRef = useRef<HTMLDivElement>(null);
   const [axisWidth, setAxisWidth] = useState(0);
 
@@ -61,6 +89,60 @@ export function TimelineGrid({ rooms }: { rooms: ScheduleRoom[] }) {
     observer.observe(el);
     return () => observer.disconnect();
   }, []);
+
+  const supabase = useMemo(() => createClient(), []);
+  const [bookings, setBookings] = useState<DayBooking[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (rooms.length === 0) {
+      setBookings([]);
+      setLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    supabase
+      .from("bookings_schedule")
+      .select("id, room_id, date, start_time, end_time, status")
+      .eq("date", date)
+      .order("start_time", { ascending: true })
+      .then(({ data, error: queryError }) => {
+        if (cancelled) return;
+        if (queryError) {
+          setError(queryError.message);
+          setBookings([]);
+        } else {
+          setBookings((data ?? []) as DayBooking[]);
+        }
+        setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [supabase, rooms.length, date]);
+
+  const laidOutBookingsByRoom = useMemo(() => {
+    const grouped = new Map<string, DayBooking[]>();
+    for (const booking of bookings) {
+      const existing = grouped.get(booking.room_id);
+      if (existing) {
+        existing.push(booking);
+      } else {
+        grouped.set(booking.room_id, [booking]);
+      }
+    }
+    const laidOut = new Map<string, ReturnType<typeof layoutOverlappingEvents<DayBooking>>>();
+    for (const [roomId, roomBookings] of grouped) {
+      laidOut.set(roomId, layoutOverlappingEvents(roomBookings));
+    }
+    return laidOut;
+  }, [bookings]);
 
   const gridlines = useMemo(() => timeAxisGridlines(), []);
   const hourWidthPx = axisWidth > 0 ? axisWidth / OPERATING_WINDOW_HOURS : 0;
@@ -81,72 +163,97 @@ export function TimelineGrid({ rooms }: { rooms: ScheduleRoom[] }) {
   }
 
   return (
-    <div className="max-h-[70vh] w-full min-w-0 overflow-auto rounded-lg border border-line bg-surface">
-      <div className="flex min-w-0 flex-col">
-        <div className="sticky top-0 z-20 flex">
-          <div
-            aria-hidden="true"
-            className={cn("sticky left-0 z-10 shrink-0 border-r border-b border-line bg-surface", ROOM_COLUMN_CLASSES)}
-            style={{ height: TIME_HEADER_HEIGHT_PX }}
-          />
-          <div
-            ref={axisRef}
-            className="relative min-w-0 flex-1 border-b border-line bg-surface"
-            style={{ height: TIME_HEADER_HEIGHT_PX, minWidth: AXIS_MIN_WIDTH_PX }}
-          >
-            {visibleGridlines.map((mark) => (
-              <div
-                key={`${mark.hour}-${mark.isHalfHour}`}
-                aria-hidden="true"
-                className={cn("absolute inset-y-0 w-px", mark.isHalfHour ? "bg-line/40" : "bg-line")}
-                style={{ left: `${mark.percent}%` }}
-              />
-            ))}
-            {labeledHourMarks.map((mark, index) => (
-              <span
-                key={mark.hour}
-                className={cn(
-                  "absolute top-1/2 -translate-y-1/2 whitespace-nowrap px-1 font-mono text-caption text-ink-500",
-                  index === 0 ? "" : index === labeledHourMarks.length - 1 ? "-translate-x-full" : "-translate-x-1/2"
-                )}
-                style={{ left: `${mark.percent}%` }}
-              >
-                {formatHourLabel(mark.hour)}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {rooms.map((room) => (
-          <div key={room.id} className="flex" style={{ height: ROOM_ROW_HEIGHT_PX }}>
+    <div className="flex w-full min-w-0 flex-col gap-2">
+      <div className="max-h-[70vh] w-full min-w-0 overflow-auto rounded-lg border border-line bg-surface">
+        <div className="flex min-w-0 flex-col">
+          <div className="sticky top-0 z-20 flex">
             <div
-              title={room.name}
-              className={cn(
-                "sticky left-0 z-10 flex shrink-0 items-stretch gap-1.5 overflow-hidden border-r border-b border-line bg-surface pr-1",
-                ROOM_COLUMN_CLASSES
-              )}
+              aria-hidden="true"
+              className={cn("sticky left-0 z-10 shrink-0 border-r border-b border-line bg-surface", ROOM_COLUMN_CLASSES)}
+              style={{ height: TIME_HEADER_HEIGHT_PX }}
+            />
+            <div
+              ref={axisRef}
+              className="relative min-w-0 flex-1 border-b border-line bg-surface"
+              style={{ height: TIME_HEADER_HEIGHT_PX, minWidth: AXIS_MIN_WIDTH_PX }}
             >
-              <span aria-hidden="true" className={cn("w-1 shrink-0", categoryColorBarClassName(room.category_color))} />
-              <div className="flex min-w-0 flex-1 flex-col justify-center overflow-hidden py-1">
-                <span className="truncate font-display text-small text-ink-900">{room.name}</span>
-                {room.capacity !== null && (
-                  <span className="truncate font-mono text-caption text-ink-500">cap. {room.capacity}</span>
-                )}
-              </div>
-            </div>
-            <div className="relative min-w-0 flex-1 border-b border-line/60" style={{ minWidth: AXIS_MIN_WIDTH_PX }}>
               {visibleGridlines.map((mark) => (
                 <div
-                  key={`${room.id}-${mark.hour}-${mark.isHalfHour}`}
+                  key={`${mark.hour}-${mark.isHalfHour}`}
                   aria-hidden="true"
-                  className={cn("absolute inset-y-0 w-px", mark.isHalfHour ? "bg-line/40" : "bg-line/60")}
+                  className={cn("absolute inset-y-0 w-px", mark.isHalfHour ? "bg-line/40" : "bg-line")}
                   style={{ left: `${mark.percent}%` }}
                 />
               ))}
+              {labeledHourMarks.map((mark, index) => (
+                <span
+                  key={mark.hour}
+                  className={cn(
+                    "absolute top-1/2 -translate-y-1/2 whitespace-nowrap px-1 font-mono text-caption text-ink-500",
+                    index === 0 ? "" : index === labeledHourMarks.length - 1 ? "-translate-x-full" : "-translate-x-1/2"
+                  )}
+                  style={{ left: `${mark.percent}%` }}
+                >
+                  {formatHourLabel(mark.hour)}
+                </span>
+              ))}
             </div>
           </div>
-        ))}
+
+          {rooms.map((room, roomIndex) => {
+            const roomBookings = laidOutBookingsByRoom.get(room.id) ?? [];
+            const laneCount = roomBookings.reduce((max, { columnCount }) => Math.max(max, columnCount), 0);
+            return (
+              <div key={room.id} className="flex" style={{ height: roomRowHeight(laneCount) }}>
+                <div
+                  title={room.name}
+                  className={cn(
+                    "sticky left-0 z-10 flex shrink-0 items-stretch gap-1.5 overflow-hidden border-r border-b border-line bg-surface pr-1",
+                    ROOM_COLUMN_CLASSES
+                  )}
+                >
+                  <span aria-hidden="true" className={cn("w-1 shrink-0", categoryColorBarClassName(room.category_color))} />
+                  <div className="flex min-w-0 flex-1 flex-col justify-center overflow-hidden py-1">
+                    <span className="truncate font-display text-small text-ink-900">{room.name}</span>
+                    {room.capacity !== null && (
+                      <span className="truncate font-mono text-caption text-ink-500">cap. {room.capacity}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="relative min-w-0 flex-1 border-b border-line/60" style={{ minWidth: AXIS_MIN_WIDTH_PX }}>
+                  {visibleGridlines.map((mark) => (
+                    <div
+                      key={`${room.id}-${mark.hour}-${mark.isHalfHour}`}
+                      aria-hidden="true"
+                      className={cn("absolute inset-y-0 w-px", mark.isHalfHour ? "bg-line/40" : "bg-line/60")}
+                      style={{ left: `${mark.percent}%` }}
+                    />
+                  ))}
+                  {roomBookings.map(({ event: booking, columnIndex }) => (
+                    <EventBlock
+                      key={booking.id}
+                      id={booking.id}
+                      roomName={room.name}
+                      startTime={booking.start_time}
+                      endTime={booking.end_time}
+                      status={booking.status}
+                      roomIndex={roomIndex}
+                      top={ROW_VERTICAL_PADDING_PX + columnIndex * EVENT_LANE_HEIGHT_PX}
+                      height={EVENT_LANE_HEIGHT_PX}
+                    />
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
+
+      {error ? (
+        <ErrorState description={error} />
+      ) : loading ? (
+        <LoadingState variant="rows" count={3} />
+      ) : null}
     </div>
   );
 }
