@@ -93,8 +93,8 @@
         "Verify in browser using dev-browser skill"
       ],
       "priority": 6,
-      "passes": false,
-      "notes": ""
+      "passes": true,
+      "notes": "Wired US-002's NowLine into TimelineGrid: wrapped the room rows in a relative flex-col container and added a pointer-events-none absolute inset-0 overlay that mirrors each row's frozen-column-spacer + flex-1 axis layout (so NowLine's left:X% stays aligned to the time axis at every breakpoint), with NowLine confined to the axis region. NowLine still returns null unless date is today. Typecheck+lint pass. Browser-verified via a temp public fixture page (deleted; middleware public-path allowance reverted) with Playwright: today's grid renders exactly one 2px sky-300 vertical line at left:41.11% (=current time) spanning the full 168px height of all 3 room rows with its top dot; a non-today grid renders zero now-lines."
     },
     {
       "id": "US-007",

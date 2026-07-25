@@ -14,6 +14,7 @@ import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
 import { EventBlock } from "./event-block";
+import { NowLine } from "./now-line";
 
 /** Frozen room-column width per breakpoint (US-004), matching the room-cell classes below. */
 const ROOM_COLUMN_CLASSES = "w-[88px] md:w-[100px] lg:w-[140px]";
@@ -200,7 +201,22 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
             </div>
           </div>
 
-          {rooms.map((room, roomIndex) => {
+          <div className="relative flex min-w-0 flex-col">
+            {/*
+              Now-line overlay: spans the full height of all room rows (US-006),
+              offset past the frozen room column and confined to the time-axis
+              region by mirroring the same frozen-column + flex-1 axis layout as
+              each row, so its left:X% stays aligned at every breakpoint. NowLine
+              itself renders nothing unless `date` is today.
+            */}
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-30 flex">
+              <div className={cn("shrink-0", ROOM_COLUMN_CLASSES)} />
+              <div className="relative min-w-0 flex-1" style={{ minWidth: AXIS_MIN_WIDTH_PX }}>
+                <NowLine date={date} />
+              </div>
+            </div>
+
+            {rooms.map((room, roomIndex) => {
             const roomBookings = laidOutBookingsByRoom.get(room.id) ?? [];
             const laneCount = roomBookings.reduce((max, { columnCount }) => Math.max(max, columnCount), 0);
             return (
@@ -246,6 +262,7 @@ export function TimelineGrid({ rooms, date }: { rooms: ScheduleRoom[]; date: str
               </div>
             );
           })}
+          </div>
         </div>
       </div>
 
