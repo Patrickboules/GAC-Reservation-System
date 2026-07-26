@@ -8,7 +8,9 @@ US-001 is complete: a Next.js 15 (App Router, TypeScript, Tailwind, shadcn/ui) a
 
 ## What this project is
 
-GAC Reservations: a mobile-first, auth-gated room/hall booking system for Gawargious & Ava Antonious. Members (servants, scoutsmen, guides) browse room schedules, check availability, and submit booking requests; admins approve/reject from a queue. Full spec lives in `tasks/prd-gac-reservations-v1.md` (canonical/detailed PRD) and `prd_plans/V1_prd.md` (earlier draft — the tasks/ version supersedes it, e.g. it clarifies that the **entire app requires authentication**, including schedule browsing).
+GAC Reservations: a mobile-first room/hall booking system for Gawargious & Ava Antonious. Members (servants, scoutsmen, guides) browse room schedules, check availability, and submit booking requests; admins approve/reject from a queue. Full spec lives in `tasks/prd-gac-reservations-v1.md` (canonical/detailed PRD) and `prd_plans/V1_prd.md` (earlier draft — the tasks/ version supersedes it).
+
+**Auth model (current):** the schedule is public — any visitor can browse it, and it is the landing page. Booking and all member/admin actions require signing in **with Google (Supabase Google OAuth only — no email/password, no self-serve signup)**. This supersedes the older "entire app requires authentication" rule from `tasks/prd-gac-reservations-v1.md`; see `tasks/prd-google-auth-public-schedule.md` for the authoritative auth + schedule-visibility spec.
 
 See `DEPLOYMENT.md` for how the Vercel production deploy pipeline and PR CI gate work, plus the manual dashboard setup checklist.
 

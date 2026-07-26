@@ -34,6 +34,7 @@ export default async function SchedulePage({
         initialFavoriteRoomIds={favoriteRoomIds}
         initialDate={date}
         initialRoomId={room}
+        authenticated={Boolean(userData.user)}
       />
     </div>
   );

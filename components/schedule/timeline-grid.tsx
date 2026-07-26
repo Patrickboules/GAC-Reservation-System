@@ -159,11 +159,14 @@ export function TimelineGrid({
   date,
   favoriteRoomIds,
   onToggleFavorite,
+  authenticated,
 }: {
   rooms: ScheduleRoom[];
   date: string;
   favoriteRoomIds: ReadonlySet<string>;
   onToggleFavorite: (roomId: string) => void;
+  /** When false (signed-out visitor, US-007), a drop routes to /login?next=<booking-form-url> instead of straight to the form. */
+  authenticated: boolean;
 }) {
   const axisRef = useRef<HTMLDivElement>(null);
   const [axisWidth, setAxisWidth] = useState(0);
@@ -305,9 +308,12 @@ export function TimelineGrid({
         return;
       }
 
-      router.push(`/bookings/new?room=${roomId}&date=${date}&start=${startTime}&end=${endTime}`);
+      const bookingUrl = `/bookings/new?room=${roomId}&date=${date}&start=${startTime}&end=${endTime}`;
+      // Signed-out visitors are asked to sign in first, preserving the selected
+      // slot across the Google round-trip via the next param (US-007).
+      router.push(authenticated ? bookingUrl : `/login?next=${encodeURIComponent(bookingUrl)}`);
     },
-    [bookingsByRoom, date, router]
+    [bookingsByRoom, date, router, authenticated]
   );
 
   function handleAxisMouseDown(event: ReactMouseEvent<HTMLDivElement>, roomId: string) {

@@ -22,5 +22,5 @@ export async function Sidebar() {
     isAdmin = profile?.role === "admin";
   }
 
-  return <SidebarNav isAdmin={isAdmin} />;
+  return <SidebarNav isAdmin={isAdmin} authenticated={Boolean(user)} />;
 }

@@ -1,19 +1,40 @@
 "use server";
 
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
 import { createClient } from "@/lib/supabase/server";
 
+// Only accept relative, same-origin destinations for `next` so the login
+// round-trip can't be used as an open redirect.
+function safeNext(next: FormDataEntryValue | null): string | null {
+  if (typeof next !== "string" || next.length === 0) return null;
+  if (!next.startsWith("/") || next.startsWith("//") || next.startsWith("/\\")) {
+    return null;
+  }
+  return next;
+}
+
 export async function login(formData: FormData) {
-  const email = formData.get("email") as string;
-  const password = formData.get("password") as string;
+  const next = safeNext(formData.get("next"));
+
+  const headerList = await headers();
+  const origin = headerList.get("origin") ?? "";
+
+  const callback = new URL("/auth/callback", origin);
+  if (next) {
+    callback.searchParams.set("next", next);
+  }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: "google",
+    options: { redirectTo: callback.toString() },
+  });
 
   if (error) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
 
-  redirect("/");
+  redirect(data.url);
 }

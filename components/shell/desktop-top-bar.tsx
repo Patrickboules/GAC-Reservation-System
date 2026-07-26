@@ -47,6 +47,7 @@ export async function DesktopTopBar() {
       notifications={notifications}
       unreadCount={unreadCount}
       rooms={rooms ?? []}
+      authenticated={Boolean(user)}
       variant="desktop"
       className="hidden lg:flex"
     />
