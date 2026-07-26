@@ -34,6 +34,18 @@ yarn-error.log*
 .env*
 !.env.example
 
+# claude code local settings
+.claude/settings.local.json
+
+# ralph autonomous-loop workflow (local tooling, not app code)
+/prompt.md
+/prd.json
+/ralph.sh
+/.last-branch
+/progress.txt
+/prd_plans/
+/tasks/
+
 # vercel
 .vercel
 
