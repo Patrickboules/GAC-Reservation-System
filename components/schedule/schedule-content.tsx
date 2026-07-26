@@ -24,6 +24,8 @@ interface ScheduleContentProps {
   initialDate?: string;
   /** Accepted for URL compatibility with the availability search (US-039); the unified grid shows every room, so there's nothing to scroll to. */
   initialRoomId?: string;
+  /** When false (signed-out visitor, US-007), drag-to-create routes through /login first. */
+  authenticated: boolean;
 }
 
 /** Owns the selected day, room filters, and pinned rooms (US-034) so the day strip and the timeline grid stay in sync. */
@@ -31,6 +33,7 @@ export function ScheduleContent({
   rooms,
   initialFavoriteRoomIds,
   initialDate,
+  authenticated,
 }: ScheduleContentProps) {
   const toast = useToast();
   const [date, setDate] = useState(() =>
@@ -81,6 +84,7 @@ export function ScheduleContent({
         date={date}
         favoriteRoomIds={favoriteRoomIds}
         onToggleFavorite={handleToggleFavorite}
+        authenticated={authenticated}
       />
     </div>
   );
