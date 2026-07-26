@@ -68,3 +68,27 @@ Set this up once per environment.
   `SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET` (see `.env.example`) so the
   `[auth.external.google]` block in `supabase/config.toml` resolves. `skip_nonce_check = true`
   is required for local Google sign-in.
+
+## Granting admin access
+
+There is **no self-serve path to admin**. Every first-time Google sign-in gets a
+`profiles` row with `role = 'member'` (created automatically by the
+`on_auth_user_created` trigger; `display_name` comes from the Google account name,
+falling back to the email address). Admin is granted only by manually updating the
+row in the database.
+
+1. Have the person sign in with Google at least once so their `profiles` row exists.
+2. In the **Supabase dashboard → SQL Editor** (production project), run — replacing
+   the email with theirs:
+
+   ```sql
+   update public.profiles
+   set role = 'admin'
+   where id = (
+     select id from auth.users where email = 'person@example.com'
+   );
+   ```
+
+   This runs as the service role, which is the only caller allowed to change
+   `role` (the `profiles_prevent_role_self_update` trigger blocks everyone else).
+3. To revoke, set `role = 'member'` the same way.
