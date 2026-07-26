@@ -30,11 +30,11 @@ function DropdownMenuContent({
 }: DropdownMenuContentProps) {
   return (
     <Menu.Portal>
-      <Menu.Positioner sideOffset={sideOffset} align={align}>
+      <Menu.Positioner sideOffset={sideOffset} align={align} className="z-50 outline-none">
         <Menu.Popup
           data-slot="dropdown-menu-content"
           className={cn(
-            "z-50 min-w-[10rem] origin-[var(--transform-origin)] rounded-md border border-line bg-surface p-1 shadow-md outline-none",
+            "min-w-[10rem] origin-[var(--transform-origin)] rounded-md border border-line bg-surface p-1 shadow-md outline-none",
             "transition-[transform,opacity] duration-100 data-[starting-style]:scale-95 data-[starting-style]:opacity-0 data-[ending-style]:scale-95 data-[ending-style]:opacity-0",
             className
           )}

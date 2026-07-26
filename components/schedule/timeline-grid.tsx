@@ -25,7 +25,7 @@ import { buildingGroupSpans, groupRoomsByBuilding, sortRoomsByFavorite, type Sch
 import { ROOM_CATEGORY_COLOR_SWATCH_CLASSES, isRoomCategoryColor } from "@/lib/rooms/category-colors";
 import { handleScheduleGridKeyDown } from "@/lib/schedule/event-block-navigation";
 import { layoutOverlappingEvents } from "@/lib/schedule/event-layout";
-import { formatHourLabel, percentForTime, SCHEDULE_START_HOUR, timeAxisGridlines, timeForPercent } from "@/lib/schedule/hours";
+import { formatHourLabel, percentForTime, timeAxisGridlines, timeForPercent } from "@/lib/schedule/hours";
 import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -51,21 +51,21 @@ const EVENT_LANE_HEIGHT_PX = 44;
 /** Vertical space above the first lane and below the last lane within a room row. */
 const ROW_VERTICAL_PADDING_PX = 6;
 
-/** Time-axis (post-frozen-column) rendered width at/above which hour labels show every hour; below it, every 2 hours to avoid crowding. */
-const DENSE_HOUR_LABELS_MIN_WIDTH_PX = 1100;
-
 /** Per-hour rendered width at/above which a half-hour gridline has room to render without crowding the hour line next to it. */
 const HALF_HOUR_GRIDLINE_MIN_HOUR_WIDTH_PX = 48;
 
-/**
- * Minimum rendered width of the time axis itself: below this, even the
- * 2-hour label step starts colliding, so the axis stops shrinking with the
- * viewport and the grid scrolls horizontally instead (native scroll, same
- * mechanism US-008 later hooks touch-drag into).
- */
-const AXIS_MIN_WIDTH_PX = 560;
-
 const OPERATING_WINDOW_HOURS = timeAxisGridlines().filter((mark) => !mark.isHalfHour).length - 1;
+
+/**
+ * Minimum rendered width per hour box. Sized to give each hour label room to
+ * sit legibly centered in its own box; below this the axis stops shrinking with
+ * the viewport and the grid scrolls horizontally instead (native scroll, same
+ * mechanism US-008 hooks touch-drag into).
+ */
+const MIN_HOUR_WIDTH_PX = 68;
+
+/** Minimum rendered width of the time axis itself, derived from the per-hour minimum. */
+const AXIS_MIN_WIDTH_PX = OPERATING_WINDOW_HOURS * MIN_HOUR_WIDTH_PX;
 
 /** How long a post-drop conflict warning stays visible before fading (US-007). */
 const DRAG_CONFLICT_DISPLAY_MS = 3000;
@@ -136,6 +136,7 @@ interface DayBooking {
   start_time: string;
   end_time: string;
   status: BookingStatus;
+  service: string | null;
 }
 
 /** A room row's height needs to fit its tallest concurrent-overlap lane stack. */
@@ -197,7 +198,7 @@ export function TimelineGrid({
 
     supabase
       .from("bookings_schedule")
-      .select("id, room_id, date, start_time, end_time, status")
+      .select("id, room_id, date, start_time, end_time, status, service")
       .eq("date", date)
       .order("start_time", { ascending: true })
       .then(({ data, error: queryError }) => {
@@ -465,15 +466,17 @@ export function TimelineGrid({
   const gridlines = useMemo(() => timeAxisGridlines(), []);
   const hourWidthPx = axisWidth > 0 ? axisWidth / OPERATING_WINDOW_HOURS : 0;
   const showHalfHourGridlines = hourWidthPx >= HALF_HOUR_GRIDLINE_MIN_HOUR_WIDTH_PX;
-  const hourStep = axisWidth >= DENSE_HOUR_LABELS_MIN_WIDTH_PX ? 1 : 2;
 
   const visibleGridlines = useMemo(
     () => gridlines.filter((mark) => !mark.isHalfHour || showHalfHourGridlines),
     [gridlines, showHalfHourGridlines]
   );
+  // Label every hour, centered inside its own hour box rather than on the
+  // boundary gridline: each half-hour mark sits at the midpoint of the box
+  // opened by its hour, so we reuse it as that hour's label anchor.
   const labeledHourMarks = useMemo(
-    () => gridlines.filter((mark) => !mark.isHalfHour && (mark.hour - SCHEDULE_START_HOUR) % hourStep === 0),
-    [gridlines, hourStep]
+    () => gridlines.filter((mark) => mark.isHalfHour),
+    [gridlines]
   );
 
   if (rooms.length === 0) {
@@ -525,13 +528,10 @@ export function TimelineGrid({
                   style={{ left: `${mark.percent}%` }}
                 />
               ))}
-              {labeledHourMarks.map((mark, index) => (
+              {labeledHourMarks.map((mark) => (
                 <span
                   key={mark.hour}
-                  className={cn(
-                    "absolute top-1/2 -translate-y-1/2 whitespace-nowrap px-1 font-mono text-caption text-ink-500",
-                    index === 0 ? "" : index === labeledHourMarks.length - 1 ? "-translate-x-full" : "-translate-x-1/2"
-                  )}
+                  className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 whitespace-nowrap px-1 font-mono text-small text-ink-600"
                   style={{ left: `${mark.percent}%` }}
                 >
                   {formatHourLabel(mark.hour)}
@@ -631,6 +631,7 @@ export function TimelineGrid({
                       startTime={booking.start_time}
                       endTime={booking.end_time}
                       status={booking.status}
+                      service={booking.service}
                       roomIndex={roomIndex}
                       top={ROW_VERTICAL_PADDING_PX + columnIndex * EVENT_LANE_HEIGHT_PX}
                       height={EVENT_LANE_HEIGHT_PX}

@@ -93,7 +93,7 @@ function EventBlock({
   const cancelled = status === "cancelled"
   const timeLabel = `${formatTimeLabel(startTime)}–${formatTimeLabel(endTime)}`
   const { accent, tint } = serviceColor(service)
-  const ariaLabel = `${roomName}, ${timeLabel}, ${STATUS_LABELS[status]}`
+  const ariaLabel = `${service ? `${service}, ` : ""}${roomName}, ${timeLabel}, ${STATUS_LABELS[status]}`
 
   const leftPct = percentForTime(startTime)
   const widthPct = percentForTime(endTime) - leftPct
@@ -144,22 +144,20 @@ function EventBlock({
             <>
               <span
                 className={cn(
-                  "truncate font-mono text-caption text-ink-900",
+                  "truncate font-medium text-caption text-ink-900",
+                  cancelled && "text-ink-500 line-through"
+                )}
+              >
+                {service ?? "Booked"}
+              </span>
+              <span
+                className={cn(
+                  "truncate font-mono text-caption text-ink-600",
                   cancelled && "text-ink-500 line-through"
                 )}
               >
                 {timeLabel}
               </span>
-              {service && (
-                <span
-                  className={cn(
-                    "truncate text-caption text-ink-700",
-                    cancelled && "text-ink-500 line-through"
-                  )}
-                >
-                  {service}
-                </span>
-              )}
               <span className="flex items-center gap-1 text-caption text-ink-500">
                 {requesterName && (
                   <span className={cn("truncate", cancelled && "line-through")}>by {requesterName}</span>
@@ -192,11 +190,11 @@ function EventBlock({
             >
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-display text-small text-ink-900">{roomName}</span>
+                  <span className="truncate font-display text-small text-ink-900">{service ?? roomName}</span>
                   <StatusBadge status={status} dot />
                 </div>
+                {service && <span className="truncate text-caption text-ink-700">{roomName}</span>}
                 <span className="font-mono text-caption text-ink-700">{timeLabel}</span>
-                {service && <span className="text-caption text-ink-700">{service}</span>}
                 {requesterName && (
                   <span className="flex items-center gap-1 text-caption text-ink-700">
                     <User aria-hidden="true" className="size-3 shrink-0" />
@@ -212,12 +210,12 @@ function EventBlock({
       <Modal open={detailOpen} onOpenChange={setDetailOpen}>
         <ModalContent>
           <ModalHeader>
-            <ModalTitle>{roomName}</ModalTitle>
+            <ModalTitle>{service ?? roomName}</ModalTitle>
             <ModalDescription className="font-mono">{timeLabel}</ModalDescription>
           </ModalHeader>
           <div className="flex flex-col gap-2 text-small text-ink-700">
             <StatusBadge status={status} dot />
-            {service && <p>Service: {service}</p>}
+            <p>Room: {roomName}</p>
             {requesterName && <p>Requested by {requesterName}</p>}
           </div>
         </ModalContent>
