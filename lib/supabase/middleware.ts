@@ -1,10 +1,10 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-// Paths any visitor (including signed-out) may reach. The schedule is public;
-// booking, admin, availability-create, notification, and other member routes
-// stay gated below.
-const PUBLIC_PREFIXES = ["/schedule", "/login", "/auth/callback"];
+// Paths any visitor (including signed-out) may reach. The schedule and the
+// rooms section (list + detail) are public; booking, admin, availability-create,
+// notification, and other member routes stay gated below.
+const PUBLIC_PREFIXES = ["/schedule", "/rooms", "/login", "/auth/callback"];
 
 // Auth pages a signed-in user should be bounced away from (to the schedule).
 const AUTH_PREFIXES = ["/login"];
