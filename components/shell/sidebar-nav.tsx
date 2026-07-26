@@ -12,6 +12,7 @@ import {
   DoorClosed,
   Inbox,
   LayoutDashboard,
+  LogIn,
   LogOut,
   PanelLeftClose,
   PanelLeftOpen,
@@ -121,9 +122,11 @@ function NavLink({
 
 interface SidebarNavProps {
   isAdmin: boolean;
+  /** When false (signed-out visitor, US-006), the Log out control becomes a Sign in link. */
+  authenticated: boolean;
 }
 
-export function SidebarNav({ isAdmin }: SidebarNavProps) {
+export function SidebarNav({ isAdmin, authenticated }: SidebarNavProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
@@ -195,19 +198,32 @@ export function SidebarNav({ isAdmin }: SidebarNavProps) {
       </nav>
 
       <div className="border-t border-line p-3">
-        <button
-          type="button"
-          onClick={() => {
-            void logout();
-          }}
-          className={cn(
-            "flex w-full items-center gap-3 rounded-md px-3 py-2 text-body font-medium text-ink-500 transition-colors hover:bg-sky-50 hover:text-ink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
-            collapsed && "justify-center px-0",
-          )}
-        >
-          <LogOut className="size-5 shrink-0" />
-          {!collapsed && <span className="truncate">Log out</span>}
-        </button>
+        {authenticated ? (
+          <button
+            type="button"
+            onClick={() => {
+              void logout();
+            }}
+            className={cn(
+              "flex w-full items-center gap-3 rounded-md px-3 py-2 text-body font-medium text-ink-500 transition-colors hover:bg-sky-50 hover:text-ink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+              collapsed && "justify-center px-0",
+            )}
+          >
+            <LogOut className="size-5 shrink-0" />
+            {!collapsed && <span className="truncate">Log out</span>}
+          </button>
+        ) : (
+          <Link
+            href="/login"
+            className={cn(
+              "flex w-full items-center gap-3 rounded-md px-3 py-2 text-body font-medium text-ink-500 transition-colors hover:bg-sky-50 hover:text-ink-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+              collapsed && "justify-center px-0",
+            )}
+          >
+            <LogIn className="size-5 shrink-0" />
+            {!collapsed && <span className="truncate">Sign in</span>}
+          </Link>
+        )}
       </div>
     </aside>
   );

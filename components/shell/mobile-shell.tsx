@@ -53,6 +53,7 @@ export async function MobileShell() {
         notifications={notifications}
         unreadCount={unreadCount}
         rooms={rooms ?? []}
+        authenticated={Boolean(user)}
       />
       <MobileTabBar isAdmin={isAdmin} />
     </>

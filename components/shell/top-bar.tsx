@@ -56,6 +56,9 @@ interface TopBarProps {
   dateContext?: React.ReactNode;
   /** Rooms available to the global availability search (US-039). Defaults to empty. */
   rooms?: GlobalSearchRoom[];
+  /** When false (signed-out visitor, US-006), the notifications bell and profile
+   * menu are replaced by a Sign in link; user-specific UI is hidden. */
+  authenticated?: boolean;
   variant?: "desktop" | "mobile";
   className?: string;
 }
@@ -66,6 +69,7 @@ export function TopBar({
   unreadCount = 0,
   dateContext,
   rooms = [],
+  authenticated = true,
   variant = "desktop",
   className,
 }: TopBarProps) {
@@ -119,6 +123,8 @@ export function TopBar({
           <Search className={compact ? "size-4" : "size-5"} />
         </IconButton>
 
+        {authenticated ? (
+          <>
         <DropdownMenu onOpenChange={handleNotificationsOpenChange}>
           {/* No tooltip prop here: IconButton wraps tooltipped triggers in
               Tooltip.Root, which breaks DropdownMenuTrigger's render merge. */}
@@ -227,6 +233,15 @@ export function TopBar({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+          </>
+        ) : (
+          <Link
+            href="/login"
+            className="inline-flex h-9 items-center rounded-md bg-sky-600 px-3 text-small font-medium text-white transition-colors hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          >
+            Sign in
+          </Link>
+        )}
       </div>
 
       <Modal open={searchOpen} onOpenChange={setSearchOpen}>

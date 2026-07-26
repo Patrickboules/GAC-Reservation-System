@@ -7,16 +7,18 @@ interface MobileTopBarProps {
   notifications: NotificationListItem[];
   unreadCount: number;
   rooms: GlobalSearchRoom[];
+  authenticated: boolean;
 }
 
 // Compact top bar for mobile, shown alongside the bottom tab bar.
-export function MobileTopBar({ profile, notifications, unreadCount, rooms }: MobileTopBarProps) {
+export function MobileTopBar({ profile, notifications, unreadCount, rooms, authenticated }: MobileTopBarProps) {
   return (
     <TopBar
       profile={profile}
       notifications={notifications}
       unreadCount={unreadCount}
       rooms={rooms}
+      authenticated={authenticated}
       variant="mobile"
       className="lg:hidden"
     />
