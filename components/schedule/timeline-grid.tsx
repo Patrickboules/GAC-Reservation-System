@@ -568,7 +568,7 @@ export function TimelineGrid({
                     <div
                       title={group.building}
                       className={cn(
-                        "sticky left-0 z-10 flex items-center truncate border-r border-b border-line bg-sand-50 px-2 font-medium text-caption text-ink-500",
+                        "sticky left-0 z-10 flex shrink-0 items-center truncate border-r border-b border-line bg-sand-50 px-2 font-medium text-caption text-ink-500",
                         ROOM_COLUMN_CLASSES
                       )}
                     >
