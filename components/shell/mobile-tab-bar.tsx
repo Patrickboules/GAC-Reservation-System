@@ -7,7 +7,6 @@ import {
   BarChart3,
   Building2,
   Calendar,
-  CalendarPlus,
   ClipboardList,
   DoorClosed,
   Inbox,
@@ -38,10 +37,12 @@ const tabItems: NavItem[] = [
     isActive: (pathname) => pathname.startsWith("/schedule"),
   },
   {
-    label: "Book",
-    href: "/bookings/new",
-    icon: CalendarPlus,
-    isActive: (pathname) => pathname.startsWith("/bookings/new"),
+    // Rooms is the only way into booking: pick a room, then reserve it.
+    label: "Rooms",
+    href: "/rooms",
+    icon: Building2,
+    isActive: (pathname) =>
+      pathname.startsWith("/rooms") || pathname.startsWith("/bookings/new"),
   },
   {
     label: "My Bookings",
@@ -50,15 +51,6 @@ const tabItems: NavItem[] = [
     isActive: (pathname) =>
       pathname === "/bookings" ||
       (pathname.startsWith("/bookings/") && !pathname.startsWith("/bookings/new")),
-  },
-];
-
-const moreDestinations: NavItem[] = [
-  {
-    label: "Rooms",
-    href: "/rooms",
-    icon: Building2,
-    isActive: (pathname) => pathname.startsWith("/rooms"),
   },
 ];
 
@@ -144,8 +136,7 @@ export function MobileTabBar({ isAdmin }: MobileTabBarProps) {
   const pathname = usePathname();
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const isMoreActive =
-    pathname.startsWith("/rooms") || pathname.startsWith("/admin");
+  const isMoreActive = pathname.startsWith("/admin");
 
   return (
     <>
@@ -154,63 +145,45 @@ export function MobileTabBar({ isAdmin }: MobileTabBarProps) {
         aria-label="Primary"
       >
         {tabItems.map((item) => (
-          <TabLink
-            key={item.href}
-            item={item}
-            active={item.isActive(pathname)}
-          />
+          <TabLink key={item.href} item={item} active={item.isActive(pathname)} />
         ))}
-        <button
-          type="button"
-          onClick={() => setMoreOpen(true)}
-          className={cn(
-            "flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-caption font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
-            isMoreActive ? "text-sky-600" : "text-ink-500",
-          )}
-        >
-          <MoreHorizontal className="size-5" />
-          <span>More</span>
-        </button>
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={() => setMoreOpen(true)}
+            className={cn(
+              "flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-caption font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+              isMoreActive ? "text-sky-600" : "text-ink-500",
+            )}
+          >
+            <MoreHorizontal className="size-5" />
+            <span>More</span>
+          </button>
+        )}
       </nav>
 
-      <Modal open={moreOpen} onOpenChange={setMoreOpen}>
-        <ModalContent>
-          <ModalHeader>
-            <ModalTitle>More</ModalTitle>
-          </ModalHeader>
-          <nav className="flex flex-col gap-1">
-            {moreDestinations.map((item) => (
-              <SheetLink
-                key={item.href}
-                item={item}
-                active={item.isActive(pathname)}
-                onNavigate={() => setMoreOpen(false)}
-              />
-            ))}
-
-            {isAdmin && (
-              <>
-                <div
-                  role="separator"
-                  aria-hidden="true"
-                  className="my-2 border-t border-line"
+      {isAdmin && (
+        <Modal open={moreOpen} onOpenChange={setMoreOpen}>
+          <ModalContent>
+            <ModalHeader>
+              <ModalTitle>More</ModalTitle>
+            </ModalHeader>
+            <nav className="flex flex-col gap-1">
+              <span className="px-3 text-caption font-semibold tracking-wide text-ink-300 uppercase">
+                Admin
+              </span>
+              {adminDestinations.map((item) => (
+                <SheetLink
+                  key={item.href}
+                  item={item}
+                  active={item.isActive(pathname)}
+                  onNavigate={() => setMoreOpen(false)}
                 />
-                <span className="px-3 text-caption font-semibold tracking-wide text-ink-300 uppercase">
-                  Admin
-                </span>
-                {adminDestinations.map((item) => (
-                  <SheetLink
-                    key={item.href}
-                    item={item}
-                    active={item.isActive(pathname)}
-                    onNavigate={() => setMoreOpen(false)}
-                  />
-                ))}
-              </>
-            )}
-          </nav>
-        </ModalContent>
-      </Modal>
+              ))}
+            </nav>
+          </ModalContent>
+        </Modal>
+      )}
     </>
   );
 }

@@ -4,12 +4,70 @@ import { MapPin, Users } from "lucide-react";
 
 import { Button } from "@/components/kit/button";
 import { amenityIcon } from "@/components/kit/room-card";
-import { addDays, formatDateLabel, todayDateString } from "@/lib/dates";
+import { CONFLICTING_STATUSES, type BookingStatus } from "@/lib/bookings/conflict-check";
+import { addDays, formatDateLabel, formatTimeLabel, todayDateString } from "@/lib/dates";
 import { formatRoomField } from "@/lib/rooms";
+import { formatHourLabel, percentForTime, SCHEDULE_END_HOUR, SCHEDULE_START_HOUR } from "@/lib/schedule/hours";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
 
 const STRIP_DAYS = 7;
+/** Hour marks drawn on the read-only today-availability bar; every hour would overlap at this page's width. */
+const GRIDLINE_HOURS = [8, 11, 14, 17, 20, 23];
+
+interface TodayBooking {
+  start_time: string;
+  end_time: string;
+  status: BookingStatus;
+}
+
+/** Read-only hour-by-hour view of this room's bookings for today. */
+function TodayAvailabilityBar({ bookings }: { bookings: TodayBooking[] }) {
+  return (
+    <div>
+      <p className="mb-2 text-small font-semibold text-ink-700">Today&apos;s availability</p>
+      <div className="relative h-9 w-full overflow-hidden rounded-md border border-line bg-canvas">
+        {GRIDLINE_HOURS.map((hour) => (
+          <div
+            key={hour}
+            aria-hidden="true"
+            className="absolute inset-y-0 w-px bg-line/60"
+            style={{ left: `${percentForTime(`${String(hour).padStart(2, "0")}:00:00`)}%` }}
+          />
+        ))}
+        {bookings.map((booking, i) => {
+          const left = percentForTime(booking.start_time);
+          const width = Math.max(percentForTime(booking.end_time) - left, 1.5);
+          return (
+            <div
+              key={i}
+              title={`${formatTimeLabel(booking.start_time)}–${formatTimeLabel(booking.end_time)}`}
+              className={cn(
+                "absolute inset-y-1 rounded-sm",
+                booking.status === "approved" ? "bg-status-approved-fg/70" : "bg-status-pending-fg/70"
+              )}
+              style={{ left: `${left}%`, width: `${width}%` }}
+            />
+          );
+        })}
+      </div>
+      <div className="mt-1 flex justify-between text-caption text-ink-500">
+        <span>{formatHourLabel(SCHEDULE_START_HOUR)}</span>
+        <span>{formatHourLabel(SCHEDULE_END_HOUR)}</span>
+      </div>
+      {bookings.length > 0 && (
+        <ul className="sr-only">
+          {bookings.map((booking, i) => (
+            <li key={i}>
+              {formatTimeLabel(booking.start_time)}–{formatTimeLabel(booking.end_time)},{" "}
+              {booking.status}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
 
 export default async function RoomDetailPage({
   params,
@@ -22,7 +80,7 @@ export default async function RoomDetailPage({
   const startDate = todayDateString();
   const endDate = addDays(startDate, STRIP_DAYS - 1);
 
-  const [{ data: room }, { data: upcomingBookings }] = await Promise.all([
+  const [{ data: room }, { data: upcomingBookings }, { data: todayBookings }] = await Promise.all([
     supabase
       .from("rooms")
       .select("id, name, capacity, amenities, location, rules")
@@ -32,9 +90,16 @@ export default async function RoomDetailPage({
       .from("bookings_schedule")
       .select("date")
       .eq("room_id", id)
-      .eq("status", "approved")
+      .in("status", CONFLICTING_STATUSES)
       .gte("date", startDate)
       .lte("date", endDate),
+    supabase
+      .from("bookings_schedule")
+      .select("start_time, end_time, status")
+      .eq("room_id", id)
+      .eq("date", startDate)
+      .in("status", CONFLICTING_STATUSES)
+      .order("start_time", { ascending: true }),
   ]);
 
   if (!room) {
@@ -107,6 +172,8 @@ export default async function RoomDetailPage({
             )}
           </div>
 
+          <TodayAvailabilityBar bookings={(todayBookings ?? []) as TodayBooking[]} />
+
           <div>
             <p className="mb-2 text-small font-semibold text-ink-700">Next 7 days</p>
             <div className="grid grid-cols-7 gap-1.5">
@@ -131,7 +198,10 @@ export default async function RoomDetailPage({
             </div>
           </div>
 
-          <Button size="lg" render={<Link href={`/bookings/new?room=${room.id}`}>Book this room</Link>} />
+          <Button
+            size="lg"
+            render={<Link href={`/bookings/new?room=${room.id}`}>Reserve this room</Link>}
+          />
         </div>
       </div>
     </div>

@@ -1,16 +1,16 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { fetchConflictingBookings } from "@/lib/bookings/conflict-check";
+import { MAX_OPEN_PENDING_BOOKINGS } from "@/lib/bookings/limits";
 import { isBookingService } from "@/lib/bookings/services";
 import { isBookingModifiable } from "@/lib/bookings/status";
-import { isBookingPast, normalizeTimeString } from "@/lib/dates";
+import { isBookingPast, isBookingStartInPast, normalizeTimeString } from "@/lib/dates";
 import { notifyAdminsNewRequest, notifyBookingCancelled } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
-
-const MAX_OPEN_PENDING_BOOKINGS = 5;
 
 export interface RequestBookingState {
   error?: string;
@@ -39,6 +39,9 @@ export async function requestBooking(
 
   if (startTime >= endTime) {
     return { error: "End time must be after start time." };
+  }
+  if (isBookingStartInPast(date, startTime)) {
+    return { error: "Can't request a booking in the past." };
   }
 
   const supabase = await createClient();
@@ -105,7 +108,8 @@ export async function requestBooking(
     endTime,
   });
 
-  redirect("/bookings");
+  revalidatePath("/bookings");
+  redirect("/bookings?submitted=1");
 }
 
 export interface UpdateBookingState {
@@ -136,6 +140,9 @@ export async function updateBooking(
 
   if (startTime >= endTime) {
     return { error: "End time must be after start time." };
+  }
+  if (isBookingStartInPast(date, startTime)) {
+    return { error: "Can't reschedule a booking into the past." };
   }
 
   const supabase = await createClient();
@@ -198,13 +205,22 @@ export async function updateBooking(
     return { error: updateError.message };
   }
 
+  revalidatePath("/bookings");
+  revalidatePath(`/bookings/${bookingId}`);
   redirect("/bookings");
 }
 
-export async function cancelBooking(formData: FormData) {
+export interface CancelBookingState {
+  error?: string;
+}
+
+export async function cancelBooking(
+  _prevState: CancelBookingState,
+  formData: FormData
+): Promise<CancelBookingState> {
   const bookingId = (formData.get("booking_id") as string | null) ?? "";
   if (!bookingId) {
-    redirect("/bookings?error=" + encodeURIComponent("Missing booking id."));
+    return { error: "Missing booking id." };
   }
 
   const supabase = await createClient();
@@ -223,16 +239,13 @@ export async function cancelBooking(formData: FormData) {
     .single();
 
   if (fetchError || !booking || booking.user_id !== user.id) {
-    redirect("/bookings?error=" + encodeURIComponent("Booking not found."));
+    return { error: "Booking not found." };
   }
   if (booking.status !== "pending" && booking.status !== "approved") {
-    redirect(
-      "/bookings?error=" +
-        encodeURIComponent("Only pending or approved bookings can be cancelled.")
-    );
+    return { error: "Only pending or approved bookings can be cancelled." };
   }
   if (isBookingPast(booking.date, booking.end_time)) {
-    redirect("/bookings?error=" + encodeURIComponent("Past bookings can't be cancelled."));
+    return { error: "Past bookings can't be cancelled." };
   }
 
   const { error: updateError } = await supabase
@@ -242,7 +255,7 @@ export async function cancelBooking(formData: FormData) {
     .eq("user_id", user.id);
 
   if (updateError) {
-    redirect("/bookings?error=" + encodeURIComponent(updateError.message));
+    return { error: updateError.message };
   }
 
   await notifyBookingCancelled(createAdminClient(), {
@@ -254,5 +267,9 @@ export async function cancelBooking(formData: FormData) {
     endTime: booking.end_time,
   });
 
+  // Drop the cached booking list/detail so the cancelled booking doesn't linger
+  // in its old tab after the redirect.
+  revalidatePath("/bookings");
+  revalidatePath(`/bookings/${bookingId}`);
   redirect("/bookings");
 }

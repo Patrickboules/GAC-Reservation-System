@@ -9,6 +9,7 @@ import { BookingCard } from "@/components/kit/booking-card"
 import { EmptyState } from "@/components/kit/empty-state"
 import { Button } from "@/components/kit/button"
 import type { BookingStatus } from "@/lib/bookings/conflict-check"
+import { MAX_OPEN_PENDING_BOOKINGS } from "@/lib/bookings/limits"
 import type { BookingBucket } from "@/lib/bookings/status"
 
 interface MyBookingCardData {
@@ -69,7 +70,10 @@ function MyBookingsTabs({ buckets }: MyBookingsTabsProps) {
       <SegmentedControl
         options={BUCKETS.map(({ value, label }) => ({
           value,
-          label: `${label} (${buckets[value].length})`,
+          label:
+            value === "pending"
+              ? `${label} (${buckets[value].length}/${MAX_OPEN_PENDING_BOOKINGS})`
+              : `${label} (${buckets[value].length})`,
         }))}
         value={active}
         onValueChange={setActive}
@@ -83,7 +87,7 @@ function MyBookingsTabs({ buckets }: MyBookingsTabsProps) {
           description={empty.description}
           action={
             empty.showAction ? (
-              <Button size="sm" render={<Link href="/bookings/new">Request a room</Link>} />
+              <Button size="sm" render={<Link href="/rooms">Request a room</Link>} />
             ) : undefined
           }
         />

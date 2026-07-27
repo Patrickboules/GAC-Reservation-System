@@ -2,9 +2,12 @@ import { DoorOpen } from "lucide-react";
 
 import { EmptyState } from "@/components/kit/empty-state";
 import { RoomCard, type RoomCardAvailability } from "@/components/kit/room-card";
+import { CONFLICTING_STATUSES } from "@/lib/bookings/conflict-check";
 import { todayDateString, timeToMinutes } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/server";
 
+// The rooms directory is the single entry point to booking: browse rooms,
+// halls, and stages here, open one, then reserve it from its detail page.
 export default async function RoomsPage() {
   const supabase = await createClient();
   const [{ data: rooms }, { data: todaysBookings }] = await Promise.all([
@@ -16,7 +19,7 @@ export default async function RoomsPage() {
       .from("bookings_schedule")
       .select("room_id, start_time, end_time")
       .eq("date", todayDateString())
-      .eq("status", "approved"),
+      .in("status", CONFLICTING_STATUSES),
   ]);
 
   const now = new Date();
@@ -38,7 +41,9 @@ export default async function RoomsPage() {
     <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-4 p-4">
       <div>
         <h1 className="font-display text-h2 text-ink-900">Rooms</h1>
-        <p className="text-small text-ink-500">Browse rooms and halls.</p>
+        <p className="text-small text-ink-500">
+          Browse rooms, halls, and stages. Open one to see its availability and reserve it.
+        </p>
       </div>
 
       {(rooms ?? []).length > 0 ? (

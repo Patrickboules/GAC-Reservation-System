@@ -7,7 +7,6 @@ import {
   BarChart3,
   Building2,
   Calendar,
-  CalendarPlus,
   ClipboardList,
   DoorClosed,
   Inbox,
@@ -37,10 +36,12 @@ const primaryNavItems: NavItem[] = [
     isActive: (pathname) => pathname.startsWith("/schedule"),
   },
   {
-    label: "Book",
-    href: "/bookings/new",
-    icon: CalendarPlus,
-    isActive: (pathname) => pathname.startsWith("/bookings/new"),
+    // Rooms is the only way into booking: pick a room, then reserve it.
+    label: "Rooms",
+    href: "/rooms",
+    icon: Building2,
+    isActive: (pathname) =>
+      pathname.startsWith("/rooms") || pathname.startsWith("/bookings/new"),
   },
   {
     label: "My Bookings",
@@ -49,12 +50,6 @@ const primaryNavItems: NavItem[] = [
     isActive: (pathname) =>
       pathname === "/bookings" ||
       (pathname.startsWith("/bookings/") && !pathname.startsWith("/bookings/new")),
-  },
-  {
-    label: "Rooms",
-    href: "/rooms",
-    icon: Building2,
-    isActive: (pathname) => pathname.startsWith("/rooms"),
   },
 ];
 
