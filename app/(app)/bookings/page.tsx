@@ -36,9 +36,9 @@ function sortBookings(bookings: MyBooking[], bucket: BookingBucket): MyBooking[]
 export default async function MyBookingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; submitted?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, submitted } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
@@ -89,10 +89,16 @@ export default async function MyBookingsPage({
           <p className="text-sm text-muted-foreground">Requests you&apos;ve submitted.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" render={<Link href="/bookings/new">New request</Link>} />
+          <Button variant="outline" render={<Link href="/rooms">New request</Link>} />
           <Button variant="outline" render={<Link href="/">Home</Link>} />
         </div>
       </div>
+
+      {submitted === "1" ? (
+        <p role="status" className="text-sm font-medium text-status-approved-fg">
+          Request submitted — pending approval.
+        </p>
+      ) : null}
 
       {error ? (
         <p role="alert" className="text-sm text-destructive">

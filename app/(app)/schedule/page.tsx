@@ -1,3 +1,6 @@
+import Link from "next/link";
+
+import { Button } from "@/components/kit/button";
 import { ScheduleContent } from "@/components/schedule/schedule-content";
 import { createClient } from "@/lib/supabase/server";
 
@@ -16,25 +19,37 @@ export default async function SchedulePage({
     supabase.auth.getUser(),
   ]);
 
+  const authenticated = Boolean(userData.user);
+
   const { data: favorites } = userData.user
     ? await supabase.from("favorite_rooms").select("room_id").eq("user_id", userData.user.id)
     : { data: null };
   const favoriteRoomIds = (favorites ?? []).map((favorite) => favorite.room_id);
 
   return (
-    <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-4 p-4">
-      <div>
-        <h1 className="text-2xl font-semibold">Schedule</h1>
-        <p className="text-sm text-muted-foreground">
-          Room, time, and status only — pending and approved requests.
-        </p>
+    <div className="flex min-h-full w-full flex-col gap-4 p-4">
+      {/* Signed-out visitors have no app shell, so the public schedule carries
+          its own brand line and the single call to action available to them. */}
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          {!authenticated && (
+            <span className="font-display text-h3 font-semibold text-ink-900">GAC</span>
+          )}
+          <h1 className="text-2xl font-semibold">Schedule</h1>
+          <p className="text-sm text-muted-foreground">
+            Room, time, and status only — pending and approved requests.
+          </p>
+        </div>
+        {!authenticated && (
+          <Button size="lg" render={<Link href="/login">Sign in to reserve</Link>} />
+        )}
       </div>
       <ScheduleContent
         rooms={rooms ?? []}
         initialFavoriteRoomIds={favoriteRoomIds}
         initialDate={date}
         initialRoomId={room}
-        authenticated={Boolean(userData.user)}
+        authenticated={authenticated}
       />
     </div>
   );

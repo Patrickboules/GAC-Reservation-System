@@ -47,7 +47,8 @@ function distinctAmenities(rooms: GlobalSearchRoom[]): string[] {
  * The top bar's search entry point (US-023): filters rooms by date, time
  * range, optional capacity, and optional amenities, reusing the shared
  * conflict-check utility (no duplicate overlap logic) to mark each result
- * free or busy. Results link into the schedule pre-filtered to that room/date.
+ * free or busy. Results open the room's page, so search narrows the room
+ * directory rather than acting as a second way to book.
  */
 export function GlobalAvailabilitySearch({
   rooms,
@@ -206,7 +207,7 @@ export function GlobalAvailabilitySearch({
                 amenities={room.amenities}
                 location={room.location}
                 availability={availability}
-                href={`/schedule?room=${room.id}&date=${date}`}
+                href={`/rooms/${room.id}`}
                 onClick={onResultSelect}
               />
             ))}

@@ -58,6 +58,14 @@ export function isBookingPast(date: string, endTime: string): boolean {
   return end.getTime() <= Date.now();
 }
 
+/** True if a booking's start is already in the past relative to now (local time) — guards against requesting/rescheduling into a slot that's already begun. */
+export function isBookingStartInPast(date: string, startTime: string): boolean {
+  const [hour, minute, second] = startTime.split(":").map(Number);
+  const start = parseDateString(date);
+  start.setHours(hour, minute, second ?? 0, 0);
+  return start.getTime() < Date.now();
+}
+
 export function formatTimeLabel(timeStr: string): string {
   const [hourStr, minuteStr] = timeStr.split(":");
   const hour = Number(hourStr);

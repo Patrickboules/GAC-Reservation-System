@@ -22,7 +22,7 @@ export default async function AvailabilityPage() {
         </div>
         <div className="flex gap-2">
           <Button variant="outline" render={<Link href="/schedule">Schedule</Link>} />
-          <Button variant="outline" render={<Link href="/bookings/new">Request</Link>} />
+          <Button variant="outline" render={<Link href="/rooms">Rooms</Link>} />
         </div>
       </div>
       <AvailabilitySearch rooms={rooms ?? []} />

@@ -3,7 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 export type BookingStatus = "pending" | "approved" | "rejected" | "cancelled";
 
 /** Statuses that occupy a slot and must be checked for overlap. */
-const CONFLICTING_STATUSES: readonly BookingStatus[] = ["pending", "approved"];
+export const CONFLICTING_STATUSES: readonly BookingStatus[] = ["pending", "approved"];
 
 export interface BookingTimeSlot {
   id: string;

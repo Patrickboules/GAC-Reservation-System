@@ -15,14 +15,26 @@ interface TimeStepperProps {
   stepMinutes: number
   onChange: (time: string) => void
   disabled?: boolean
+  /** Lower bound in minutes-since-midnight. @default 0 */
+  minMinutes?: number
+  /** Upper bound in minutes-since-midnight. @default MAX_MINUTES */
+  maxMinutes?: number
 }
 
-function TimeStepper({ label, time, stepMinutes, onChange, disabled }: TimeStepperProps) {
+function TimeStepper({
+  label,
+  time,
+  stepMinutes,
+  onChange,
+  disabled,
+  minMinutes = 0,
+  maxMinutes = MAX_MINUTES,
+}: TimeStepperProps) {
   const minutes = timeToMinutes(time)
 
   function step(direction: 1 | -1) {
     const next = snapMinutesToStep(minutes + direction * stepMinutes, stepMinutes)
-    onChange(minutesToTime(Math.min(Math.max(next, 0), MAX_MINUTES)))
+    onChange(minutesToTime(Math.min(Math.max(next, minMinutes), maxMinutes)))
   }
 
   return (
@@ -33,7 +45,7 @@ function TimeStepper({ label, time, stepMinutes, onChange, disabled }: TimeStepp
       <button
         type="button"
         aria-label={`Increase ${label} by ${stepMinutes} minutes`}
-        disabled={disabled || minutes >= MAX_MINUTES}
+        disabled={disabled || minutes >= maxMinutes}
         onClick={() => step(1)}
         className="inline-flex size-6 items-center justify-center rounded-sm text-ink-500 outline-none transition-colors hover:bg-sky-50 hover:text-ink-700 focus-visible:ring-2 focus-visible:ring-sky-300 disabled:pointer-events-none disabled:opacity-40"
       >
@@ -48,7 +60,7 @@ function TimeStepper({ label, time, stepMinutes, onChange, disabled }: TimeStepp
       <button
         type="button"
         aria-label={`Decrease ${label} by ${stepMinutes} minutes`}
-        disabled={disabled || minutes <= 0}
+        disabled={disabled || minutes <= minMinutes}
         onClick={() => step(-1)}
         className="inline-flex size-6 items-center justify-center rounded-sm text-ink-500 outline-none transition-colors hover:bg-sky-50 hover:text-ink-700 focus-visible:ring-2 focus-visible:ring-sky-300 disabled:pointer-events-none disabled:opacity-40"
       >
@@ -72,6 +84,12 @@ interface TimeRangePickerProps {
   className?: string
 }
 
+/**
+ * Start/end steppers that stay a valid range on their own: moving the start
+ * carries the end along by the same duration, and the end can never be stepped
+ * to or before the start — so an invalid "9:30 PM to 3:30 PM" can't be produced
+ * and the user never has to fix the end time by hand.
+ */
 function TimeRangePicker({
   startTime,
   endTime,
@@ -83,9 +101,29 @@ function TimeRangePicker({
   disabled,
   className,
 }: TimeRangePickerProps) {
-  const durationMinutes = Math.max(0, timeToMinutes(endTime) - timeToMinutes(startTime))
+  const startMinutes = timeToMinutes(startTime)
+  const endMinutes = timeToMinutes(endTime)
+  const durationMinutes = Math.max(0, endMinutes - startMinutes)
   const hours = Math.floor(durationMinutes / 60)
   const minutes = durationMinutes % 60
+
+  function handleStartChange(next: string) {
+    onStartTimeChange(next)
+
+    // Keep the booking the same length as the user moves the start, so the end
+    // follows automatically instead of being left behind (or before) the start.
+    const heldDuration = Math.max(endMinutes - startMinutes, stepMinutes)
+    const nextEnd = Math.min(timeToMinutes(next) + heldDuration, MAX_MINUTES)
+    if (nextEnd !== endMinutes) {
+      onEndTimeChange(minutesToTime(nextEnd))
+    }
+  }
+
+  function handleEndChange(next: string) {
+    // The end stepper is already bounded below, but guard the value itself too.
+    const floor = Math.min(startMinutes + stepMinutes, MAX_MINUTES)
+    onEndTimeChange(minutesToTime(Math.max(timeToMinutes(next), floor)))
+  }
 
   return (
     <div data-slot="time-range-picker" className={cn("flex flex-col gap-2", className)}>
@@ -94,8 +132,9 @@ function TimeRangePicker({
           label="start time"
           time={startTime}
           stepMinutes={stepMinutes}
-          onChange={onStartTimeChange}
+          onChange={handleStartChange}
           disabled={disabled}
+          maxMinutes={MAX_MINUTES - stepMinutes}
         />
         <span aria-hidden="true" className="text-sm text-ink-500">
           to
@@ -104,8 +143,9 @@ function TimeRangePicker({
           label="end time"
           time={endTime}
           stepMinutes={stepMinutes}
-          onChange={onEndTimeChange}
+          onChange={handleEndChange}
           disabled={disabled}
+          minMinutes={Math.min(startMinutes + stepMinutes, MAX_MINUTES)}
         />
       </div>
       <p className="font-mono text-caption tabular-nums text-ink-500">

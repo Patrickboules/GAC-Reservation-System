@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-import { BookingSheet } from "@/components/bookings/booking-sheet";
+import { BookingScreen } from "@/components/bookings/booking-screen";
 import { isBookingModifiable } from "@/lib/bookings/status";
 import { createClient } from "@/lib/supabase/server";
 
@@ -33,7 +33,15 @@ export default async function EditBookingPage({
     redirect("/bookings?error=" + encodeURIComponent("This booking can't be edited."));
   }
 
-  const { data: rooms } = await supabase.from("rooms").select("id, name").order("name");
+  const { data: room } = await supabase
+    .from("rooms")
+    .select("id, name, capacity, amenities, location")
+    .eq("id", booking.room_id)
+    .maybeSingle();
 
-  return <BookingSheet rooms={rooms ?? []} booking={booking} />;
+  if (!room) {
+    redirect("/bookings?error=" + encodeURIComponent("This booking's room no longer exists."));
+  }
+
+  return <BookingScreen room={room} booking={booking} />;
 }
