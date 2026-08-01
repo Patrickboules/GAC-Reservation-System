@@ -1,15 +1,12 @@
 "use client";
 
-import { Pin, PinOff } from "lucide-react";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
-import { Button } from "@/components/kit/button";
 import { EmptyState } from "@/components/kit/empty-state";
 import { ErrorState } from "@/components/kit/error-state";
-import { IconButton } from "@/components/kit/icon-button";
 import { LoadingState } from "@/components/kit/loading-state";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
-import { buildingGroupSpans, groupRoomsByBuilding, sortRoomsByFavorite, type ScheduleRoom } from "@/lib/rooms-filters";
+import { buildingGroupSpans, groupRoomsByBuilding, type ScheduleRoom } from "@/lib/rooms-filters";
 import { ROOM_CATEGORY_COLOR_SWATCH_CLASSES, isRoomCategoryColor } from "@/lib/rooms/category-colors";
 import { handleScheduleGridKeyDown } from "@/lib/schedule/event-block-navigation";
 import { layoutOverlappingEvents } from "@/lib/schedule/event-layout";
@@ -82,8 +79,7 @@ function roomRowHeight(laneCount: number): number {
  * room column on the left, a sticky hour header on top, scaling to many
  * rooms via vertical scroll. Fetches and renders the selected date's
  * bookings (US-005), stacking same-room overlaps into vertical lanes, with
- * the now-line (US-006). Pinned rooms float to the top and a "Hide free rooms"
- * toggle drops rows with nothing booked (US-010).
+ * the now-line (US-006).
  *
  * The grid is read-only: booking always starts from a room in the Rooms
  * directory, so there is exactly one way to reserve and the room is never
@@ -92,14 +88,10 @@ function roomRowHeight(laneCount: number): number {
 export function TimelineGrid({
   rooms,
   date,
-  favoriteRoomIds,
-  onToggleFavorite,
   authenticated,
 }: {
   rooms: ScheduleRoom[];
   date: string;
-  favoriteRoomIds: ReadonlySet<string>;
-  onToggleFavorite: (roomId: string) => void;
   /** When false (signed-out visitor), the service/purpose of each booking is
    * withheld — the public schedule shows only that a room is taken, never what for. */
   authenticated: boolean;
@@ -122,7 +114,6 @@ export function TimelineGrid({
   const [bookings, setBookings] = useState<DayBooking[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [hideFreeRooms, setHideFreeRooms] = useState(false);
 
   useEffect(() => {
     if (rooms.length === 0) {
@@ -184,31 +175,21 @@ export function TimelineGrid({
     return laidOut;
   }, [bookingsByRoom]);
 
-  // Group rooms into contiguous same-building runs, then float pinned rooms to
-  // the top (US-010). sortRoomsByFavorite is stable, so within the favorites and
-  // within the rest each building run stays together for US-011's group headers.
-  // "Hide free rooms" then drops any room with no bookings for the selected date.
-  const busyRoomIds = useMemo(() => new Set(bookings.map((booking) => booking.room_id)), [bookings]);
-  const sortedRooms = useMemo(
-    () => sortRoomsByFavorite(groupRoomsByBuilding(rooms), favoriteRoomIds),
-    [rooms, favoriteRoomIds]
-  );
-  const visibleRooms = useMemo(
-    () => (hideFreeRooms ? sortedRooms.filter((room) => busyRoomIds.has(room.id)) : sortedRooms),
-    [sortedRooms, hideFreeRooms, busyRoomIds]
-  );
+  // Group rooms into contiguous same-building runs so each building run stays
+  // together for US-011's group headers.
+  const sortedRooms = useMemo(() => groupRoomsByBuilding(rooms), [rooms]);
 
   // Consecutive same-building rooms share one row-spanning group header (US-011);
   // startIndex keeps each room's global row index stable for keyboard nav.
   const roomGroups = useMemo(() => {
     const groups: { building: string | null; rooms: ScheduleRoom[]; startIndex: number }[] = [];
     let startIndex = 0;
-    for (const span of buildingGroupSpans(visibleRooms)) {
-      groups.push({ building: span.building, rooms: visibleRooms.slice(startIndex, startIndex + span.count), startIndex });
+    for (const span of buildingGroupSpans(sortedRooms)) {
+      groups.push({ building: span.building, rooms: sortedRooms.slice(startIndex, startIndex + span.count), startIndex });
       startIndex += span.count;
     }
     return groups;
-  }, [visibleRooms]);
+  }, [sortedRooms]);
 
   const gridlines = useMemo(() => timeAxisGridlines(), []);
   const hourWidthPx = axisWidth > 0 ? axisWidth / OPERATING_WINDOW_HOURS : 0;
@@ -232,24 +213,6 @@ export function TimelineGrid({
 
   return (
     <div className="flex w-full min-w-0 flex-col gap-2">
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          variant={hideFreeRooms ? "primary" : "secondary"}
-          size="sm"
-          aria-pressed={hideFreeRooms}
-          onClick={() => setHideFreeRooms((current) => !current)}
-        >
-          Hide free rooms
-        </Button>
-      </div>
-
-      {hideFreeRooms && visibleRooms.length === 0 ? (
-        <EmptyState
-          title="No rooms have bookings"
-          description="Turn off “Hide free rooms” to see the full grid."
-        />
-      ) : (
       <div
         data-schedule-grid
         onKeyDown={handleScheduleGridKeyDown}
@@ -326,7 +289,6 @@ export function TimelineGrid({
                   const roomIndex = group.startIndex + roomInGroupIndex;
                   const roomBookings = laidOutBookingsByRoom.get(room.id) ?? [];
             const laneCount = roomBookings.reduce((max, { columnCount }) => Math.max(max, columnCount), 0);
-            const isFavorite = favoriteRoomIds.has(room.id);
             return (
               <div key={room.id} className="flex" style={{ height: roomRowHeight(laneCount) }}>
                 <div
@@ -343,18 +305,6 @@ export function TimelineGrid({
                       <span className="truncate font-mono text-caption text-ink-500">cap. {room.capacity}</span>
                     )}
                   </div>
-                  {authenticated && (
-                    <IconButton
-                      label={isFavorite ? `Unpin ${room.name}` : `Pin ${room.name}`}
-                      tooltip={isFavorite ? "Unpin room" : "Pin room"}
-                      variant="ghost"
-                      size="sm"
-                      className={cn("size-6 shrink-0 self-center", isFavorite && "text-sky-600")}
-                      onClick={() => onToggleFavorite(room.id)}
-                    >
-                      {isFavorite ? <Pin className="fill-current" /> : <PinOff />}
-                    </IconButton>
-                  )}
                 </div>
                 <div
                   className="relative min-w-0 flex-1 border-b border-line/60"
@@ -391,7 +341,6 @@ export function TimelineGrid({
           </div>
         </div>
       </div>
-      )}
 
       {error ? (
         <ErrorState description={error} />

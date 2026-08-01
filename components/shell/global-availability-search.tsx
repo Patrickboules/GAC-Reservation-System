@@ -7,7 +7,6 @@ import { DatePicker } from "@/components/kit/date-picker";
 import { EmptyState } from "@/components/kit/empty-state";
 import { ErrorState } from "@/components/kit/error-state";
 import { FilterChip } from "@/components/kit/filter-chip";
-import { Input } from "@/components/kit/input";
 import { LoadingState } from "@/components/kit/loading-state";
 import { RoomCard, type RoomCardAvailability } from "@/components/kit/room-card";
 import { TimeRangePicker } from "@/components/kit/time-range-picker";
@@ -45,7 +44,7 @@ function distinctAmenities(rooms: GlobalSearchRoom[]): string[] {
 
 /**
  * The top bar's search entry point (US-023): filters rooms by date, time
- * range, optional capacity, and optional amenities, reusing the shared
+ * range, and optional amenities, reusing the shared
  * conflict-check utility (no duplicate overlap logic) to mark each result
  * free or busy. Results open the room's page, so search narrows the room
  * directory rather than acting as a second way to book.
@@ -64,7 +63,6 @@ export function GlobalAvailabilitySearch({
   const [date, setDate] = useState<string | null>(() => todayDateString());
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("10:00");
-  const [capacity, setCapacity] = useState("");
   const [amenities, setAmenities] = useState<string[]>([]);
 
   const [searched, setSearched] = useState(false);
@@ -107,13 +105,9 @@ export function GlobalAvailabilitySearch({
     }
 
     const bookingsForDate = (data ?? []) as ScheduleBooking[];
-    const minCapacity = capacity ? Number(capacity) : null;
 
     const nextResults: SearchResult[] = [];
     for (const room of rooms) {
-      if (minCapacity !== null && (room.capacity === null || room.capacity < minCapacity)) {
-        continue;
-      }
       if (amenities.length > 0 && !amenities.every((amenity) => room.amenities.includes(amenity))) {
         continue;
       }
@@ -146,16 +140,6 @@ export function GlobalAvailabilitySearch({
           endTime={endTime}
           onStartTimeChange={setStartTime}
           onEndTimeChange={setEndTime}
-        />
-        <Input
-          label="Minimum capacity"
-          type="number"
-          min={1}
-          inputMode="numeric"
-          placeholder="Any"
-          wrapperClassName="w-32"
-          value={capacity}
-          onChange={(e) => setCapacity(e.target.value)}
         />
       </div>
 

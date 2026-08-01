@@ -12,7 +12,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/kit/dropdown-menu";
 import {
-  CAPACITY_BUCKETS,
   computeRoomFacets,
   EMPTY_ROOM_FILTERS,
   type RoomFilterState,
@@ -59,7 +58,7 @@ interface RoomFilterBarProps {
 
 /**
  * Single "Filters" dropdown (US-032) narrowing visible rooms by building,
- * floor, room type, capacity, and amenities, grouped into one popover instead
+ * floor, room type, and amenities, grouped into one popover instead
  * of a separate chip per facet. Options are computed from the real room
  * dataset, so a facet with no data (e.g. no room_type set) simply doesn't
  * render its section.
@@ -85,7 +84,6 @@ export function RoomFilterBar({ rooms, filters, onFiltersChange }: RoomFilterBar
     filters.building.length +
     filters.floor.length +
     filters.room_type.length +
-    filters.capacity.length +
     filters.amenities.length;
   const hasSelection = activeCount > 0;
 
@@ -137,12 +135,6 @@ export function RoomFilterBar({ rooms, filters, onFiltersChange }: RoomFilterBar
             options={facets.room_type.map((value) => ({ value, label: value }))}
             selected={filters.room_type}
             onToggle={(value, checked) => toggle("room_type", value, checked)}
-          />
-          <FacetGroup
-            label="Capacity"
-            options={CAPACITY_BUCKETS.map((bucket) => ({ value: bucket.id, label: bucket.label }))}
-            selected={filters.capacity}
-            onToggle={(value, checked) => toggle("capacity", value, checked)}
           />
           <FacetGroup
             label="Amenities"

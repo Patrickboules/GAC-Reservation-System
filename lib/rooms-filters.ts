@@ -11,26 +11,10 @@ export interface ScheduleRoom {
   category_color: string | null;
 }
 
-interface CapacityBucket {
-  id: string;
-  label: string;
-  min: number;
-  max: number | null;
-}
-
-/** App-level capacity ranges the filter bar offers, since raw capacity is a number, not a facet. */
-export const CAPACITY_BUCKETS: readonly CapacityBucket[] = [
-  { id: "small", label: "Up to 25", min: 0, max: 25 },
-  { id: "medium", label: "26–50", min: 26, max: 50 },
-  { id: "large", label: "51–100", min: 51, max: 100 },
-  { id: "xlarge", label: "100+", min: 101, max: null },
-];
-
 export interface RoomFilterState {
   building: string[];
   floor: string[];
   room_type: string[];
-  capacity: string[];
   amenities: string[];
 }
 
@@ -38,7 +22,6 @@ export const EMPTY_ROOM_FILTERS: RoomFilterState = {
   building: [],
   floor: [],
   room_type: [],
-  capacity: [],
   amenities: [],
 };
 
@@ -47,7 +30,6 @@ export function hasActiveRoomFilters(filters: RoomFilterState): boolean {
     filters.building.length > 0 ||
     filters.floor.length > 0 ||
     filters.room_type.length > 0 ||
-    filters.capacity.length > 0 ||
     filters.amenities.length > 0
   );
 }
@@ -75,13 +57,6 @@ export function computeRoomFacets(rooms: ScheduleRoom[]): RoomFacets {
   };
 }
 
-function capacityMatchesBucket(capacity: number | null, bucketId: string): boolean {
-  if (capacity === null) return false;
-  const bucket = CAPACITY_BUCKETS.find((candidate) => candidate.id === bucketId);
-  if (!bucket) return false;
-  return capacity >= bucket.min && (bucket.max === null || capacity <= bucket.max);
-}
-
 /** Selecting multiple values within one facet is OR'd (e.g. Building A or B); amenities require all selected to be present (a room must support every checked amenity). */
 export function roomMatchesFilters(room: ScheduleRoom, filters: RoomFilterState): boolean {
   if (filters.building.length > 0 && (!room.building || !filters.building.includes(room.building))) {
@@ -91,9 +66,6 @@ export function roomMatchesFilters(room: ScheduleRoom, filters: RoomFilterState)
     return false;
   }
   if (filters.room_type.length > 0 && (!room.room_type || !filters.room_type.includes(room.room_type))) {
-    return false;
-  }
-  if (filters.capacity.length > 0 && !filters.capacity.some((bucketId) => capacityMatchesBucket(room.capacity, bucketId))) {
     return false;
   }
   if (filters.amenities.length > 0 && !filters.amenities.every((amenity) => room.amenities.includes(amenity))) {
@@ -110,13 +82,6 @@ export function groupRoomsByBuilding(rooms: ScheduleRoom[]): ScheduleRoom[] {
     if (b.building === null) return -1;
     return a.building.localeCompare(b.building);
   });
-}
-
-/** Floats pinned rooms (US-034/favorite_rooms) to the front, stable-sorting everything else in place. */
-export function sortRoomsByFavorite(rooms: ScheduleRoom[], favoriteRoomIds: ReadonlySet<string>): ScheduleRoom[] {
-  const favorites = rooms.filter((room) => favoriteRoomIds.has(room.id));
-  const rest = rooms.filter((room) => !favoriteRoomIds.has(room.id));
-  return [...favorites, ...rest];
 }
 
 export interface RoomBuildingGroup {

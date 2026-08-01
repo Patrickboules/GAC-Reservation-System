@@ -21,18 +21,13 @@ export default async function SchedulePage({
   ]);
 
   // `capacity` was dropped from rooms in migration 20260801000000; ScheduleRoom
-  // still carries the field for the filter bar's capacity buckets, so supply null.
+  // still carries the field, so supply null.
   const scheduleRooms: ScheduleRoom[] = (rooms ?? []).map((room) => ({
     ...room,
     capacity: null,
   }));
 
   const authenticated = Boolean(userData.user);
-
-  const { data: favorites } = userData.user
-    ? await supabase.from("favorite_rooms").select("room_id").eq("user_id", userData.user.id)
-    : { data: null };
-  const favoriteRoomIds = (favorites ?? []).map((favorite) => favorite.room_id);
 
   return (
     <div className="flex min-h-full w-full flex-col gap-4 p-4">
@@ -54,7 +49,6 @@ export default async function SchedulePage({
       </div>
       <ScheduleContent
         rooms={scheduleRooms}
-        initialFavoriteRoomIds={favoriteRoomIds}
         initialDate={date}
         initialRoomId={room}
         authenticated={authenticated}
