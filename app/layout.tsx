@@ -21,6 +21,11 @@ const bricolageGrotesque = Bricolage_Grotesque({
   weight: ["600", "700"],
 });
 
+// The Arabic companion face (IBM Plex Sans Arabic) is not loaded here. It needs
+// a unicode-range that neither next/font loader will emit, so it is declared by
+// hand in app/globals.css over self-hosted files in public/fonts/ — see the
+// @font-face block there for why.
+
 export const metadata: Metadata = {
   title: "GAC Reservations",
   description: "Room and hall booking system for Gawargious & Ava Antonious.",

@@ -18,17 +18,12 @@ import { percentForTime } from "@/lib/schedule/hours"
 import { serviceColor } from "@/lib/schedule/service-colors"
 import { cn } from "@/lib/utils"
 
-const STATUS_DOT_CLASSES: Record<BookingStatus, string> = {
-  approved: "bg-status-approved-fg",
-  pending: "bg-status-pending-fg",
-  rejected: "bg-status-rejected-fg",
-  cancelled: "bg-status-cancelled-fg",
-}
-
-/** At or above this rendered width (px), the block shows title/service, time range, and requester. */
-const FULL_DETAIL_MIN_WIDTH_PX = 90
-/** At or above this rendered width (px, below FULL_DETAIL_MIN_WIDTH_PX), the block shows a truncated title only. */
-const TITLE_ONLY_MIN_WIDTH_PX = 40
+/**
+ * At or above this rendered width (px), the block shows its service label.
+ * Below it there is no room for legible text, so the block renders as a bare
+ * colored bar and the popover carries the detail.
+ */
+const LABEL_MIN_WIDTH_PX = 40
 
 export interface EventBlockProps {
   id: string
@@ -55,10 +50,14 @@ export interface EventBlockProps {
 
 /**
  * A single booking rendered as a horizontal block positioned along the time
- * axis: time range, category color by service, requester, and a status dot;
- * text density drops as rendered width shrinks, down to a bare colored block.
- * Hover/focus always shows a summary popover regardless of density; click
- * opens a detail sheet.
+ * axis, tinted by service category.
+ *
+ * The face carries one line only — the service that reserved the slot. The lane
+ * is a fixed 48px (EVENT_LANE_HEIGHT_PX in timeline-grid), which stacking
+ * service/time/requester used to overflow and clip. Time range, requester and
+ * status live in the hover/focus popover and the click-through detail sheet,
+ * where they have room; status also stays legible on the face itself through
+ * the dashed border (pending) and struck-through grey treatment (cancelled).
  */
 function EventBlock({
   id,
@@ -88,8 +87,7 @@ function EventBlock({
     return () => observer.disconnect()
   }, [])
 
-  const fullDetail = renderedWidth >= FULL_DETAIL_MIN_WIDTH_PX
-  const titleOnly = !fullDetail && renderedWidth >= TITLE_ONLY_MIN_WIDTH_PX
+  const showLabel = renderedWidth >= LABEL_MIN_WIDTH_PX
   const cancelled = status === "cancelled"
   const timeLabel = `${formatTimeLabel(startTime)}–${formatTimeLabel(endTime)}`
   const { accent, tint } = serviceColor(service)
@@ -131,7 +129,7 @@ function EventBlock({
             width: `calc(${widthPct}% - 2px)`,
           }}
           className={cn(
-            "absolute flex flex-col justify-center gap-0.5 overflow-hidden rounded-md border border-l-4 px-2 py-1 text-left outline-none transition-shadow",
+            "absolute flex items-center overflow-hidden rounded-md border border-l-4 px-2 py-1 text-left outline-none transition-shadow",
             "hover:shadow-sm focus-visible:ring-2 focus-visible:ring-sky-300",
             cancelled
               ? "border-ink-300 border-l-ink-300 bg-sand-100 opacity-60"
@@ -140,43 +138,14 @@ function EventBlock({
             className
           )}
         >
-          {fullDetail && (
-            <>
-              <span
-                className={cn(
-                  "truncate font-medium text-caption text-ink-900",
-                  cancelled && "text-ink-500 line-through"
-                )}
-              >
-                {service ?? "Booked"}
-              </span>
-              <span
-                className={cn(
-                  "truncate font-mono text-caption text-ink-600",
-                  cancelled && "text-ink-500 line-through"
-                )}
-              >
-                {timeLabel}
-              </span>
-              <span className="flex items-center gap-1 text-caption text-ink-500">
-                {requesterName && (
-                  <span className={cn("truncate", cancelled && "line-through")}>by {requesterName}</span>
-                )}
-                <span
-                  aria-hidden="true"
-                  className={cn("ml-auto size-1.5 shrink-0 rounded-full", STATUS_DOT_CLASSES[status])}
-                />
-              </span>
-            </>
-          )}
-          {titleOnly && (
+          {showLabel && (
             <span
               className={cn(
-                "truncate text-caption text-ink-900",
+                "min-w-0 truncate font-medium text-caption text-ink-900",
                 cancelled && "text-ink-500 line-through"
               )}
             >
-              {service ?? timeLabel}
+              {service ?? "Booked"}
             </span>
           )}
         </button>
