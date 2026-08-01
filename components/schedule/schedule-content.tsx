@@ -21,15 +21,12 @@ interface ScheduleContentProps {
   initialDate?: string;
   /** Accepted for URL compatibility with the availability search (US-039); the unified grid shows every room, so there's nothing to scroll to. */
   initialRoomId?: string;
-  /** When false (signed-out visitor, US-007), drag-to-create routes through /login first. */
-  authenticated: boolean;
 }
 
 /** Owns the selected day and room filters so the day strip and the timeline grid stay in sync. */
 export function ScheduleContent({
   rooms,
   initialDate,
-  authenticated,
 }: ScheduleContentProps) {
   const [date, setDate] = useState(() =>
     initialDate && DATE_STRING_PATTERN.test(initialDate) ? initialDate : todayDateString()
@@ -45,11 +42,7 @@ export function ScheduleContent({
     <div className="flex w-full min-w-0 flex-col gap-4">
       <RoomFilterBar rooms={rooms} filters={filters} onFiltersChange={setFilters} />
       <DayStrip date={date} onDateChange={setDate} />
-      <TimelineGrid
-        rooms={filteredRooms}
-        date={date}
-        authenticated={authenticated}
-      />
+      <TimelineGrid rooms={filteredRooms} date={date} />
     </div>
   );
 }

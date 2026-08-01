@@ -40,19 +40,14 @@ export default async function SchedulePage({
           )}
           <h1 className="text-2xl font-semibold">Schedule</h1>
           <p className="text-sm text-muted-foreground">
-            Room, time, and status only — pending and approved requests.
+            Room, time, and service — approved reservations only.
           </p>
         </div>
         {!authenticated && (
           <Button size="lg" render={<Link href="/login">Sign in to reserve</Link>} />
         )}
       </div>
-      <ScheduleContent
-        rooms={scheduleRooms}
-        initialDate={date}
-        initialRoomId={room}
-        authenticated={authenticated}
-      />
+      <ScheduleContent rooms={scheduleRooms} initialDate={date} initialRoomId={room} />
     </div>
   );
 }
