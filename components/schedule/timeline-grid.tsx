@@ -88,13 +88,9 @@ function roomRowHeight(laneCount: number): number {
 export function TimelineGrid({
   rooms,
   date,
-  authenticated,
 }: {
   rooms: ScheduleRoom[];
   date: string;
-  /** When false (signed-out visitor), the service/purpose of each booking is
-   * withheld — the public schedule shows only that a room is taken, never what for. */
-  authenticated: boolean;
 }) {
   const axisRef = useRef<HTMLDivElement>(null);
   const [axisWidth, setAxisWidth] = useState(0);
@@ -126,17 +122,21 @@ export function TimelineGrid({
     setLoading(true);
     setError(null);
 
-    // Signed-out visitors never receive `service` — the public schedule shows
-    // that a room is taken, not what it is taken for, so the detail isn't just
-    // hidden in the UI, it is never sent to the browser.
-    const columns = authenticated
-      ? "id, room_id, date, start_time, end_time, status, service"
-      : "id, room_id, date, start_time, end_time, status";
-
+    // One schedule for everyone: every viewer, signed in or not, reads the same
+    // columns from the same view. bookings_schedule is column-limited to
+    // room/time/status/service and granted to both `anon` and `authenticated`
+    // (migration 20260726120000), so identity, notes, and reject reasons stay
+    // unreadable to all of them — there is nothing left to vary by viewer.
+    // Approved only. bookings_schedule still exposes pending rows and must keep
+    // doing so — conflict-check (CONFLICTING_STATUSES) and the availability
+    // search both count a pending request as occupying its slot, so narrowing
+    // the view itself would let two requests be approved for the same slot.
+    // The schedule is a display surface, so it filters here instead.
     supabase
       .from("bookings_schedule")
-      .select(columns)
+      .select("id, room_id, date, start_time, end_time, status, service")
       .eq("date", date)
+      .eq("status", "approved")
       .order("start_time", { ascending: true })
       .then(({ data, error: queryError }) => {
         if (cancelled) return;
@@ -152,7 +152,7 @@ export function TimelineGrid({
     return () => {
       cancelled = true;
     };
-  }, [supabase, rooms.length, date, authenticated]);
+  }, [supabase, rooms.length, date]);
 
   const bookingsByRoom = useMemo(() => {
     const grouped = new Map<string, DayBooking[]>();
@@ -218,7 +218,17 @@ export function TimelineGrid({
         onKeyDown={handleScheduleGridKeyDown}
         className="max-h-[75vh] w-full min-w-0 overflow-auto rounded-lg border border-line bg-surface"
       >
-        <div className="flex min-w-0 flex-col">
+        {/*
+          w-max (not w-full) is what keeps the room column frozen while scrolling
+          sideways on a phone. As a column flex container's children, every row
+          stretches to THIS element's width, and a sticky cell can only stick
+          within its own row. Sized to the viewport, rows end where the visible
+          area ends and the room column is dragged off as soon as you scroll past
+          it; sized to max-content, each row spans the whole scrollable width and
+          `sticky left-0` holds all the way across. min-w-full keeps the grid
+          filling the container when the axis is narrower than the screen.
+        */}
+        <div className="flex w-max min-w-full flex-col">
           <div className="sticky top-0 z-20 flex">
             <div
               aria-hidden="true"
@@ -326,7 +336,7 @@ export function TimelineGrid({
                       startTime={booking.start_time}
                       endTime={booking.end_time}
                       status={booking.status}
-                      service={authenticated ? booking.service : null}
+                      service={booking.service}
                       roomIndex={roomIndex}
                       top={ROW_VERTICAL_PADDING_PX + columnIndex * EVENT_LANE_HEIGHT_PX}
                       height={EVENT_LANE_HEIGHT_PX}
