@@ -2,12 +2,14 @@
 -- Applied automatically by `supabase db reset` after migrations run, or via
 -- `psql -f supabase/seed.sql` against a local Supabase instance.
 
-insert into public.rooms (name, capacity, amenities, location, building, floor, room_type, rules)
+insert into public.rooms (name, building, floor, room_type, amenities, category_color)
 values
-  ('Antonious Hall', 150, array['projector', 'stage', 'sound system'], 'Main Building, Ground Floor', 'Main Building', 'Ground Floor', 'Hall', 'Requires setup/cleanup crew; no food without prior approval.'),
-  ('Gawargious Room', 40, array['whiteboard', 'tv screen'], 'Main Building, 1st Floor', 'Main Building', '1st Floor', 'Meeting Room', 'Suitable for meetings and small classes.'),
-  ('Youth Room', 25, array['tables', 'chairs'], 'Annex Building', 'Annex Building', null, 'Classroom', 'Furniture may be rearranged; return to original layout after use.'),
-  ('Choir Room', 20, array['piano', 'music stands'], 'Main Building, 2nd Floor', 'Main Building', '2nd Floor', 'Practice Room', 'No food or drink permitted.')
+  ('قاعة أم النور', 'المبنى الرئيسي', 'الدور الأرضي', 'قاعة', array['بروجيكتور', 'صوتيات'], 'sky'),
+  ('قاعة الخضراء', 'المبنى الرئيسي', 'الدور السفلي', 'قاعة', array['بروجيكتور', 'صوتيات'], 'lime'),
+  ('قاعة الدور الثالث', 'المبنى الرئيسي', 'الدور الثالث', 'قاعة', array['بروجيكتور', 'صوتيات'], 'coral'),
+  ('قاعة الدور الرابع', 'المبنى الرئيسي', 'الدور الرابع', 'قاعة', array['بروجيكتور'], 'violet'),
+  ('قاعة الدور الخامس', 'المبنى الرئيسي', 'الدور الخامس', 'قاعة', array['بروجيكتور'], 'teal'),
+  ('قاعة الدور السادس', 'المبنى الرئيسي', 'الدور السادس', 'قاعة', array['بروجيكتور'], 'rose')
 on conflict do nothing;
 
 -- Seed one admin user for local testing. Inserting directly into auth.users

@@ -1,0 +1,148 @@
+{
+  "project": "GAC Reservations",
+  "branchName": "ralph/google-auth-public-schedule",
+  "description": "Google-Only Sign-In & Public Schedule — retire email/password + self-serve signup in favor of Supabase Google OAuth, make the room schedule publicly viewable as the landing page, and defer the sign-in prompt to the moment a signed-out visitor tries to create a booking (preserving their selected room/date/time across the login round-trip). Reverses the prior 'entire app requires auth' rule for the schedule only; booking/admin/member routes stay gated. Source: tasks/prd-google-auth-public-schedule.md.",
+  "userStories": [
+    {
+      "id": "US-001",
+      "title": "Enable Google OAuth provider in Supabase config",
+      "description": "As a developer, I need the Supabase Google provider enabled and wired to environment secrets so the app can authenticate users via Google.",
+      "acceptanceCriteria": [
+        "supabase/config.toml has an [auth.external.google] block with enabled = true, client_id = \"env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)\", and secret = \"env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)\"",
+        "skip_nonce_check = true is set in the [auth.external.google] block (required for local Google sign-in per the config comments)",
+        "site_url / additional_redirect_urls in config.toml include the local dev callback http://127.0.0.1:3000/auth/callback plus a placeholder/production URL entry",
+        "Create .env.example (if absent) documenting SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID and SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET; no real secret values are committed",
+        "DEPLOYMENT.md documents the Google Cloud OAuth consent-screen/credentials setup and the Supabase dashboard Google-provider fields needed in production",
+        "No Google Workspace domain restriction is configured — any Google account may sign in",
+        "Typecheck passes"
+      ],
+      "priority": 1,
+      "passes": true,
+      "notes": "Added [auth.external.google] block (enabled, env client_id/secret, skip_nonce_check=true, no hosted-domain restriction); expanded additional_redirect_urls with the local /auth/callback callback and production placeholders; documented the two Google env vars in .env.example; added a Google OAuth setup section (Google Cloud + Supabase dashboard) to DEPLOYMENT.md. Typecheck passes."
+    },
+    {
+      "id": "US-002",
+      "title": "Add the OAuth callback route",
+      "description": "As a developer, I need a server route that exchanges the OAuth code for a session so Google sign-in completes and returns the user to where they started.",
+      "acceptanceCriteria": [
+        "app/auth/callback/route.ts reads the code query param and calls supabase.auth.exchangeCodeForSession(code) using the server client from lib/supabase/server.ts",
+        "On success it redirects to the next query param when present, otherwise to /schedule",
+        "The next param is validated to be a relative path only (starts with '/', not '//' or a scheme) — absolute/off-site URLs are rejected and fall back to /schedule",
+        "On error it redirects to /login?error=<message>",
+        "Typecheck passes"
+      ],
+      "priority": 2,
+      "passes": true,
+      "notes": "Added app/auth/callback/route.ts: GET handler reads the code param, exchanges it via the server client's exchangeCodeForSession, redirects to a validated relative next (default /schedule), and on error/missing code redirects to /login?error=<message>. safeNext rejects //, /\\, and non-relative paths. Typecheck and lint pass."
+    },
+    {
+      "id": "US-003",
+      "title": "Grant public (anon) read access to the schedule data",
+      "description": "As a developer, I need unauthenticated visitors to read the schedule view and room list so the public schedule can render, without exposing member identity or notes.",
+      "acceptanceCriteria": [
+        "A new timestamped migration in supabase/migrations grants SELECT on public.bookings_schedule to the anon role",
+        "The migration grants anon read of rooms: add an RLS policy allowing anon SELECT on rooms and 'grant select on rooms to anon'",
+        "No anon access is granted to base bookings, profiles, favorite_rooms, or notifications — identity, notes, and reject reasons stay unreadable to anon",
+        "Migration applies cleanly via 'supabase db reset' (or equivalent) with no errors",
+        "Typecheck passes"
+      ],
+      "priority": 3,
+      "passes": true,
+      "notes": "Added migration 20260726120000_grant_anon_schedule_read.sql: grants SELECT on public.bookings_schedule to anon, adds rooms_select_anon RLS policy and grants SELECT on rooms to anon; nothing granted on bookings/profiles/favorite_rooms/notifications. Verified by replaying all migrations in order against a scratch Postgres 18 (Docker unavailable for supabase db reset): all apply cleanly, and as anon SELECT succeeds on bookings_schedule/rooms and is denied on bookings/profiles/favorite_rooms/notifications. Typecheck passes."
+    },
+    {
+      "id": "US-004",
+      "title": "Replace the login page with Continue with Google",
+      "description": "As a member, I want to sign in with one Google button instead of entering an email and password.",
+      "acceptanceCriteria": [
+        "app/login/page.tsx renders a single 'Continue with Google' button (no email/password fields) and reads optional next and error values from searchParams",
+        "A server action calls supabase.auth.signInWithOAuth({ provider: 'google', options: { redirectTo } }) where redirectTo points at /auth/callback and carries the next param through, then redirects to the returned data.url",
+        "The old email/password login action in app/login/actions.ts is removed/replaced",
+        "app/signup/ (page + action) is deleted and /signup no longer resolves to a signup form (404 or redirect to /login)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill (button renders; clicking it initiates Google OAuth — a Google consent screen or the expected local-dev redirect appears)"
+      ],
+      "priority": 4,
+      "passes": true,
+      "notes": "Login page now renders a single 'Continue with Google' button (email/password fields removed) and reads next/error from searchParams, passing next through a hidden input. The login server action was rewritten to call signInWithOAuth({ provider: 'google', options: { redirectTo } }) where redirectTo targets /auth/callback and carries a safeNext-validated next param, then redirects to data.url. app/signup (page + action) deleted; /signup now returns 404. Typecheck passes; verified in browser: /login shows the Google button with no email/password inputs, /signup 404s, and the Supabase Google authorize endpoint 302-redirects to the Google consent screen (accounts.google.com) with the app client_id and /auth/callback redirect."
+    },
+    {
+      "id": "US-005",
+      "title": "Make the schedule publicly viewable in middleware",
+      "description": "As a visitor, I want to open the app and see the schedule without being redirected to a login screen.",
+      "acceptanceCriteria": [
+        "lib/supabase/middleware.ts allows unauthenticated access to the schedule/home, /login, and /auth/callback via an explicit public path-prefix allowlist (and no longer references /signup)",
+        "All booking, admin, availability-create, notification, and other member routes still redirect unauthenticated users to /login with a next param capturing the attempted path",
+        "A signed-in user visiting /login is still redirected away to the schedule",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill (logged out: opening the app shows the schedule with no redirect to login; opening a booking route redirects to login)"
+      ],
+      "priority": 5,
+      "passes": true,
+      "notes": "Rewrote lib/supabase/middleware.ts: replaced the /login+/signup PUBLIC_PATHS with a PUBLIC_PREFIXES allowlist (/schedule, /login, /auth/callback) plus an exact '/' match, using segment-boundary prefix matching. Signed-out users hitting any non-public route now redirect to /login with a next param capturing the attempted path+query. A signed-in user is only bounced away from AUTH_PREFIXES (/login) to /schedule, not from the now-public schedule/home. Typecheck and lint pass; verified via curl (no session): /schedule and /login = 200, / = 307 to /schedule, and /bookings/new, /admin/requests, /notifications, /availability each 307 to /login?next=<encoded path>. Schedule page renders real content with no server error for the signed-out visitor."
+    },
+    {
+      "id": "US-006",
+      "title": "Schedule is the landing page and renders for signed-out users",
+      "description": "As a visitor, I want the schedule to be the first thing I see, with a clear way to sign in, whether or not I am logged in.",
+      "acceptanceCriteria": [
+        "Visiting / shows the schedule (redirect / to /schedule, or serve the schedule at root)",
+        "The schedule page and its app shell render without error when there is no authenticated user (favorites and any user-specific UI degrade gracefully on user === null — no crash)",
+        "When signed out, the app shell shows a 'Sign in' link (to /login) where the account menu normally sits; when signed in, the account menu appears as before",
+        "The schedule shows room, date, time, status, and service/purpose label only — no member names, notes, or reject reasons for any viewer",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill (logged-out schedule shows the Sign in affordance; logged-in schedule shows the account menu)"
+      ],
+      "priority": 6,
+      "passes": true,
+      "notes": "/ already redirects to /schedule. Schedule page and app shell already render for user===null (favorites degrade to null). Added an `authenticated` prop to TopBar (default true): signed-out visitors now see a 'Sign in' link (to /login) in place of the notifications bell + profile/account menu; the desktop sidebar footer's 'Log out' likewise becomes a 'Sign in' link. Threaded Boolean(user) through DesktopTopBar, MobileShell/MobileTopBar, and Sidebar/SidebarNav. Schedule already exposes only room/date/time/status/service via bookings_schedule (no names/notes/reject reasons). Typecheck + lint pass; verified against the running dev server signed-out: / 307→/schedule, /schedule 200 renders the Schedule heading and 'Sign in' affordance with no 'Sign out'/'Profile menu'/notifications markup and no identity leakage, and /bookings/new still 307→/login?next=%2Fbookings%2Fnew. Signed-in account-menu path is the unchanged default (authenticated=true)."
+    },
+    {
+      "id": "US-007",
+      "title": "Booking creation prompts sign-in and preserves the selected slot",
+      "description": "As a signed-out visitor, when I try to book a slot I want to be asked to sign in and then land back on the booking form with my chosen room/date/time still selected.",
+      "acceptanceCriteria": [
+        "When a signed-out user triggers booking creation (drag-to-create, a Book action, or navigating to /bookings/new) they are sent to /login?next=<booking-form-url> where the booking-form URL encodes the selected room, date, start, and end",
+        "The booking form at /bookings/new reads and applies room/date/start/end query params to pre-fill the form (add support if not already present)",
+        "After completing Google sign-in the user lands on /bookings/new with room/date/start/end pre-filled from those params",
+        "A signed-in user's booking flow is unchanged (no extra login prompt)",
+        "The 5-pending-cap, shared conflict-check, and status lifecycle behavior are unaffected",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill (logged out: select a slot, tap Book, complete Google login, and return to the booking form with the slot preserved)"
+      ],
+      "priority": 7,
+      "passes": true,
+      "notes": "Threaded authenticated=Boolean(user) from schedule/page.tsx through ScheduleContent into TimelineGrid. In finalizeDragRange (the shared mouse+touch drag-create drop handler) a signed-out visitor is now routed to /login?next=<encoded /bookings/new?room=&date=&start=&end=> instead of straight to the form, preserving the slot across the Google round-trip; signed-in users still push straight to the booking form (unchanged). Booking form already reads/applies room/date/start/end params (defaultRoomId/Date/StartTime/EndTime -> BookingSheet initial state). Direct navigation to /bookings/new stays gated by middleware (redirects to /login?next=<attempted path+query>). Conflict-check/5-pending-cap/status lifecycle untouched. Typecheck + lint pass. Browser-verified with Playwright on a temporary harness route (deleted after): a signed-out mouse drag redirected to /login?next=%2Fbookings%2Fnew%3Froom%3Dverify-room%26date%3D2026-08-01%26start%3D12:30%26end%3D15:30. The full login->callback->prefill round-trip is wired (login action sets /auth/callback?next=, callback redirects to validated next); completing the actual Google consent and anon room visibility on the hosted DB (US-003 migration not applied there) could not be driven locally."
+    },
+    {
+      "id": "US-008",
+      "title": "Confirm admin access under Google-only auth",
+      "description": "As an admin, I want my elevated access to keep working after switching to Google sign-in, with admin still granted manually in the database.",
+      "acceptanceCriteria": [
+        "A profile row is created for first-time Google sign-ins (the existing profile_on_signup_trigger fires for OAuth users; display_name is populated from Google metadata where available, else falls back to email)",
+        "New profiles default to role = 'member' and there is no self-serve path to admin",
+        "DEPLOYMENT.md documents the exact SQL/step to grant admin by manually setting profiles.role = 'admin'",
+        "Admin-only routes/actions remain gated on role = 'admin' and are unreachable by members or anon (middleware/route guards still hold)",
+        "Typecheck passes",
+        "Verify in browser using dev-browser skill (a member Google account cannot open admin routes; a DB-flagged admin can)"
+      ],
+      "priority": 8,
+      "passes": true,
+      "notes": "Added migration 20260726130000_profile_display_name_from_oauth.sql: handle_new_user() now coalesces display_name from raw_user_meta_data 'display_name'/'full_name'/'name' then new.email, so Google OAuth users get a name (Google provides full_name/name, not display_name) with an email fallback; role still defaults to 'member'. No self-serve admin path (profiles.role default 'member' + check constraint, and the profiles_prevent_role_self_update trigger blocks any non-service_role change to role). Admin routes/actions stay gated on role='admin' (admin/layout.tsx, admin/actions.ts, admin/rooms/actions.ts) and middleware bounces anon to /login. DEPLOYMENT.md gained a 'Granting admin access' section with the exact SQL to set profiles.role='admin' via the SQL Editor. Verified: replayed all migrations against a scratch Postgres 18 (Docker unavailable for supabase db reset) - all apply cleanly and the trigger yields display_name='Google Person' from full_name and 'b@example.com' from email fallback, both role='member'. Typecheck passes. Dev server: anon GET /admin/requests and /admin/rooms both 307 to /login?next=... The full member-vs-admin browser distinction needs a real Google session against the hosted DB, which can't be driven locally (Google consent + US-003 anon migration not applied there)."
+    },
+    {
+      "id": "US-009",
+      "title": "Update project docs to reflect public schedule + Google-only auth",
+      "description": "As a contributor, I want the canonical docs to match the new auth model so future work does not re-gate the schedule or re-add password login.",
+      "acceptanceCriteria": [
+        "CLAUDE.md is updated: the 'entire app requires authentication' rule is amended to 'the schedule is public; booking and all member/admin actions require Google sign-in'",
+        "tasks/prd-gac-reservations-v1.md gets a note pointing to tasks/prd-google-auth-public-schedule.md as the superseding source for auth + schedule visibility",
+        "Any reference to email/password signup/login in the docs is corrected to Google-only",
+        "Typecheck passes"
+      ],
+      "priority": 9,
+      "passes": true,
+      "notes": "CLAUDE.md: dropped 'auth-gated' from the project summary and added an 'Auth model (current)' paragraph stating the schedule is public/the landing page while booking + all member/admin actions require Google OAuth only (no email/password, no self-serve signup), explicitly superseding the old 'entire app requires authentication' rule and pointing to tasks/prd-google-auth-public-schedule.md. tasks/prd-gac-reservations-v1.md: added a top-of-file 'Superseded' blockquote pointing at the Google-auth PRD, rewrote the 'whole application requires authentication' line to the public-schedule + Google-only model, and corrected the two email/password references (US-001 Supabase Auth AC and US-002 login/signup AC) to Google-OAuth-only. Typecheck passes."
+    }
+  ]
+}

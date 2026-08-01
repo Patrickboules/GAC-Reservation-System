@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { Button } from "@/components/kit/button";
 import { ScheduleContent } from "@/components/schedule/schedule-content";
+import type { ScheduleRoom } from "@/lib/rooms-filters";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function SchedulePage({
@@ -14,10 +15,17 @@ export default async function SchedulePage({
   const [{ data: rooms }, { data: userData }] = await Promise.all([
     supabase
       .from("rooms")
-      .select("id, name, capacity, amenities, building, floor, room_type, category_color")
+      .select("id, name, amenities, building, floor, room_type, category_color")
       .order("name"),
     supabase.auth.getUser(),
   ]);
+
+  // `capacity` was dropped from rooms in migration 20260801000000; ScheduleRoom
+  // still carries the field for the filter bar's capacity buckets, so supply null.
+  const scheduleRooms: ScheduleRoom[] = (rooms ?? []).map((room) => ({
+    ...room,
+    capacity: null,
+  }));
 
   const authenticated = Boolean(userData.user);
 
@@ -45,7 +53,7 @@ export default async function SchedulePage({
         )}
       </div>
       <ScheduleContent
-        rooms={rooms ?? []}
+        rooms={scheduleRooms}
         initialFavoriteRoomIds={favoriteRoomIds}
         initialDate={date}
         initialRoomId={room}

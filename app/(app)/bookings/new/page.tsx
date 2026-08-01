@@ -23,7 +23,7 @@ export default async function NewBookingPage({
   const [{ data: selectedRoom }, { data: userData }] = await Promise.all([
     supabase
       .from("rooms")
-      .select("id, name, capacity, amenities, location")
+      .select("id, name, amenities, building, floor")
       .eq("id", room)
       .maybeSingle(),
     supabase.auth.getUser(),

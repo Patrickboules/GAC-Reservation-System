@@ -53,14 +53,14 @@ function validateRoomInput(input: RoomInput): string | null {
   return null;
 }
 
+/** Migration 20260801000000 dropped code/capacity/location/rules from rooms, so
+ * those RoomInput fields are deliberately not written — including them would make
+ * PostgREST reject the insert/update with "column does not exist". The form still
+ * collects them; until it's trimmed, values typed into those inputs are discarded. */
 function toRow(input: RoomInput) {
   return {
     name: input.name.trim(),
-    code: input.code?.trim() || null,
-    capacity: input.capacity,
     amenities: input.amenities,
-    location: input.location?.trim() || null,
-    rules: input.rules?.trim() || null,
     category_color: input.categoryColor,
   };
 }

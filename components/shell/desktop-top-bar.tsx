@@ -1,6 +1,8 @@
 import { ensureReminderNotifications, getRecentNotifications, type NotificationListItem } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { formatRoomLocation } from "@/lib/rooms";
 import { createClient } from "@/lib/supabase/server";
+import type { GlobalSearchRoom } from "@/components/shell/global-availability-search";
 import { TopBar, type TopBarProfile } from "@/components/shell/top-bar";
 
 const FALLBACK_PROFILE: TopBarProfile = { displayName: "Member", role: "member" };
@@ -38,15 +40,24 @@ export async function DesktopTopBar() {
 
   const { data: rooms } = await supabase
     .from("rooms")
-    .select("id, name, capacity, amenities, location")
+    .select("id, name, amenities, building, floor")
     .order("name");
+
+  // capacity/location dropped in migration 20260801000000 — see lib/rooms.ts.
+  const searchRooms: GlobalSearchRoom[] = (rooms ?? []).map((room) => ({
+    id: room.id,
+    name: room.name,
+    capacity: null,
+    amenities: room.amenities ?? [],
+    location: formatRoomLocation(room.building, room.floor),
+  }));
 
   return (
     <TopBar
       profile={profile}
       notifications={notifications}
       unreadCount={unreadCount}
-      rooms={rooms ?? []}
+      rooms={searchRooms}
       authenticated={Boolean(user)}
       variant="desktop"
       className="hidden lg:flex"

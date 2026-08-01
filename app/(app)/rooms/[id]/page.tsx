@@ -6,7 +6,7 @@ import { Button } from "@/components/kit/button";
 import { amenityIcon } from "@/components/kit/room-card";
 import { CONFLICTING_STATUSES, type BookingStatus } from "@/lib/bookings/conflict-check";
 import { addDays, formatDateLabel, formatTimeLabel, todayDateString } from "@/lib/dates";
-import { formatRoomField } from "@/lib/rooms";
+import { formatRoomField, formatRoomLocation } from "@/lib/rooms";
 import { formatHourLabel, percentForTime, SCHEDULE_END_HOUR, SCHEDULE_START_HOUR } from "@/lib/schedule/hours";
 import { cn } from "@/lib/utils";
 import { createClient } from "@/lib/supabase/server";
@@ -83,7 +83,7 @@ export default async function RoomDetailPage({
   const [{ data: room }, { data: upcomingBookings }, { data: todayBookings }] = await Promise.all([
     supabase
       .from("rooms")
-      .select("id, name, capacity, amenities, location, rules")
+      .select("id, name, amenities, building, floor")
       .eq("id", id)
       .maybeSingle(),
     supabase
@@ -112,10 +112,12 @@ export default async function RoomDetailPage({
   );
 
   const amenities: string[] = room.amenities ?? [];
-  const ruleLines: string[] = ((room.rules as string | null) ?? "")
-    .split("\n")
-    .map((line: string) => line.trim())
-    .filter(Boolean);
+  // capacity/location/rules were dropped in migration 20260801000000 when
+  // supabase/rooms.json became the source of truth. Location is rebuilt from the
+  // building/floor facets; capacity and rules are no longer tracked, so their
+  // sections render the standard "Not specified" placeholder.
+  const ruleLines: string[] = [];
+  const location = formatRoomLocation(room.building, room.floor);
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-4 p-4">
@@ -130,11 +132,11 @@ export default async function RoomDetailPage({
           <div className="flex flex-wrap items-center gap-4 text-small text-ink-500">
             <span className="flex items-center gap-1.5">
               <Users className="size-4 shrink-0" aria-hidden="true" />
-              {formatRoomField(room.capacity)}
+              {formatRoomField(null)}
             </span>
             <span className="flex items-center gap-1.5">
               <MapPin className="size-4 shrink-0" aria-hidden="true" />
-              {formatRoomField(room.location)}
+              {formatRoomField(location)}
             </span>
           </div>
 

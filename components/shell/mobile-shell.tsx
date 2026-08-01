@@ -1,6 +1,8 @@
 import { ensureReminderNotifications, getRecentNotifications, type NotificationListItem } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { formatRoomLocation } from "@/lib/rooms";
 import { createClient } from "@/lib/supabase/server";
+import type { GlobalSearchRoom } from "@/components/shell/global-availability-search";
 import { MobileTopBar } from "@/components/shell/mobile-top-bar";
 import { MobileTabBar } from "@/components/shell/mobile-tab-bar";
 import type { TopBarProfile } from "@/components/shell/top-bar";
@@ -43,8 +45,17 @@ export async function MobileShell() {
 
   const { data: rooms } = await supabase
     .from("rooms")
-    .select("id, name, capacity, amenities, location")
+    .select("id, name, amenities, building, floor")
     .order("name");
+
+  // capacity/location dropped in migration 20260801000000 — see lib/rooms.ts.
+  const searchRooms: GlobalSearchRoom[] = (rooms ?? []).map((room) => ({
+    id: room.id,
+    name: room.name,
+    capacity: null,
+    amenities: room.amenities ?? [],
+    location: formatRoomLocation(room.building, room.floor),
+  }));
 
   return (
     <>
@@ -52,7 +63,7 @@ export async function MobileShell() {
         profile={profile}
         notifications={notifications}
         unreadCount={unreadCount}
-        rooms={rooms ?? []}
+        rooms={searchRooms}
         authenticated={Boolean(user)}
       />
       <MobileTabBar isAdmin={isAdmin} />

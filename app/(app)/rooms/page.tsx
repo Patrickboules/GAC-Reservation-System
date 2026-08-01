@@ -4,6 +4,7 @@ import { EmptyState } from "@/components/kit/empty-state";
 import { RoomCard, type RoomCardAvailability } from "@/components/kit/room-card";
 import { CONFLICTING_STATUSES } from "@/lib/bookings/conflict-check";
 import { todayDateString, timeToMinutes } from "@/lib/dates";
+import { formatRoomLocation } from "@/lib/rooms";
 import { createClient } from "@/lib/supabase/server";
 
 // The rooms directory is the single entry point to booking: browse rooms,
@@ -13,7 +14,7 @@ export default async function RoomsPage() {
   const [{ data: rooms }, { data: todaysBookings }] = await Promise.all([
     supabase
       .from("rooms")
-      .select("id, name, capacity, amenities, location")
+      .select("id, name, amenities, building, floor")
       .order("name"),
     supabase
       .from("bookings_schedule")
@@ -53,9 +54,9 @@ export default async function RoomsPage() {
               key={room.id}
               id={room.id}
               name={room.name}
-              capacity={room.capacity}
+              capacity={null}
               amenities={room.amenities}
-              location={room.location}
+              location={formatRoomLocation(room.building, room.floor)}
               availability={availabilityFor(room.id)}
             />
           ))}

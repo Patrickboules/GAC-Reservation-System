@@ -36,6 +36,7 @@ yarn-error.log*
 
 # claude code local settings
 .claude/settings.local.json
+docs/
 
 # ralph autonomous-loop workflow (local tooling, not app code)
 /prompt.md
@@ -52,3 +53,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# github
+.gitignore
+
+/graphify-out/

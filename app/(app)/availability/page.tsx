@@ -1,15 +1,25 @@
 import Link from "next/link";
 
-import { AvailabilitySearch } from "@/components/availability/availability-search";
+import { AvailabilitySearch, type AvailabilityRoom } from "@/components/availability/availability-search";
 import { Button } from "@/components/ui/button";
+import { formatRoomLocation } from "@/lib/rooms";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function AvailabilityPage() {
   const supabase = await createClient();
   const { data: rooms } = await supabase
     .from("rooms")
-    .select("id, name, capacity, location")
+    .select("id, name, building, floor")
     .order("name");
+
+  // capacity/location were dropped in migration 20260801000000; location is now
+  // derived from the building/floor facets and capacity is no longer tracked.
+  const availabilityRooms: AvailabilityRoom[] = (rooms ?? []).map((room) => ({
+    id: room.id,
+    name: room.name,
+    capacity: null,
+    location: formatRoomLocation(room.building, room.floor),
+  }));
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-4 p-4">
@@ -25,7 +35,7 @@ export default async function AvailabilityPage() {
           <Button variant="outline" render={<Link href="/rooms">Rooms</Link>} />
         </div>
       </div>
-      <AvailabilitySearch rooms={rooms ?? []} />
+      <AvailabilitySearch rooms={availabilityRooms} />
     </div>
   );
 }

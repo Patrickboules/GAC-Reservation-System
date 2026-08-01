@@ -35,7 +35,7 @@ export default async function EditBookingPage({
 
   const { data: room } = await supabase
     .from("rooms")
-    .select("id, name, capacity, amenities, location")
+    .select("id, name, amenities, building, floor")
     .eq("id", booking.room_id)
     .maybeSingle();
 
