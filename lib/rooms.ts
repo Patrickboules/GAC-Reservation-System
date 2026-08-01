@@ -22,3 +22,32 @@ export function formatAmenities(amenities: string[] | null | undefined): string 
   if (!amenities || amenities.length === 0) return "Not specified";
   return amenities.join(", ");
 }
+
+export interface RoomBuildingSection<T> {
+  building: string;
+  rooms: T[];
+}
+
+/** Buckets rooms by their building field for the rooms directory, in first-seen
+ * order, so any building present in the data automatically gets its own
+ * section — no hardcoded building list to keep in sync. Rooms with no building
+ * set fall into a single "Other" section at the end. */
+export function toBuildingSections<T extends { building: string | null }>(
+  rooms: T[]
+): RoomBuildingSection<T>[] {
+  const order: string[] = [];
+  const buckets = new Map<string, T[]>();
+
+  for (const room of rooms) {
+    const key = room.building?.trim() || "Other";
+    let bucket = buckets.get(key);
+    if (!bucket) {
+      bucket = [];
+      buckets.set(key, bucket);
+      order.push(key);
+    }
+    bucket.push(room);
+  }
+
+  return order.map((building) => ({ building, rooms: buckets.get(building)! }));
+}

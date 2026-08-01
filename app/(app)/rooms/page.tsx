@@ -4,7 +4,7 @@ import { EmptyState } from "@/components/kit/empty-state";
 import { RoomCard, type RoomCardAvailability } from "@/components/kit/room-card";
 import { CONFLICTING_STATUSES } from "@/lib/bookings/conflict-check";
 import { todayDateString, timeToMinutes } from "@/lib/dates";
-import { formatRoomLocation } from "@/lib/rooms";
+import { toBuildingSections } from "@/lib/rooms";
 import { createClient } from "@/lib/supabase/server";
 
 // The rooms directory is the single entry point to booking: browse rooms,
@@ -38,6 +38,8 @@ export default async function RoomsPage() {
   const availabilityFor = (roomId: string): RoomCardAvailability =>
     busyRoomIds.has(roomId) ? "busy" : "free";
 
+  const buildingSections = toBuildingSections(rooms ?? []);
+
   return (
     <div className="mx-auto flex min-h-full w-full max-w-6xl flex-col gap-4 p-4">
       <div>
@@ -47,18 +49,29 @@ export default async function RoomsPage() {
         </p>
       </div>
 
-      {(rooms ?? []).length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {(rooms ?? []).map((room) => (
-            <RoomCard
-              key={room.id}
-              id={room.id}
-              name={room.name}
-              capacity={null}
-              amenities={room.amenities}
-              location={formatRoomLocation(room.building, room.floor)}
-              availability={availabilityFor(room.id)}
-            />
+      {buildingSections.length > 0 ? (
+        <div className="flex flex-col gap-8">
+          {buildingSections.map(({ building, rooms }) => (
+            <section
+              key={building}
+              aria-label={building}
+              className="rounded-2xl border border-line bg-surface p-6 shadow-sm"
+            >
+              <h2 className="mb-4 font-display text-display font-semibold text-ink-900">
+                {building}
+              </h2>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                {rooms.map((room) => (
+                  <RoomCard
+                    key={room.id}
+                    id={room.id}
+                    name={room.name}
+                    amenities={room.amenities}
+                    availability={availabilityFor(room.id)}
+                  />
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       ) : (

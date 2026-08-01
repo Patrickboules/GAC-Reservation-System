@@ -52,7 +52,6 @@ export async function MobileShell() {
   const searchRooms: GlobalSearchRoom[] = (rooms ?? []).map((room) => ({
     id: room.id,
     name: room.name,
-    capacity: null,
     amenities: room.amenities ?? [],
     location: formatRoomLocation(room.building, room.floor),
   }));

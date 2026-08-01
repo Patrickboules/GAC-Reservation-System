@@ -17,7 +17,6 @@ import { createClient } from "@/lib/supabase/client";
 export interface GlobalSearchRoom {
   id: string;
   name: string;
-  capacity: number | null;
   amenities: string[];
   location: string | null;
 }
@@ -187,7 +186,6 @@ export function GlobalAvailabilitySearch({
                 key={room.id}
                 id={room.id}
                 name={room.name}
-                capacity={room.capacity}
                 amenities={room.amenities}
                 location={room.location}
                 availability={availability}

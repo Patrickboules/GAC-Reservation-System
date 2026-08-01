@@ -5,12 +5,13 @@ import {
   MapPin,
   Mic,
   Monitor,
+  MonitorSmartphone,
   ParkingCircle,
   PenSquare,
+  Plug,
   Projector,
   Speaker,
   Tag,
-  Users,
   Video,
   Wind,
   Wifi,
@@ -18,29 +19,66 @@ import {
 
 import { cn } from "@/lib/utils"
 
+// Keyed in both English and Arabic since seeded room amenities are Arabic
+// (migration 20260801000000) while admins can still type free-text amenities
+// (RoomFormSheet has no fixed dropdown) in either language.
 const AMENITY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   wifi: Wifi,
+  "wi-fi": Wifi,
+  "واي فاي": Wifi,
+  "واي-فاي": Wifi,
+
   projector: Projector,
+  بروجيكتور: Projector,
+  بروجكتور: Projector,
+
   whiteboard: PenSquare,
+  سبورة: PenSquare,
+
+  "smart display": MonitorSmartphone,
+  "شاشة ذكية": MonitorSmartphone,
   screen: Monitor,
   tv: Monitor,
   monitor: Monitor,
+  شاشة: Monitor,
+
   microphone: Mic,
   mic: Mic,
+  ميكروفون: Mic,
+
   speaker: Speaker,
+  speakers: Speaker,
   sound: Speaker,
   audio: Speaker,
+  صوتيات: Speaker,
+  "مكبرات صوت": Speaker,
+
   "video conferencing": Video,
   video: Video,
+
   ac: Wind,
   "air conditioning": Wind,
+  تكييف: Wind,
+  "تكييف هواء": Wind,
+
   parking: ParkingCircle,
+  مواقف: ParkingCircle,
+  "موقف سيارات": ParkingCircle,
+
   coffee: Coffee,
   kitchen: Coffee,
+
+  "power outlets": Plug,
+  outlets: Plug,
+  مقابس: Plug,
+  "مقابس كهرباء": Plug,
 }
 
 function amenityIcon(amenity: string) {
-  return AMENITY_ICONS[amenity.trim().toLowerCase()] ?? Tag
+  const normalized = amenity.trim().toLowerCase()
+  if (AMENITY_ICONS[normalized]) return AMENITY_ICONS[normalized]
+  const partialMatch = Object.keys(AMENITY_ICONS).find((key) => normalized.includes(key))
+  return partialMatch ? AMENITY_ICONS[partialMatch] : Tag
 }
 
 export { amenityIcon }
@@ -53,7 +91,6 @@ interface RoomCardProps {
   id: string
   name: string
   code?: string | null
-  capacity?: number | null
   amenities?: string[] | null
   location?: string | null
   /** Live availability: green dot when free, amber dot when busy right now. */
@@ -70,7 +107,6 @@ function RoomCard({
   id,
   name,
   code,
-  capacity,
   amenities,
   location,
   availability,
@@ -134,13 +170,6 @@ function RoomCard({
     </div>
   ) : null
 
-  const capacityRow = (
-    <div className="flex items-center gap-1 text-caption text-ink-500">
-      <Users className="size-3.5 shrink-0" aria-hidden="true" />
-      <span>{capacity ?? "–"}</span>
-    </div>
-  )
-
   if (density === "list") {
     return (
       <Link
@@ -158,10 +187,7 @@ function RoomCard({
             {nameRow}
             {availabilityDot}
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            {capacityRow}
-            {locationRow}
-          </div>
+          {locationRow && <div className="flex flex-wrap items-center gap-3">{locationRow}</div>}
           {amenityRow}
         </div>
       </Link>
@@ -179,16 +205,16 @@ function RoomCard({
       )}
     >
       <div className={cn("h-16 w-full", headerColorClassName)} aria-hidden="true" />
-      <div className="flex flex-1 flex-col gap-2 p-4">
-        <div className="flex items-start justify-between gap-2">
-          {nameRow}
-          {availabilityDot}
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {capacityRow}
+      <div className="flex flex-1 flex-col p-4">
+        <div className="flex flex-1 flex-col items-center justify-center gap-1 py-1 text-center">
+          <span className="line-clamp-2 text-body font-bold text-ink-900">{name}</span>
+          {code && <span className="font-mono text-caption text-ink-500">{code}</span>}
           {locationRow}
         </div>
-        {amenityRow}
+        <div className="flex items-center justify-between gap-3 pt-3">
+          <div className="min-w-0 flex-1">{amenityRow}</div>
+          {availabilityDot}
+        </div>
       </div>
     </Link>
   )
