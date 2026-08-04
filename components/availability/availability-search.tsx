@@ -3,14 +3,14 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Button } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
+import { DatePicker } from "@/components/kit/date-picker";
 import { EmptyState } from "@/components/kit/empty-state";
 import { ErrorState } from "@/components/kit/error-state";
+import { Input } from "@/components/kit/input";
 import { LoadingState } from "@/components/kit/loading-state";
+import { StatusBadge } from "@/components/kit/status-badge";
 import { findConflictingBookings } from "@/lib/bookings/conflict-check";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
 import { formatRoomField } from "@/lib/rooms";
@@ -47,7 +47,7 @@ function normalizeTime(time: string): string {
 export function AvailabilitySearch({ rooms }: { rooms: AvailabilityRoom[] }) {
   const supabase = useMemo(() => createClient(), []);
 
-  const [date, setDate] = useState(() => todayDateString());
+  const [date, setDate] = useState<string | null>(() => todayDateString());
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [capacity, setCapacity] = useState("");
@@ -115,52 +115,34 @@ export function AvailabilitySearch({ rooms }: { rooms: AvailabilityRoom[] }) {
   return (
     <div className="flex w-full min-w-0 flex-col gap-4">
       <form onSubmit={handleSearch} className="flex flex-col gap-3">
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="availability-date">Date</Label>
+        <DatePicker label="Date" mode="popover" value={date} onValueChange={setDate} />
+        <div className="grid grid-cols-2 gap-3">
           <Input
-            id="availability-date"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
+            label="Start time"
+            type="time"
+            value={startTime}
+            onChange={(e) => setStartTime(e.target.value)}
+            required
+          />
+          <Input
+            label="End time"
+            type="time"
+            value={endTime}
+            onChange={(e) => setEndTime(e.target.value)}
             required
           />
         </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="availability-start">Start time</Label>
-            <Input
-              id="availability-start"
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-              required
-            />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <Label htmlFor="availability-end">End time</Label>
-            <Input
-              id="availability-end"
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              required
-            />
-          </div>
-        </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="availability-capacity">Minimum capacity (optional)</Label>
-          <Input
-            id="availability-capacity"
-            type="number"
-            min={1}
-            inputMode="numeric"
-            value={capacity}
-            onChange={(e) => setCapacity(e.target.value)}
-            placeholder="Any"
-          />
-        </div>
-        <Button type="submit" disabled={loading}>
-          {loading ? "Searching…" : "Search"}
+        <Input
+          label="Minimum capacity (optional)"
+          type="number"
+          min={1}
+          inputMode="numeric"
+          value={capacity}
+          onChange={(e) => setCapacity(e.target.value)}
+          placeholder="Any"
+        />
+        <Button type="submit" loading={loading}>
+          Search
         </Button>
       </form>
 
@@ -178,36 +160,24 @@ export function AvailabilitySearch({ rooms }: { rooms: AvailabilityRoom[] }) {
           <ul className="flex flex-col gap-3">
             {results.map(({ room, pending }) => (
               <li key={room.id}>
-                <Card>
-                  <CardHeader className="flex flex-row items-center justify-between gap-2">
-                    <CardTitle>
-                      <Link
-                        href={`/rooms/${room.id}`}
-                        className="underline-offset-2 hover:underline"
-                      >
-                        {room.name}
-                      </Link>
-                    </CardTitle>
-                    {pending ? (
-                      <Badge
-                        variant="outline"
-                        className="border-amber-200 bg-amber-100 text-amber-800 dark:border-amber-900 dark:bg-amber-950 dark:text-amber-300"
-                      >
-                        Requested — pending approval
-                      </Badge>
-                    ) : (
-                      <Badge
-                        variant="outline"
-                        className="border-green-200 bg-green-100 text-green-800 dark:border-green-900 dark:bg-green-950 dark:text-green-300"
-                      >
-                        Available
-                      </Badge>
-                    )}
-                  </CardHeader>
-                  <CardContent className="text-sm text-muted-foreground">
+                <Card interactive>
+                  <div className="flex items-center justify-between gap-2">
+                    <Link
+                      href={`/rooms/${room.id}`}
+                      className="text-body font-semibold text-ink-900 underline-offset-2 hover:underline"
+                    >
+                      {room.name}
+                    </Link>
+                    <StatusBadge
+                      status={pending ? "pending" : "approved"}
+                      label={pending ? "Requested — pending approval" : "Available"}
+                      className="whitespace-nowrap"
+                    />
+                  </div>
+                  <p className="mt-2 text-small text-ink-500">
                     Capacity: {formatRoomField(room.capacity)} · Location:{" "}
                     {formatRoomField(room.location)}
-                  </CardContent>
+                  </p>
                 </Card>
               </li>
             ))}

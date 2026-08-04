@@ -1,7 +1,8 @@
 import { CheckCircle2 } from "lucide-react";
 
+import { Card } from "@/components/kit/card";
 import { EmptyState } from "@/components/kit/empty-state";
-import { Badge } from "@/components/ui/badge";
+import { StatusBadge } from "@/components/kit/status-badge";
 import { type BookingStatus } from "@/lib/bookings/conflict-check";
 import { formatTimeLabel } from "@/lib/dates";
 
@@ -19,40 +20,29 @@ export function PendingRequests({ bookings }: { bookings: PendingBooking[] }) {
     <div>
       <div className="mb-3 flex items-center gap-2">
         <p className="text-small font-semibold text-ink-700">Pending Requests</p>
-        {bookings.length > 0 && (
-          <Badge variant="outline" className="border-amber-200 bg-amber-100 text-amber-800">
-            {bookings.length}
-          </Badge>
-        )}
+        {bookings.length > 0 && <StatusBadge status="pending" label={bookings.length} />}
       </div>
 
       {bookings.length === 0 ? (
         <EmptyState
-          icon={<CheckCircle2 className="size-8 text-status-approved-fg" aria-hidden="true" />}
+          icon={<CheckCircle2 className="size-6" aria-hidden="true" />}
+          tone="approved"
           title="No pending requests"
           className="px-4 py-6"
         />
       ) : (
         <div className="flex flex-col gap-2">
           {bookings.map((booking, i) => (
-            <div
-              key={i}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-line bg-white p-3 shadow-sm transition-shadow hover:shadow-md"
-            >
-              <span className="flex items-center gap-1.5 text-caption font-medium text-ink-500">
-                <span aria-hidden="true" className="size-2 rounded-full bg-amber-500" />
+            <Card key={i} interactive className="flex flex-wrap items-center justify-between gap-3 p-3">
+              <span className="flex items-center gap-1.5 text-caption font-medium text-status-pending-fg">
+                <span aria-hidden="true" className="size-2 rounded-full bg-current" />
                 Pending
               </span>
               <span className="text-small font-semibold text-ink-900">
                 {formatTimeLabel(booking.start_time)} → {formatTimeLabel(booking.end_time)}
               </span>
-              <Badge
-                variant="outline"
-                className="whitespace-nowrap border-amber-200 bg-amber-100 text-amber-800"
-              >
-                Waiting for Approval
-              </Badge>
-            </div>
+              <StatusBadge status="pending" label="Waiting for Approval" className="whitespace-nowrap" />
+            </Card>
           ))}
         </div>
       )}

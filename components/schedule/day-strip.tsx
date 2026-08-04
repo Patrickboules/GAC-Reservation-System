@@ -67,8 +67,8 @@ export function DayStrip({ date, onDateChange }: DayStripProps) {
               aria-selected={selected}
               onClick={() => onDateChange(day)}
               className={cn(
-                "flex shrink-0 flex-col items-center rounded-md px-3 py-1.5 text-center transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
-                selected ? "bg-sky-600 text-white" : "text-ink-700 hover:bg-sky-50"
+                "flex shrink-0 flex-col items-center rounded-md px-3 py-1.5 text-center transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+                selected ? "scale-[1.04] bg-sky-600 text-white" : "text-ink-700 hover:bg-sky-50"
               )}
             >
               <span className="text-caption uppercase">

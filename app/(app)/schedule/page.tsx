@@ -38,8 +38,8 @@ export default async function SchedulePage({
           {!authenticated && (
             <span className="font-display text-h3 font-semibold text-ink-900">GAC</span>
           )}
-          <h1 className="text-2xl font-semibold">Schedule</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="font-display text-h2 text-ink-900">Schedule</h1>
+          <p className="text-small text-ink-500">
             Room, time, and service — approved reservations only.
           </p>
         </div>

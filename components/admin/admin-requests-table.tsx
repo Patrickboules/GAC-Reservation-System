@@ -25,6 +25,7 @@ import { Table, type TableColumn, type TableSort } from "@/components/kit/table"
 import { Textarea } from "@/components/kit/textarea";
 import { useToast } from "@/components/kit/toast";
 import { formatDateLabel, formatTimeLabel } from "@/lib/dates";
+import { cn } from "@/lib/utils";
 
 export interface AdminRequestRow {
   id: string;
@@ -284,7 +285,12 @@ export function AdminRequestsTable({ requests }: { requests: AdminRequestRow[] }
   return (
     <div className="flex flex-col gap-3">
       {requests.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-line bg-surface px-4 py-2.5">
+        <div
+          className={cn(
+            "flex flex-wrap items-center gap-3 rounded-lg border px-4 py-2.5 transition-colors",
+            selectedIds.size > 0 ? "border-sky-200 bg-sky-50" : "border-line bg-surface"
+          )}
+        >
           <label className="flex items-center gap-2 text-small text-ink-700">
             <input
               type="checkbox"
@@ -297,7 +303,7 @@ export function AdminRequestsTable({ requests }: { requests: AdminRequestRow[] }
               : `Select all ${requests.length} pending`}
           </label>
           {selectedIds.size > 0 && (
-            <div className="ml-auto flex items-center gap-2">
+            <div className="animate-in slide-in-from-top-1 fade-in ml-auto flex items-center gap-2 duration-150 motion-reduce:animate-none">
               <Button
                 size="sm"
                 variant="secondary"

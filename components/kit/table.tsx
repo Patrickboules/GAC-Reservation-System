@@ -176,7 +176,7 @@ function Table<T>({
               data.map((row) => {
                 const rowId = getRowId(row)
                 return (
-                  <tr key={rowId} className="border-b border-line last:border-0 hover:bg-sky-50">
+                  <tr key={rowId} className="border-b border-line last:border-0 even:bg-sand-50/60 hover:bg-sky-50">
                     {columns.map((column) => (
                       <td
                         key={column.key}

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 
 import { BookingScreen } from "@/components/bookings/booking-screen";
 import type { BookingTimeSlot } from "@/lib/bookings/conflict-check";
+import { countOpenPendingBookings } from "@/lib/bookings/limits";
 import { findNextFreeSlot } from "@/lib/bookings/next-free-slot";
 import { todayDateString } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/server";
@@ -33,15 +34,9 @@ export default async function NewBookingPage({
     redirect("/rooms");
   }
 
-  let openPendingCount = 0;
-  if (userData.user) {
-    const { count } = await supabase
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", userData.user.id)
-      .eq("status", "pending");
-    openPendingCount = count ?? 0;
-  }
+  const openPendingCount = userData.user
+    ? await countOpenPendingBookings(supabase, userData.user.id)
+    : 0;
 
   // Default to this room's next free slot rather than a blind 9-10am that may
   // already be taken.

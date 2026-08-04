@@ -1,6 +1,7 @@
 import type * as React from "react"
 
 import { cn } from "@/lib/utils"
+import { Card } from "@/components/kit/card"
 import { Skeleton } from "@/components/kit/skeleton"
 
 interface LoadingStateProps extends React.ComponentProps<"div"> {
@@ -31,35 +32,26 @@ function LoadingState({
     >
       {Array.from({ length: count }).map((_, i) =>
         variant === "cards" ? (
-          <div
-            key={i}
-            className="flex flex-col gap-3 rounded-lg border border-line bg-surface p-4"
-          >
+          <Card key={i} className="flex flex-col gap-3">
             <Skeleton className="h-24 w-full rounded-md" />
             <Skeleton className="h-4 w-2/3" />
             <Skeleton className="h-3 w-1/3" />
-          </div>
+          </Card>
         ) : variant === "rows" ? (
-          <div
-            key={i}
-            className="flex items-center gap-4 rounded-md border border-line bg-surface px-4 py-3"
-          >
+          <Card key={i} className="flex items-center gap-4 px-4 py-3">
             <Skeleton className="h-4 w-1/4" />
             <Skeleton className="h-4 w-1/6" />
             <Skeleton className="h-4 w-1/6" />
             <Skeleton className="ml-auto h-6 w-16 rounded-full" />
-          </div>
+          </Card>
         ) : (
-          <div
-            key={i}
-            className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3"
-          >
+          <Card key={i} className="flex items-center gap-3 p-3">
             <Skeleton className="size-10 shrink-0 rounded-full" />
             <div className="flex flex-1 flex-col gap-2">
               <Skeleton className="h-4 w-1/2" />
               <Skeleton className="h-3 w-1/3" />
             </div>
-          </div>
+          </Card>
         )
       )}
     </div>

@@ -159,6 +159,11 @@ export function SidebarNav({ isAdmin, authenticated }: SidebarNavProps) {
       </div>
 
       <nav className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
+        {!collapsed && (
+          <span className="px-3 text-caption font-semibold tracking-wide text-ink-300 uppercase">
+            Browse
+          </span>
+        )}
         {primaryNavItems.map((item) => (
           <NavLink
             key={item.href}

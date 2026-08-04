@@ -4,6 +4,7 @@ import { ChevronLeft } from "lucide-react";
 
 import { AmenityChip } from "@/components/kit/amenity-chip";
 import { Button } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
 import { todayDateString } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/server";
 
@@ -49,7 +50,7 @@ export default async function RoomDetailPage({
         }
       />
 
-      <div className="overflow-hidden rounded-3xl border border-line bg-surface shadow-md">
+      <Card className="overflow-hidden p-0 shadow-md">
         <div className="h-24 w-full bg-sky-100 sm:h-28" aria-hidden="true" />
         <div className="flex flex-col gap-8 p-5 sm:p-7">
           <div className="py-4 text-center sm:py-6">
@@ -75,7 +76,7 @@ export default async function RoomDetailPage({
             render={<Link href={`/bookings/new?room=${room.id}`}>Reserve this Room</Link>}
           />
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

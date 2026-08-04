@@ -14,11 +14,10 @@ export interface RoomActionResult {
 
 export interface RoomInput {
   name: string;
-  code: string | null;
-  capacity: number | null;
+  building: string | null;
+  floor: string | null;
+  roomType: string | null;
   amenities: string[];
-  location: string | null;
-  rules: string | null;
   categoryColor: string | null;
 }
 
@@ -53,20 +52,18 @@ function validateRoomInput(input: RoomInput): string | null {
   return null;
 }
 
-/** Migration 20260801000000 dropped code/capacity/location/rules from rooms, so
- * those RoomInput fields are deliberately not written — including them would make
- * PostgREST reject the insert/update with "column does not exist". The form still
- * collects them; until it's trimmed, values typed into those inputs are discarded. */
 function toRow(input: RoomInput) {
   return {
     name: input.name.trim(),
+    building: input.building?.trim() || null,
+    floor: input.floor?.trim() || null,
+    room_type: input.roomType?.trim() || null,
     amenities: input.amenities,
     category_color: input.categoryColor,
   };
 }
 
-function friendlyError(error: { code?: string; message: string }): string {
-  if (error.code === "23505") return "That room code is already in use.";
+function friendlyError(error: { message: string }): string {
   return error.message;
 }
 

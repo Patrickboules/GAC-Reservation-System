@@ -1,3 +1,4 @@
+import { expireStalePendingBookings } from "@/lib/bookings/expire-stale-pending";
 import { ensureReminderNotifications, getRecentNotifications, type NotificationListItem } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatRoomLocation } from "@/lib/rooms";
@@ -32,7 +33,9 @@ export async function DesktopTopBar() {
       role: data?.role === "admin" ? "admin" : "member",
     };
 
-    await ensureReminderNotifications(createAdminClient(), user.id);
+    const admin = createAdminClient();
+    await expireStalePendingBookings(admin, user.id);
+    await ensureReminderNotifications(admin, user.id);
     const recent = await getRecentNotifications(supabase, user.id);
     notifications = recent.notifications;
     unreadCount = recent.unreadCount;

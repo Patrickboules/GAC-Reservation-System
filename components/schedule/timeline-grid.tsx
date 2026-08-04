@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 
 import { EmptyState } from "@/components/kit/empty-state";
 import { ErrorState } from "@/components/kit/error-state";
-import { LoadingState } from "@/components/kit/loading-state";
+import { Skeleton } from "@/components/kit/skeleton";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
 import { buildingGroupSpans, groupRoomsByBuilding, type ScheduleRoom } from "@/lib/rooms-filters";
 import { ROOM_CATEGORY_COLOR_SWATCH_CLASSES, isRoomCategoryColor } from "@/lib/rooms/category-colors";
@@ -216,7 +216,7 @@ export function TimelineGrid({
       <div
         data-schedule-grid
         onKeyDown={handleScheduleGridKeyDown}
-        className="max-h-[75vh] w-full min-w-0 overflow-auto rounded-lg border border-line bg-surface"
+        className="max-h-[75vh] w-full min-w-0 overflow-auto rounded-lg border border-line bg-surface [-webkit-overflow-scrolling:touch]"
       >
         {/*
           w-max (not w-full) is what keeps the room column frozen while scrolling
@@ -232,7 +232,10 @@ export function TimelineGrid({
           <div className="sticky top-0 z-20 flex">
             <div
               aria-hidden="true"
-              className={cn("sticky left-0 z-10 shrink-0 border-r border-b border-line bg-surface", ROOM_COLUMN_CLASSES)}
+              className={cn(
+                "sticky left-0 z-10 shrink-0 border-r-2 border-b border-line bg-surface will-change-transform",
+                ROOM_COLUMN_CLASSES
+              )}
               style={{ height: TIME_HEADER_HEIGHT_PX }}
             />
             <div
@@ -282,7 +285,7 @@ export function TimelineGrid({
                     <div
                       title={group.building}
                       className={cn(
-                        "sticky left-0 z-10 flex shrink-0 items-center truncate border-r border-b border-line bg-sand-50 px-2 font-medium text-caption text-ink-500",
+                        "sticky left-0 z-10 flex shrink-0 items-center truncate border-r-2 border-b border-line bg-sand-50 px-2 font-medium text-caption text-ink-500 will-change-transform",
                         ROOM_COLUMN_CLASSES
                       )}
                     >
@@ -304,7 +307,7 @@ export function TimelineGrid({
                 <div
                   title={room.name}
                   className={cn(
-                    "sticky left-0 z-10 flex shrink-0 items-stretch gap-1 overflow-hidden border-r border-b border-line bg-surface pr-0.5",
+                    "sticky left-0 z-10 flex shrink-0 items-stretch gap-1 overflow-hidden border-r-2 border-b border-line bg-surface pr-1 will-change-transform",
                     ROOM_COLUMN_CLASSES
                   )}
                 >
@@ -328,6 +331,18 @@ export function TimelineGrid({
                       style={{ left: `${mark.percent}%` }}
                     />
                   ))}
+                  {loading && (
+                    <Skeleton
+                      aria-hidden="true"
+                      className="absolute"
+                      style={{
+                        top: ROW_VERTICAL_PADDING_PX,
+                        left: `${8 + (roomIndex % 3) * 6}%`,
+                        width: "24%",
+                        height: EVENT_LANE_HEIGHT_PX - 8,
+                      }}
+                    />
+                  )}
                   {roomBookings.map(({ event: booking, columnIndex }) => (
                     <EventBlock
                       key={booking.id}
@@ -352,11 +367,7 @@ export function TimelineGrid({
         </div>
       </div>
 
-      {error ? (
-        <ErrorState description={error} />
-      ) : loading ? (
-        <LoadingState variant="rows" count={3} />
-      ) : null}
+      {error ? <ErrorState description={error} /> : null}
     </div>
   );
 }

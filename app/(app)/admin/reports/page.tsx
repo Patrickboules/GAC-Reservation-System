@@ -1,3 +1,4 @@
+import { Card } from "@/components/kit/card";
 import { MostActiveMembers } from "@/components/admin/most-active-members";
 import { PeakHoursHeatmap } from "@/components/admin/peak-hours-heatmap";
 import { ReportsFilterForm } from "@/components/admin/reports-filter-form";
@@ -65,9 +66,9 @@ export default async function UsageReportsPage({
 
       <section className="flex flex-col gap-3">
         <h2 className="text-h3 font-display text-ink-900">Room utilization</h2>
-        <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+        <Card>
           <RoomUtilizationChart data={roomUtilization} />
-        </div>
+        </Card>
       </section>
 
       <section className="flex flex-col gap-3">
@@ -77,9 +78,9 @@ export default async function UsageReportsPage({
 
       <section className="flex flex-col gap-3">
         <h2 className="text-h3 font-display text-ink-900">Peak hours</h2>
-        <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+        <Card>
           <PeakHoursHeatmap rows={peakHours} />
-        </div>
+        </Card>
       </section>
     </div>
   );

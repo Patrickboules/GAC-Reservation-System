@@ -17,6 +17,7 @@ import {
   Wifi,
 } from "lucide-react"
 
+import { StatusBadge } from "@/components/kit/status-badge"
 import { cn } from "@/lib/utils"
 
 // Keyed in both English and Arabic since seeded room amenities are Arabic
@@ -93,12 +94,22 @@ interface RoomCardProps {
   code?: string | null
   amenities?: string[] | null
   location?: string | null
-  /** Live availability: green dot when free, amber dot when busy right now. */
+  /** Simple availability for a specific searched slot (search-result cards): green pill when free, amber when a pending request already holds it. */
   availability?: RoomCardAvailability
+  /** Live "right now" status overriding `availability`'s plain text, e.g. "Free until 3:00 PM" (directory cards). */
+  statusText?: string
+  /** What's running in the room right now, if anything, e.g. "Bible Study". Omitted when free. */
+  nowText?: string | null
+  /** The next booking today, if any, e.g. "Bible Study, 3:00 PM–4:00 PM". */
+  nextText?: string | null
   /** Header accent color (category color); accepts any Tailwind bg-* class. */
   headerColorClassName?: string
   density?: "grid" | "list"
   href?: string
+  /** When provided, adds a footer "Reserve" action linking here (directory cards only). */
+  reserveHref?: string
+  /** Highlights the card as the current pick, e.g. in a search-result list. */
+  selected?: boolean
   onClick?: () => void
   className?: string
 }
@@ -110,29 +121,29 @@ function RoomCard({
   amenities,
   location,
   availability,
-  headerColorClassName = "bg-sky-100",
+  statusText,
+  nowText,
+  nextText,
+  headerColorClassName = "bg-sky-600",
   density = "grid",
   href,
+  reserveHref,
+  selected = false,
   onClick,
   className,
 }: RoomCardProps) {
   const visibleAmenities = (amenities ?? []).slice(0, MAX_VISIBLE_AMENITIES)
   const overflowCount = (amenities?.length ?? 0) - visibleAmenities.length
 
-  const availabilityDot = availability ? (
-    <span
-      className="inline-flex items-center gap-1.5 text-caption font-medium text-ink-500"
-      aria-label={availability === "free" ? "Free now" : "Busy now"}
-    >
-      <span
-        aria-hidden="true"
-        className={cn(
-          "size-2 shrink-0 rounded-full",
-          availability === "free" ? "bg-status-approved-fg" : "bg-status-pending-fg"
-        )}
-      />
-      {availability === "free" ? "Free" : "Busy now"}
-    </span>
+  const isFree = statusText ? statusText.toLowerCase().startsWith("free") : availability === "free"
+  const pillLabel = statusText ?? (availability === "free" ? "Free" : availability === "busy" ? "Busy now" : null)
+
+  const availabilityPill = pillLabel ? (
+    <StatusBadge
+      status={isFree ? "approved" : "pending"}
+      label={pillLabel}
+      className="shrink-0 whitespace-nowrap"
+    />
   ) : null
 
   const amenityRow =
@@ -157,8 +168,8 @@ function RoomCard({
     ) : null
 
   const nameRow = (
-    <div className="flex items-baseline gap-2">
-      <span className="truncate text-body font-semibold text-ink-900">{name}</span>
+    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+      <span className="text-body font-semibold text-ink-900">{name}</span>
       {code && <span className="shrink-0 font-mono text-caption text-ink-500">{code}</span>}
     </div>
   )
@@ -170,22 +181,25 @@ function RoomCard({
     </div>
   ) : null
 
+  const targetHref = href ?? `/rooms/${id}`
+
   if (density === "list") {
     return (
       <Link
-        href={href ?? `/rooms/${id}`}
+        href={targetHref}
         onClick={onClick}
         data-slot="room-card"
         className={cn(
-          "flex items-stretch gap-3 overflow-hidden rounded-lg border border-line bg-surface shadow-sm transition-colors hover:bg-sky-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+          "flex items-stretch gap-3 overflow-hidden rounded-lg border bg-surface shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+          selected ? "border-sky-600 ring-2 ring-sky-100" : "border-line",
           className
         )}
       >
-        <div className={cn("w-2 shrink-0", headerColorClassName)} aria-hidden="true" />
+        <div className={cn("w-1.5 shrink-0", headerColorClassName)} aria-hidden="true" />
         <div className="flex min-w-0 flex-1 flex-col gap-1.5 py-3 pr-4">
           <div className="flex items-center justify-between gap-2">
             {nameRow}
-            {availabilityDot}
+            {availabilityPill}
           </div>
           {locationRow && <div className="flex flex-wrap items-center gap-3">{locationRow}</div>}
           {amenityRow}
@@ -194,29 +208,63 @@ function RoomCard({
     )
   }
 
+  const metaRow = nowText || nextText ? (
+    <div className="flex flex-col gap-0.5 text-caption text-ink-500">
+      {nowText && (
+        <span>
+          Now: <span className="font-medium text-ink-700">{nowText}</span>
+        </span>
+      )}
+      {nextText && (
+        <span>
+          Next: <span className="font-medium text-ink-700">{nextText}</span>
+        </span>
+      )}
+    </div>
+  ) : null
+
   return (
-    <Link
-      href={href ?? `/rooms/${id}`}
-      onClick={onClick}
+    <div
       data-slot="room-card"
       className={cn(
-        "flex flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+        "group relative flex flex-col overflow-hidden rounded-lg border bg-surface shadow-sm transition-all",
+        selected ? "border-sky-600 ring-2 ring-sky-100 shadow-md" : "border-line hover:-translate-y-0.5 hover:shadow-md",
         className
       )}
     >
-      <div className={cn("h-16 w-full", headerColorClassName)} aria-hidden="true" />
-      <div className="flex flex-1 flex-col p-4">
-        <div className="flex flex-1 flex-col items-center justify-center gap-1 py-1 text-center">
-          <span className="line-clamp-2 text-body font-bold text-ink-900">{name}</span>
-          {code && <span className="font-mono text-caption text-ink-500">{code}</span>}
-          {locationRow}
+      <div className={cn("h-1.5 w-full", headerColorClassName)} aria-hidden="true" />
+      <div className="flex flex-1 flex-col gap-2.5 p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            {nameRow}
+            {locationRow}
+          </div>
+          {availabilityPill}
         </div>
-        <div className="flex items-center justify-between gap-3 pt-3">
-          <div className="min-w-0 flex-1">{amenityRow}</div>
-          {availabilityDot}
-        </div>
+        {metaRow}
+        {amenityRow}
       </div>
-    </Link>
+
+      {/* Stretched link: the whole card (minus the footer actions, which sit
+          above it via z-10) navigates to the room's detail page. */}
+      <Link
+        href={targetHref}
+        onClick={onClick}
+        aria-label={`View ${name}`}
+        className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-300"
+      />
+
+      {reserveHref && (
+        <div className="relative z-10 border-t border-line p-3">
+          <Link
+            href={reserveHref}
+            className="block rounded-md bg-sky-600 px-3 py-2 text-center text-small font-medium text-white transition-colors hover:bg-sky-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+          >
+            Reserve
+          </Link>
+        </div>
+      )}
+    </div>
   )
 }
 

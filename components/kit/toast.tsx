@@ -79,7 +79,14 @@ function ToastItem({
         accentClass
       )}
     >
-      <Icon aria-hidden="true" className={cn("size-5 shrink-0", iconClass)} />
+      <Icon
+        aria-hidden="true"
+        className={cn(
+          "size-5 shrink-0",
+          iconClass,
+          variant === "success" && "animate-in zoom-in-75 duration-200 motion-reduce:animate-none"
+        )}
+      />
       <div className="flex-1 space-y-0.5">
         <Toast.Title
           data-slot="toast-title"

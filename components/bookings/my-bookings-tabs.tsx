@@ -58,10 +58,11 @@ const EMPTY_STATE_CONTENT: Record<
 
 interface MyBookingsTabsProps {
   buckets: Record<BookingBucket, MyBookingCardData[]>
+  initialTab?: BookingBucket
 }
 
-function MyBookingsTabs({ buckets }: MyBookingsTabsProps) {
-  const [active, setActive] = React.useState<BookingBucket>("upcoming")
+function MyBookingsTabs({ buckets, initialTab = "upcoming" }: MyBookingsTabsProps) {
+  const [active, setActive] = React.useState<BookingBucket>(initialTab)
   const bookings = buckets[active]
   const empty = EMPTY_STATE_CONTENT[active]
 

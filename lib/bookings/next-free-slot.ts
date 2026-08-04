@@ -1,6 +1,6 @@
 import { findConflictingBookings, type BookingTimeSlot } from "@/lib/bookings/conflict-check";
-import { BOOKING_TIME_STEP_MINUTES } from "@/lib/bookings/time-granularity";
-import { minutesToTime } from "@/lib/dates";
+import { BOOKING_TIME_STEP_MINUTES, LATEST_BOOKING_END_TIME } from "@/lib/bookings/time-granularity";
+import { minutesToTime, timeToMinutes } from "@/lib/dates";
 import { SCHEDULE_END_HOUR, SCHEDULE_START_HOUR } from "@/lib/schedule/hours";
 
 const SLOT_DURATION_MINUTES = 60;
@@ -18,7 +18,7 @@ export function findNextFreeSlot(
   existingBookings: readonly BookingTimeSlot[]
 ): { startTime: string; endTime: string } | null {
   const windowStart = SCHEDULE_START_HOUR * 60;
-  const windowEnd = SCHEDULE_END_HOUR * 60;
+  const windowEnd = Math.min(SCHEDULE_END_HOUR * 60, timeToMinutes(LATEST_BOOKING_END_TIME));
 
   for (
     let candidateStart = windowStart;

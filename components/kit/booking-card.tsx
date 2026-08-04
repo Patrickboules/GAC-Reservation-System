@@ -64,7 +64,7 @@ function BookingCard({
     <div
       data-slot="booking-card"
       className={cn(
-        "flex items-stretch gap-3 overflow-hidden rounded-lg border border-line bg-surface shadow-sm",
+        "flex items-stretch gap-3 overflow-hidden rounded-lg border border-line bg-surface shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md",
         className
       )}
     >

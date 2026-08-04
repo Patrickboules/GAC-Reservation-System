@@ -20,7 +20,6 @@ import {
   ModalHeader,
   ModalTitle,
 } from "@/components/kit/modal";
-import { Textarea } from "@/components/kit/textarea";
 import { useToast } from "@/components/kit/toast";
 import type { RoomCategoryColor } from "@/lib/rooms/category-colors";
 
@@ -36,11 +35,10 @@ interface RoomFormSheetProps {
 function emptyForm(): RoomInput {
   return {
     name: "",
-    code: "",
-    capacity: null,
+    building: "",
+    floor: "",
+    roomType: "",
     amenities: [],
-    location: "",
-    rules: "",
     categoryColor: null,
   };
 }
@@ -48,11 +46,10 @@ function emptyForm(): RoomInput {
 function formFromRoom(room: AdminRoomRow): RoomInput {
   return {
     name: room.name,
-    code: room.code ?? "",
-    capacity: room.capacity,
+    building: room.building ?? "",
+    floor: room.floor ?? "",
+    roomType: room.roomType ?? "",
     amenities: room.amenities,
-    location: room.location ?? "",
-    rules: room.rules ?? "",
     categoryColor: room.categoryColor,
   };
 }
@@ -130,29 +127,21 @@ export function RoomFormSheet({
 
           <div className="grid grid-cols-2 gap-3">
             <Input
-              label="Code"
-              placeholder="e.g. A101"
-              value={form.code ?? ""}
-              onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))}
+              label="Building"
+              value={form.building ?? ""}
+              onChange={(event) => setForm((prev) => ({ ...prev, building: event.target.value }))}
             />
             <Input
-              label="Capacity"
-              type="number"
-              min={0}
-              value={form.capacity ?? ""}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  capacity: event.target.value === "" ? null : Number(event.target.value),
-                }))
-              }
+              label="Floor"
+              value={form.floor ?? ""}
+              onChange={(event) => setForm((prev) => ({ ...prev, floor: event.target.value }))}
             />
           </div>
 
           <Input
-            label="Location"
-            value={form.location ?? ""}
-            onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
+            label="Room type"
+            value={form.roomType ?? ""}
+            onChange={(event) => setForm((prev) => ({ ...prev, roomType: event.target.value }))}
           />
 
           <div className="flex flex-col gap-1.5">
@@ -208,12 +197,6 @@ export function RoomFormSheet({
               </Button>
             </div>
           </div>
-
-          <Textarea
-            label="Rules"
-            value={form.rules ?? ""}
-            onChange={(event) => setForm((prev) => ({ ...prev, rules: event.target.value }))}
-          />
 
           <CategoryColorPicker
             value={(form.categoryColor as RoomCategoryColor | null) ?? null}

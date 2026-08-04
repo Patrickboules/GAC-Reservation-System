@@ -1,9 +1,13 @@
 import Link from "next/link";
+import { Inbox, DoorOpen, FileDown } from "lucide-react";
 
+import { Button } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
 import { StatusBadge } from "@/components/kit/status-badge";
 import { EmptyState } from "@/components/kit/empty-state";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
-import { formatRelativeTime, timeToMinutes, todayDateString } from "@/lib/dates";
+import { MAX_OPEN_PENDING_BOOKINGS } from "@/lib/bookings/limits";
+import { addDays, formatRelativeTime, timeToMinutes, todayDateString } from "@/lib/dates";
 import { SCHEDULE_END_HOUR, SCHEDULE_START_HOUR } from "@/lib/schedule/hours";
 import { createClient } from "@/lib/supabase/server";
 
@@ -18,25 +22,35 @@ interface RecentBookingRow {
   rooms: { name: string } | { name: string }[] | null;
 }
 
+interface PendingRow {
+  id: string;
+  user_id: string;
+  created_at: string;
+  rooms: { name: string } | { name: string }[] | null;
+}
+
 function singular<T>(value: T | T[] | null): T | null {
   if (!value) return null;
   return Array.isArray(value) ? (value[0] ?? null) : value;
 }
+
+const REPORT_RANGE_DAYS = 30;
 
 export default async function AdminDashboardPage() {
   const supabase = await createClient();
   const today = todayDateString();
   const scheduleHours = SCHEDULE_END_HOUR - SCHEDULE_START_HOUR;
 
-  const [todayBookings, pendingCount, recentActivity] = await Promise.all([
+  const [todayBookings, pendingRows, recentActivity] = await Promise.all([
     supabase
       .from("bookings")
       .select("id, start_time, end_time, status")
       .eq("date", today),
     supabase
       .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending"),
+      .select("id, user_id, created_at, rooms(name)")
+      .eq("status", "pending")
+      .order("created_at", { ascending: true }),
     supabase
       .from("bookings")
       .select("id, user_id, status, updated_at, date, start_time, end_time, rooms(name)")
@@ -56,6 +70,27 @@ export default async function AdminDashboardPage() {
   const totalRoomHours = (roomCount ?? 0) * scheduleHours;
   const utilization = totalRoomHours > 0 ? Math.round((approvedTodayHours / totalRoomHours) * 100) : 0;
 
+  const pending = (pendingRows.data ?? []) as unknown as PendingRow[];
+  const oldestPending = pending[0] ?? null;
+
+  const pendingCountByUser = new Map<string, number>();
+  for (const row of pending) {
+    pendingCountByUser.set(row.user_id, (pendingCountByUser.get(row.user_id) ?? 0) + 1);
+  }
+  const nearCapUserIds = [...pendingCountByUser.entries()]
+    .filter(([, count]) => count >= MAX_OPEN_PENDING_BOOKINGS - 1)
+    .map(([userId]) => userId);
+
+  const attentionUserIds = [
+    ...new Set([oldestPending?.user_id, ...nearCapUserIds].filter((id): id is string => !!id)),
+  ];
+  const { data: attentionProfiles } = attentionUserIds.length
+    ? await supabase.from("profiles").select("id, display_name").in("id", attentionUserIds)
+    : { data: [] as { id: string; display_name: string | null }[] };
+  const attentionNameById = new Map(
+    (attentionProfiles ?? []).map((profile) => [profile.id, profile.display_name ?? "Unknown member"])
+  );
+
   const activity = (recentActivity.data ?? []) as unknown as RecentBookingRow[];
 
   // bookings.user_id has no direct FK to profiles (both reference auth.users),
@@ -68,26 +103,97 @@ export default async function AdminDashboardPage() {
     (activityProfiles ?? []).map((profile) => [profile.id, profile.display_name ?? "Unknown member"])
   );
 
+  const reportTo = today;
+  const reportFrom = addDays(reportTo, -(REPORT_RANGE_DAYS - 1));
+  const pendingCount = pending.length;
+
   return (
     <div className="mx-auto flex min-h-full w-full max-w-3xl flex-col gap-6 p-4">
       <div>
-        <h1 className="text-display font-display text-ink-900">Dashboard</h1>
-        <p className="text-body text-ink-500">Overview of today&rsquo;s schedule and recent activity.</p>
+        <h1 className="font-display text-h2 text-ink-900">Dashboard</h1>
+        <p className="text-small text-ink-500">Overview of today&rsquo;s schedule and recent activity.</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+        <Card>
           <p className="text-caption text-ink-500">Today&rsquo;s bookings</p>
           <p className="font-mono text-display tabular-nums text-ink-900">{todayRows.length}</p>
-        </div>
-        <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+        </Card>
+        <Card>
           <p className="text-caption text-ink-500">Pending requests</p>
-          <p className="font-mono text-display tabular-nums text-ink-900">{pendingCount.count ?? 0}</p>
-        </div>
-        <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
+          <p className="font-mono text-display tabular-nums text-ink-900">{pendingCount}</p>
+        </Card>
+        <Card>
           <p className="text-caption text-ink-500">Utilization today</p>
           <p className="font-mono text-display tabular-nums text-ink-900">{utilization}%</p>
-        </div>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-[1.3fr_1fr]">
+        <Card className="flex flex-col gap-3">
+          <h2 className="text-h3 font-display text-ink-900">Needs attention</h2>
+          {!oldestPending && nearCapUserIds.length === 0 ? (
+            <p className="text-small text-ink-500">Nothing needs your attention right now.</p>
+          ) : (
+            <ul className="flex flex-col divide-y divide-line">
+              {oldestPending && (
+                <li className="flex items-center justify-between gap-3 py-2.5">
+                  <span className="text-small text-ink-900">
+                    {singular(oldestPending.rooms)?.name ?? "Unknown room"} ·{" "}
+                    {attentionNameById.get(oldestPending.user_id) ?? "Unknown member"}
+                  </span>
+                  <StatusBadge
+                    status="pending"
+                    label={`Oldest · ${formatRelativeTime(oldestPending.created_at)}`}
+                    className="shrink-0 whitespace-nowrap"
+                  />
+                </li>
+              )}
+              {nearCapUserIds.map((userId) => (
+                <li key={userId} className="flex items-center justify-between gap-3 py-2.5">
+                  <span className="text-small text-ink-900">
+                    {attentionNameById.get(userId) ?? "Unknown member"}
+                  </span>
+                  <StatusBadge
+                    status="pending"
+                    label={`${pendingCountByUser.get(userId)}/${MAX_OPEN_PENDING_BOOKINGS} pending`}
+                    className="shrink-0 whitespace-nowrap"
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card className="flex flex-col gap-2">
+          <h2 className="text-h3 font-display text-ink-900">Quick actions</h2>
+          <Button
+            render={
+              <Link href="/admin/requests">
+                <Inbox aria-hidden="true" className="size-4" />
+                Review pending ({pendingCount})
+              </Link>
+            }
+          />
+          <Button
+            variant="secondary"
+            render={
+              <Link href="/admin/rooms">
+                <DoorOpen aria-hidden="true" className="size-4" />
+                Add room
+              </Link>
+            }
+          />
+          <Button
+            variant="secondary"
+            render={
+              <Link href={`/admin/reports/export?from=${reportFrom}&to=${reportTo}`}>
+                <FileDown aria-hidden="true" className="size-4" />
+                Export report
+              </Link>
+            }
+          />
+        </Card>
       </div>
 
       <div className="flex flex-col gap-3">
@@ -98,7 +204,7 @@ export default async function AdminDashboardPage() {
             description="Booking requests and status changes will show up here."
           />
         ) : (
-          <ul className="flex flex-col divide-y divide-line rounded-lg border border-line bg-surface">
+          <Card as="ul" className="flex flex-col divide-y divide-line p-0">
             {activity.map((row) => {
               const room = singular(row.rooms);
               return (
@@ -122,7 +228,7 @@ export default async function AdminDashboardPage() {
                 </li>
               );
             })}
-          </ul>
+          </Card>
         )}
       </div>
     </div>

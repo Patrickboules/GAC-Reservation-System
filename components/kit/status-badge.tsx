@@ -1,3 +1,4 @@
+import type * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
@@ -10,7 +11,7 @@ const statusBadgeVariants = cva(
       status: {
         approved: "bg-status-approved-bg text-status-approved-fg",
         pending: "bg-status-pending-bg text-status-pending-fg",
-        rejected: "bg-status-rejected-bg text-status-rejected-fg",
+        rejected: "border border-status-rejected-fg/30 bg-status-rejected-bg text-status-rejected-fg",
         cancelled: "bg-status-cancelled-bg text-status-cancelled-fg",
       } satisfies Record<BookingStatus, string>,
     },
@@ -28,10 +29,12 @@ interface StatusBadgeProps extends VariantProps<typeof statusBadgeVariants> {
   status: BookingStatus
   /** Show a small leading dot in addition to the text label. */
   dot?: boolean
+  /** Overrides the default status label with custom text (e.g. "Free until 3:00 PM") — the color still comes from `status`. */
+  label?: React.ReactNode
   className?: string
 }
 
-function StatusBadge({ status, dot = false, className }: StatusBadgeProps) {
+function StatusBadge({ status, dot = false, label, className }: StatusBadgeProps) {
   return (
     <span
       data-slot="status-badge"
@@ -43,7 +46,7 @@ function StatusBadge({ status, dot = false, className }: StatusBadgeProps) {
           className="size-1.5 shrink-0 rounded-full bg-current"
         />
       )}
-      {STATUS_LABELS[status]}
+      {label ?? STATUS_LABELS[status]}
     </span>
   )
 }

@@ -5,9 +5,9 @@ import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { formatTimeLabel, minutesToTime, snapMinutesToStep, timeToMinutes } from "@/lib/dates"
-import { BOOKING_TIME_STEP_MINUTES } from "@/lib/bookings/time-granularity"
+import { BOOKING_TIME_STEP_MINUTES, LATEST_BOOKING_END_TIME } from "@/lib/bookings/time-granularity"
 
-const MAX_MINUTES = 23 * 60 + 59
+const MAX_MINUTES = timeToMinutes(LATEST_BOOKING_END_TIME)
 
 interface TimeStepperProps {
   label: string
@@ -44,9 +44,9 @@ function TimeStepper({
     >
       <button
         type="button"
-        aria-label={`Increase ${label} by ${stepMinutes} minutes`}
-        disabled={disabled || minutes >= maxMinutes}
-        onClick={() => step(1)}
+        aria-label={`Decrease ${label} by ${stepMinutes} minutes`}
+        disabled={disabled || minutes <= minMinutes}
+        onClick={() => step(-1)}
         className="inline-flex size-6 items-center justify-center rounded-sm text-ink-500 outline-none transition-colors hover:bg-sky-50 hover:text-ink-700 focus-visible:ring-2 focus-visible:ring-sky-300 disabled:pointer-events-none disabled:opacity-40"
       >
         <ChevronUp aria-hidden="true" className="size-4" />
@@ -59,9 +59,9 @@ function TimeStepper({
       </span>
       <button
         type="button"
-        aria-label={`Decrease ${label} by ${stepMinutes} minutes`}
-        disabled={disabled || minutes <= minMinutes}
-        onClick={() => step(-1)}
+        aria-label={`Increase ${label} by ${stepMinutes} minutes`}
+        disabled={disabled || minutes >= maxMinutes}
+        onClick={() => step(1)}
         className="inline-flex size-6 items-center justify-center rounded-sm text-ink-500 outline-none transition-colors hover:bg-sky-50 hover:text-ink-700 focus-visible:ring-2 focus-visible:ring-sky-300 disabled:pointer-events-none disabled:opacity-40"
       >
         <ChevronDown aria-hidden="true" className="size-4" />

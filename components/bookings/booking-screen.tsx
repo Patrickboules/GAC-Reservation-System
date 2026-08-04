@@ -2,7 +2,6 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { MapPin, Users } from "lucide-react";
 
 import {
   requestBooking,
@@ -25,8 +24,6 @@ import { cn } from "@/lib/utils";
 export interface BookingScreenRoom {
   id: string;
   name: string;
-  capacity?: number | null;
-  location?: string | null;
   amenities?: string[] | null;
 }
 
@@ -180,16 +177,6 @@ export function BookingScreen({
       <div className="rounded-md border border-sky-600 bg-sky-50 px-3 py-3">
         <p className="text-body font-semibold text-ink-900">{room.name}</p>
         <div className="mt-1 flex flex-wrap items-center gap-3 text-caption text-ink-500">
-          <span className="flex items-center gap-1">
-            <Users className="size-3.5 shrink-0" aria-hidden="true" />
-            {room.capacity ?? "–"}
-          </span>
-          {room.location && (
-            <span className="flex items-center gap-1">
-              <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
-              {room.location}
-            </span>
-          )}
           {amenities.length > 0 && (
             <span className="flex items-center gap-1.5">
               {amenities.map((amenity) => {
@@ -221,50 +208,64 @@ export function BookingScreen({
               atPendingCap ? "text-status-rejected-fg" : "text-ink-500"
             )}
           >
-            {openPendingCount} of {MAX_OPEN_PENDING_BOOKINGS} pending requests in review
-            {atPendingCap ? " — cancel one before submitting another." : "."}
+            {atPendingCap ? (
+              <>
+                You have {MAX_OPEN_PENDING_BOOKINGS} of {MAX_OPEN_PENDING_BOOKINGS} pending requests in
+                review — cancel one in{" "}
+                <Link href="/bookings?tab=pending" className="underline underline-offset-2">
+                  My bookings
+                </Link>{" "}
+                before submitting another.
+              </>
+            ) : (
+              `${openPendingCount} of ${MAX_OPEN_PENDING_BOOKINGS} pending requests in review.`
+            )}
           </p>
         )}
 
-        <DatePicker
-          label="Date"
-          mode="popover"
-          value={date}
-          onValueChange={setDate}
-          isDateDisabled={(d) => d < todayDateString()}
-        />
-
-        <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Time range</span>
-          <TimeRangePicker
-            startTime={startTime}
-            endTime={endTime}
-            onStartTimeChange={setStartTime}
-            onEndTimeChange={setEndTime}
-            hasConflict={!!warning}
-            conflictMessage={warning}
+        <div className="flex flex-col gap-4 rounded-lg border border-line p-4">
+          <DatePicker
+            label="Date"
+            mode="popover"
+            value={date}
+            onValueChange={setDate}
+            isDateDisabled={(d) => d < todayDateString()}
           />
+
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-ink-700">Time range</span>
+            <TimeRangePicker
+              startTime={startTime}
+              endTime={endTime}
+              onStartTimeChange={setStartTime}
+              onEndTimeChange={setEndTime}
+              hasConflict={!!warning}
+              conflictMessage={warning}
+            />
+          </div>
         </div>
 
-        <Select
-          label="Service / purpose"
-          placeholder="Select a service/purpose"
-          options={BOOKING_SERVICES.map((option) => ({
-            value: option as string,
-            label: option,
-          }))}
-          value={service || null}
-          onValueChange={(value) => setService(value)}
-          required
-        />
+        <div className="flex flex-col gap-4 rounded-lg border border-line p-4">
+          <Select
+            label="Service / purpose"
+            placeholder="Select a service/purpose"
+            options={BOOKING_SERVICES.map((option) => ({
+              value: option as string,
+              label: option,
+            }))}
+            value={service || null}
+            onValueChange={(value) => setService(value)}
+            required
+          />
 
-        <Textarea
-          label="Notes (optional)"
-          name="notes"
-          rows={3}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
+          <Textarea
+            label="Notes (optional)"
+            name="notes"
+            rows={3}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </div>
 
         {willRevertToPending && (
           <p role="status" className="text-small font-medium text-status-pending-fg">
@@ -279,7 +280,7 @@ export function BookingScreen({
         )}
 
         <div>
-          <Button type="submit" loading={pending} disabled={pending}>
+          <Button type="submit" loading={pending} disabled={pending || atPendingCap}>
             {isEdit ? "Save changes" : "Submit request"}
           </Button>
         </div>

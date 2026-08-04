@@ -113,15 +113,25 @@ export function TopBar({
       </div>
 
       <div className="flex shrink-0 items-center gap-1">
-        <IconButton
-          label="Find a room"
-          tooltip={compact ? undefined : "Find a room"}
-          variant="ghost"
-          size={compact ? "sm" : "md"}
-          onClick={() => setSearchOpen(true)}
-        >
-          <Search className={compact ? "size-4" : "size-5"} />
-        </IconButton>
+        {compact ? (
+          <IconButton
+            label="Find a room"
+            variant="ghost"
+            size="sm"
+            onClick={() => setSearchOpen(true)}
+          >
+            <Search className="size-4" />
+          </IconButton>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-line px-3 text-small text-ink-500 outline-none transition-colors hover:bg-sky-50 hover:text-ink-700 focus-visible:ring-2 focus-visible:ring-sky-300"
+          >
+            <Search aria-hidden="true" className="size-4" />
+            Find a room…
+          </button>
+        )}
 
         {authenticated ? (
           <>

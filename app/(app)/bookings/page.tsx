@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/kit/button";
 import { MyBookingsTabs, type MyBookingCardData } from "@/components/bookings/my-bookings-tabs";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
 import { bucketForBooking, type BookingBucket } from "@/lib/bookings/status";
@@ -36,9 +36,10 @@ function sortBookings(bookings: MyBooking[], bucket: BookingBucket): MyBooking[]
 export default async function MyBookingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; submitted?: string }>;
+  searchParams: Promise<{ error?: string; submitted?: string; tab?: string }>;
 }) {
-  const { error, submitted } = await searchParams;
+  const { error, submitted, tab } = await searchParams;
+  const initialTab = BUCKETS.includes(tab as BookingBucket) ? (tab as BookingBucket) : undefined;
   const supabase = await createClient();
   const {
     data: { user },
@@ -85,28 +86,28 @@ export default async function MyBookingsPage({
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-4 p-4">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-semibold">My bookings</h1>
-          <p className="text-sm text-muted-foreground">Requests you&apos;ve submitted.</p>
+          <h1 className="font-display text-h2 text-ink-900">My bookings</h1>
+          <p className="text-small text-ink-500">Requests you&apos;ve submitted.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" render={<Link href="/rooms">New request</Link>} />
-          <Button variant="outline" render={<Link href="/">Home</Link>} />
+          <Button variant="secondary" render={<Link href="/rooms">New request</Link>} />
+          <Button variant="secondary" render={<Link href="/">Home</Link>} />
         </div>
       </div>
 
       {submitted === "1" ? (
-        <p role="status" className="text-sm font-medium text-status-approved-fg">
+        <p role="status" className="text-small font-medium text-status-approved-fg">
           Request submitted — pending approval.
         </p>
       ) : null}
 
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small font-medium text-status-rejected-fg">
           {error}
         </p>
       ) : null}
 
-      <MyBookingsTabs buckets={buckets} />
+      <MyBookingsTabs buckets={buckets} initialTab={initialTab} />
     </div>
   );
 }

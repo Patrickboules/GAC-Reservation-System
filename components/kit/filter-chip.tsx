@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import { Toggle } from "@base-ui/react/toggle"
-import { X } from "lucide-react"
+import { Check, X } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 
@@ -49,6 +49,7 @@ function FilterChip({
           removable ? "pr-1.5" : "pr-3"
         )}
       >
+        {selected && <Check aria-hidden="true" className="size-3.5 shrink-0" />}
         {children}
         {typeof count === "number" && (
           <span

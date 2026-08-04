@@ -20,15 +20,15 @@ import {
 } from "@/components/kit/modal";
 import { Table, type TableColumn, type TableSort } from "@/components/kit/table";
 import { useToast } from "@/components/kit/toast";
+import { formatRoomLocation } from "@/lib/rooms";
 
 export interface AdminRoomRow {
   id: string;
   name: string;
-  code: string | null;
-  capacity: number | null;
+  building: string | null;
+  floor: string | null;
+  roomType: string | null;
   amenities: string[];
-  location: string | null;
-  rules: string | null;
   categoryColor: string | null;
 }
 
@@ -53,9 +53,12 @@ export function RoomsTable({ rooms }: { rooms: AdminRoomRow[] }) {
     const copy = [...rooms];
     copy.sort((a, b) => {
       let result = 0;
-      if (sort.key === "capacity") result = (a.capacity ?? 0) - (b.capacity ?? 0);
-      else if (sort.key === "location") result = (a.location ?? "").localeCompare(b.location ?? "");
-      else result = a.name.localeCompare(b.name);
+      if (sort.key === "roomType") result = (a.roomType ?? "").localeCompare(b.roomType ?? "");
+      else if (sort.key === "location") {
+        result = (formatRoomLocation(a.building, a.floor) ?? "").localeCompare(
+          formatRoomLocation(b.building, b.floor) ?? ""
+        );
+      } else result = a.name.localeCompare(b.name);
       return sort.direction === "asc" ? result : -result;
     });
     return copy;
@@ -94,19 +97,13 @@ export function RoomsTable({ rooms }: { rooms: AdminRoomRow[] }) {
       key: "name",
       header: "Room",
       sortable: true,
-      render: (row) => (
-        <div className="flex flex-col">
-          <span className="font-medium text-ink-900">{row.name}</span>
-          {row.code && <span className="font-mono text-caption text-ink-500">{row.code}</span>}
-        </div>
-      ),
+      render: (row) => <span className="font-medium text-ink-900">{row.name}</span>,
     },
     {
-      key: "capacity",
-      header: "Capacity",
+      key: "roomType",
+      header: "Type",
       sortable: true,
-      className: "font-mono tabular-nums",
-      render: (row) => row.capacity ?? "—",
+      render: (row) => row.roomType ?? "—",
     },
     {
       key: "color",
@@ -117,7 +114,7 @@ export function RoomsTable({ rooms }: { rooms: AdminRoomRow[] }) {
       key: "location",
       header: "Location",
       sortable: true,
-      render: (row) => row.location ?? "—",
+      render: (row) => formatRoomLocation(row.building, row.floor) ?? "—",
     },
   ];
 

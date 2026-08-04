@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { fetchConflictingBookings } from "@/lib/bookings/conflict-check";
-import { MAX_OPEN_PENDING_BOOKINGS } from "@/lib/bookings/limits";
+import { countOpenPendingBookings, MAX_OPEN_PENDING_BOOKINGS } from "@/lib/bookings/limits";
 import { isBookingService } from "@/lib/bookings/services";
 import { isBookingModifiable } from "@/lib/bookings/status";
+import { LATEST_BOOKING_END_TIME } from "@/lib/bookings/time-granularity";
 import { isBookingPast, isBookingStartInPast, normalizeTimeString } from "@/lib/dates";
 import { notifyAdminsNewRequest, notifyBookingCancelled } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -40,6 +41,9 @@ export async function requestBooking(
   if (startTime >= endTime) {
     return { error: "End time must be after start time." };
   }
+  if (endTime > LATEST_BOOKING_END_TIME) {
+    return { error: "Bookings can't end later than 10:30 PM." };
+  }
   if (isBookingStartInPast(date, startTime)) {
     return { error: "Can't request a booking in the past." };
   }
@@ -65,16 +69,8 @@ export async function requestBooking(
     };
   }
 
-  const { count, error: countError } = await supabase
-    .from("bookings")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("status", "pending");
-
-  if (countError) {
-    return { error: countError.message };
-  }
-  if ((count ?? 0) >= MAX_OPEN_PENDING_BOOKINGS) {
+  const openPendingCount = await countOpenPendingBookings(supabase, user.id);
+  if (openPendingCount >= MAX_OPEN_PENDING_BOOKINGS) {
     return {
       error: `You already have ${MAX_OPEN_PENDING_BOOKINGS} pending requests awaiting a decision. Cancel one or wait for a response before requesting more.`,
     };
@@ -140,6 +136,9 @@ export async function updateBooking(
 
   if (startTime >= endTime) {
     return { error: "End time must be after start time." };
+  }
+  if (endTime > LATEST_BOOKING_END_TIME) {
+    return { error: "Bookings can't end later than 10:30 PM." };
   }
   if (isBookingStartInPast(date, startTime)) {
     return { error: "Can't reschedule a booking into the past." };

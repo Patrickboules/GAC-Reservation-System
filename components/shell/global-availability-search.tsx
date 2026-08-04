@@ -3,6 +3,7 @@
 import { Search } from "lucide-react";
 import { useMemo, useState } from "react";
 
+import { Button } from "@/components/kit/button";
 import { DatePicker } from "@/components/kit/date-picker";
 import { EmptyState } from "@/components/kit/empty-state";
 import { ErrorState } from "@/components/kit/error-state";
@@ -161,15 +162,15 @@ export function GlobalAvailabilitySearch({
 
       {error ? <ErrorState description={error} /> : null}
 
-      <button
+      <Button
         type="button"
         onClick={() => void handleSearch()}
-        disabled={loading}
-        className="inline-flex h-10 w-full items-center justify-center gap-2 self-start rounded-md bg-sky-600 px-4 text-sm font-medium text-white outline-none transition-colors hover:bg-sky-700 focus-visible:ring-2 focus-visible:ring-sky-300 disabled:pointer-events-none disabled:opacity-50 sm:w-auto"
+        loading={loading}
+        className="w-full self-start sm:w-auto"
       >
         <Search aria-hidden="true" className="size-4" />
-        {loading ? "Searching…" : "Search"}
-      </button>
+        Search
+      </Button>
 
       {searched && loading ? (
         <LoadingState variant="cards" count={4} />

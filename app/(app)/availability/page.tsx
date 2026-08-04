@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import { AvailabilitySearch, type AvailabilityRoom } from "@/components/availability/availability-search";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/kit/button";
 import { formatRoomLocation } from "@/lib/rooms";
 import { createClient } from "@/lib/supabase/server";
 
@@ -25,14 +25,14 @@ export default async function AvailabilityPage() {
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-4 p-4">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-semibold">Check availability</h1>
-          <p className="text-sm text-muted-foreground">
+          <h1 className="font-display text-h2 text-ink-900">Check availability</h1>
+          <p className="text-small text-ink-500">
             Search a date and time range to see which rooms are free.
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" render={<Link href="/schedule">Schedule</Link>} />
-          <Button variant="outline" render={<Link href="/rooms">Rooms</Link>} />
+          <Button variant="secondary" render={<Link href="/schedule">Schedule</Link>} />
+          <Button variant="secondary" render={<Link href="/rooms">Rooms</Link>} />
         </div>
       </div>
       <AvailabilitySearch rooms={availabilityRooms} />

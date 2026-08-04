@@ -1,3 +1,4 @@
+import { Card } from "@/components/kit/card";
 import { EmptyState } from "@/components/kit/empty-state";
 import type { MostActiveMember } from "@/lib/reports/usage";
 
@@ -13,7 +14,7 @@ export function MostActiveMembers({ data }: MostActiveMembersProps) {
   }
 
   return (
-    <ol className="flex flex-col divide-y divide-line rounded-lg border border-line bg-surface">
+    <Card as="ol" className="flex flex-col divide-y divide-line p-0">
       {data.map((member, index) => (
         <li key={member.userId} className="flex items-center justify-between gap-3 p-3">
           <div className="flex items-center gap-3">
@@ -25,6 +26,6 @@ export function MostActiveMembers({ data }: MostActiveMembersProps) {
           </span>
         </li>
       ))}
-    </ol>
+    </Card>
   );
 }

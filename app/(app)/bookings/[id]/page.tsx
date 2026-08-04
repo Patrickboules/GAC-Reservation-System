@@ -1,13 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
-import { BookingStatusBadge } from "@/components/schedule/booking-status-badge";
 import { CancelBookingButton } from "@/components/bookings/cancel-booking-button";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/kit/button";
+import { Card } from "@/components/kit/card";
+import { StatusBadge } from "@/components/kit/status-badge";
 import { formatDateLabel, formatTimeLabel } from "@/lib/dates";
 import { isBookingModifiable } from "@/lib/bookings/status";
 import { createClient } from "@/lib/supabase/server";
+
+function Field({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <>
+      <span className="text-caption font-medium tracking-wide text-ink-500 uppercase">{label}</span>
+      <span className="text-body text-ink-900">{value}</span>
+    </>
+  );
+}
 
 export default async function BookingDetailPage({
   params,
@@ -42,46 +51,39 @@ export default async function BookingDetailPage({
   return (
     <div className="mx-auto flex min-h-full w-full max-w-xl flex-col gap-4 p-4">
       <div className="flex items-center justify-between gap-2">
-        <h1 className="text-2xl font-semibold">Booking details</h1>
-        <Button variant="outline" render={<Link href="/bookings">My bookings</Link>} />
+        <h1 className="font-display text-h2 text-ink-900">Booking details</h1>
+        <Button variant="secondary" render={<Link href="/bookings">My bookings</Link>} />
       </div>
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between gap-2">
-          <CardTitle>{room?.name ?? "Unknown room"}</CardTitle>
-          <BookingStatusBadge status={booking.status} />
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3 text-sm">
-          <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-muted-foreground">
-            <span className="font-medium text-foreground">Date</span>
-            <span>{formatDateLabel(booking.date)}</span>
-            <span className="font-medium text-foreground">Time</span>
-            <span>
-              {formatTimeLabel(booking.start_time)}–{formatTimeLabel(booking.end_time)}
-            </span>
-            <span className="font-medium text-foreground">Service</span>
-            <span>{booking.service}</span>
-            <span className="font-medium text-foreground">Notes</span>
-            <span>{booking.notes || "Not specified"}</span>
-            {booking.status === "rejected" ? (
-              <>
-                <span className="font-medium text-foreground">Reason</span>
-                <span>{booking.reject_reason || "Not specified"}</span>
-              </>
-            ) : null}
-          </div>
+      <Card className="flex flex-col gap-4 p-5">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-body font-semibold text-ink-900">{room?.name ?? "Unknown room"}</span>
+          <StatusBadge status={booking.status} />
+        </div>
 
-          {modifiable ? (
-            <div className="flex gap-2 pt-2">
-              <Button
-                variant="outline"
-                size="sm"
-                render={<Link href={`/bookings/${booking.id}/edit`}>Edit</Link>}
-              />
-              <CancelBookingButton bookingId={booking.id} />
-            </div>
-          ) : null}
-        </CardContent>
+        <div className="grid grid-cols-[auto_1fr] items-baseline gap-x-3 gap-y-2">
+          <Field label="Date" value={formatDateLabel(booking.date)} />
+          <Field
+            label="Time"
+            value={`${formatTimeLabel(booking.start_time)}–${formatTimeLabel(booking.end_time)}`}
+          />
+          <Field label="Service" value={booking.service} />
+          <Field label="Notes" value={booking.notes || "Not specified"} />
+          {booking.status === "rejected" && (
+            <Field label="Reason" value={booking.reject_reason || "Not specified"} />
+          )}
+        </div>
+
+        {modifiable && (
+          <div className="flex gap-2 border-t border-line pt-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              render={<Link href={`/bookings/${booking.id}/edit`}>Edit</Link>}
+            />
+            <CancelBookingButton bookingId={booking.id} />
+          </div>
+        )}
       </Card>
     </div>
   );
