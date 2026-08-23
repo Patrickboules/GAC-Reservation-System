@@ -311,9 +311,6 @@ export function TimelineGrid({
                   <span aria-hidden="true" className={cn("w-1 shrink-0", categoryColorBarClassName(room.category_color))} />
                   <div className="flex min-w-0 flex-1 flex-col justify-center overflow-hidden py-1 pl-1">
                     <span className="truncate font-display text-small text-ink-900">{room.name}</span>
-                    {room.capacity !== null && (
-                      <span className="truncate font-mono text-caption text-ink-500">cap. {room.capacity}</span>
-                    )}
                   </div>
                 </div>
                 <div

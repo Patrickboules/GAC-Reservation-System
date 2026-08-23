@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MapPin, Users } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 import { Button } from "@/components/kit/button";
 import { amenityIcon } from "@/components/kit/room-card";
@@ -112,10 +112,10 @@ export default async function RoomDetailPage({
   );
 
   const amenities: string[] = room.amenities ?? [];
-  // capacity/location/rules were dropped in migration 20260801000000 when
+  // location/rules were dropped in migration 20260801000000 when
   // supabase/rooms.json became the source of truth. Location is rebuilt from the
-  // building/floor facets; capacity and rules are no longer tracked, so their
-  // sections render the standard "Not specified" placeholder.
+  // building/floor facets; rules are no longer tracked, so that section renders
+  // the standard "Not specified" placeholder.
   const ruleLines: string[] = [];
   const location = formatRoomLocation(room.building, room.floor);
 
@@ -130,10 +130,6 @@ export default async function RoomDetailPage({
           </div>
 
           <div className="flex flex-wrap items-center gap-4 text-small text-ink-500">
-            <span className="flex items-center gap-1.5">
-              <Users className="size-4 shrink-0" aria-hidden="true" />
-              {formatRoomField(null)}
-            </span>
             <span className="flex items-center gap-1.5">
               <MapPin className="size-4 shrink-0" aria-hidden="true" />
               {formatRoomField(location)}

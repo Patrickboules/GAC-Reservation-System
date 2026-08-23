@@ -96,6 +96,15 @@ export async function requestBooking(
     .single();
 
   if (insertError) {
+    // 23P01 = exclusion_violation: the bookings_no_overlap constraint caught
+    // a race the conflict check above missed (another request for the same
+    // slot landed first). Same message as the check above, since it's the
+    // same condition — just caught at the database layer instead.
+    if (insertError.code === "23P01") {
+      return {
+        error: "This slot overlaps an existing pending or approved booking for that room.",
+      };
+    }
     return { error: insertError.message };
   }
 
@@ -202,6 +211,12 @@ export async function updateBooking(
     .eq("user_id", user.id);
 
   if (updateError) {
+    // 23P01 = exclusion_violation: see the matching comment in requestBooking.
+    if (updateError.code === "23P01") {
+      return {
+        error: "This slot overlaps an existing pending or approved booking for that room.",
+      };
+    }
     return { error: updateError.message };
   }
 

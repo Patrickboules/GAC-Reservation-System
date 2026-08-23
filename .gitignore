@@ -58,3 +58,7 @@ next-env.d.ts
 .gitignore
 
 /graphify-out/
+
+# markdown and plans
+*.md
+*plan*

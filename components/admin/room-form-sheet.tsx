@@ -37,7 +37,6 @@ function emptyForm(): RoomInput {
   return {
     name: "",
     code: "",
-    capacity: null,
     amenities: [],
     location: "",
     rules: "",
@@ -49,7 +48,6 @@ function formFromRoom(room: AdminRoomRow): RoomInput {
   return {
     name: room.name,
     code: room.code ?? "",
-    capacity: room.capacity,
     amenities: room.amenities,
     location: room.location ?? "",
     rules: room.rules ?? "",
@@ -128,26 +126,12 @@ export function RoomFormSheet({
             onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
           />
 
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              label="Code"
-              placeholder="e.g. A101"
-              value={form.code ?? ""}
-              onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))}
-            />
-            <Input
-              label="Capacity"
-              type="number"
-              min={0}
-              value={form.capacity ?? ""}
-              onChange={(event) =>
-                setForm((prev) => ({
-                  ...prev,
-                  capacity: event.target.value === "" ? null : Number(event.target.value),
-                }))
-              }
-            />
-          </div>
+          <Input
+            label="Code"
+            placeholder="e.g. A101"
+            value={form.code ?? ""}
+            onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))}
+          />
 
           <Input
             label="Location"

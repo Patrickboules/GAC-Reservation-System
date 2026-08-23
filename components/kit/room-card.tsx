@@ -10,7 +10,6 @@ import {
   Projector,
   Speaker,
   Tag,
-  Users,
   Video,
   Wind,
   Wifi,
@@ -53,7 +52,6 @@ interface RoomCardProps {
   id: string
   name: string
   code?: string | null
-  capacity?: number | null
   amenities?: string[] | null
   location?: string | null
   /** Live availability: green dot when free, amber dot when busy right now. */
@@ -70,7 +68,6 @@ function RoomCard({
   id,
   name,
   code,
-  capacity,
   amenities,
   location,
   availability,
@@ -134,13 +131,6 @@ function RoomCard({
     </div>
   ) : null
 
-  const capacityRow = (
-    <div className="flex items-center gap-1 text-caption text-ink-500">
-      <Users className="size-3.5 shrink-0" aria-hidden="true" />
-      <span>{capacity ?? "–"}</span>
-    </div>
-  )
-
   if (density === "list") {
     return (
       <Link
@@ -158,10 +148,7 @@ function RoomCard({
             {nameRow}
             {availabilityDot}
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            {capacityRow}
-            {locationRow}
-          </div>
+          {locationRow}
           {amenityRow}
         </div>
       </Link>
@@ -184,10 +171,7 @@ function RoomCard({
           {nameRow}
           {availabilityDot}
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          {capacityRow}
-          {locationRow}
-        </div>
+        {locationRow}
         {amenityRow}
       </div>
     </Link>

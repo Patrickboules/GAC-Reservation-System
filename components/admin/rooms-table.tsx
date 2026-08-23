@@ -25,7 +25,6 @@ export interface AdminRoomRow {
   id: string;
   name: string;
   code: string | null;
-  capacity: number | null;
   amenities: string[];
   location: string | null;
   rules: string | null;
@@ -53,8 +52,7 @@ export function RoomsTable({ rooms }: { rooms: AdminRoomRow[] }) {
     const copy = [...rooms];
     copy.sort((a, b) => {
       let result = 0;
-      if (sort.key === "capacity") result = (a.capacity ?? 0) - (b.capacity ?? 0);
-      else if (sort.key === "location") result = (a.location ?? "").localeCompare(b.location ?? "");
+      if (sort.key === "location") result = (a.location ?? "").localeCompare(b.location ?? "");
       else result = a.name.localeCompare(b.name);
       return sort.direction === "asc" ? result : -result;
     });
@@ -100,13 +98,6 @@ export function RoomsTable({ rooms }: { rooms: AdminRoomRow[] }) {
           {row.code && <span className="font-mono text-caption text-ink-500">{row.code}</span>}
         </div>
       ),
-    },
-    {
-      key: "capacity",
-      header: "Capacity",
-      sortable: true,
-      className: "font-mono tabular-nums",
-      render: (row) => row.capacity ?? "—",
     },
     {
       key: "color",

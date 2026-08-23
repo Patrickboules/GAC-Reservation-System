@@ -54,7 +54,6 @@ export default async function RoomsPage() {
               key={room.id}
               id={room.id}
               name={room.name}
-              capacity={null}
               amenities={room.amenities}
               location={formatRoomLocation(room.building, room.floor)}
               availability={availabilityFor(room.id)}

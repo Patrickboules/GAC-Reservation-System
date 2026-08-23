@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { MapPin, Users } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 import {
   requestBooking,
@@ -25,7 +25,6 @@ import { cn } from "@/lib/utils";
 export interface BookingScreenRoom {
   id: string;
   name: string;
-  capacity?: number | null;
   location?: string | null;
   amenities?: string[] | null;
 }
@@ -180,10 +179,6 @@ export function BookingScreen({
       <div className="rounded-md border border-sky-600 bg-sky-50 px-3 py-3">
         <p className="text-body font-semibold text-ink-900">{room.name}</p>
         <div className="mt-1 flex flex-wrap items-center gap-3 text-caption text-ink-500">
-          <span className="flex items-center gap-1">
-            <Users className="size-3.5 shrink-0" aria-hidden="true" />
-            {room.capacity ?? "–"}
-          </span>
           {room.location && (
             <span className="flex items-center gap-1">
               <MapPin className="size-3.5 shrink-0" aria-hidden="true" />

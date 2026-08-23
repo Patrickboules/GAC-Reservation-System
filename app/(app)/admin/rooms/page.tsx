@@ -22,14 +22,13 @@ export default async function AdminRoomsPage() {
     .select("id, name, amenities, building, floor, category_color")
     .order("name");
 
-  // code/capacity/location/rules were dropped in migration 20260801000000.
-  // AdminRoomRow still carries them so the table/form keep compiling; location
-  // is rebuilt from building/floor, the rest are no longer tracked.
+  // code/location/rules were dropped in migration 20260801000000. AdminRoomRow
+  // still carries them so the table/form keep compiling; location is rebuilt
+  // from building/floor, the rest are no longer tracked.
   const roomRows: AdminRoomRow[] = ((rooms ?? []) as RoomRow[]).map((room) => ({
     id: room.id,
     name: room.name,
     code: null,
-    capacity: null,
     amenities: room.amenities ?? [],
     location: formatRoomLocation(room.building, room.floor),
     rules: null,

@@ -2,7 +2,6 @@
 export interface ScheduleRoom {
   id: string;
   name: string;
-  capacity: number | null;
   amenities: string[];
   building: string | null;
   floor: string | null;

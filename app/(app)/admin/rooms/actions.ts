@@ -15,7 +15,6 @@ export interface RoomActionResult {
 export interface RoomInput {
   name: string;
   code: string | null;
-  capacity: number | null;
   amenities: string[];
   location: string | null;
   rules: string | null;
@@ -54,9 +53,11 @@ function validateRoomInput(input: RoomInput): string | null {
 }
 
 /** Migration 20260801000000 dropped code/capacity/location/rules from rooms, so
- * those RoomInput fields are deliberately not written — including them would make
- * PostgREST reject the insert/update with "column does not exist". The form still
- * collects them; until it's trimmed, values typed into those inputs are discarded. */
+ * the remaining code/location/rules RoomInput fields are deliberately not written
+ * — including them would make PostgREST reject the insert/update with "column
+ * does not exist". The form still collects them; until it's trimmed, values
+ * typed into those inputs are discarded. (capacity itself was removed from
+ * RoomInput and the UI entirely — it's no longer collected at all.) */
 function toRow(input: RoomInput) {
   return {
     name: input.name.trim(),
