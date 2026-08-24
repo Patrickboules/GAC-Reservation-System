@@ -20,12 +20,7 @@ export default async function SchedulePage({
     supabase.auth.getUser(),
   ]);
 
-  // `capacity` was dropped from rooms in migration 20260801000000; ScheduleRoom
-  // still carries the field, so supply null.
-  const scheduleRooms: ScheduleRoom[] = (rooms ?? []).map((room) => ({
-    ...room,
-    capacity: null,
-  }));
+  const scheduleRooms: ScheduleRoom[] = rooms ?? [];
 
   const authenticated = Boolean(userData.user);
 

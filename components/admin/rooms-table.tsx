@@ -2,13 +2,14 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Pencil, Plus, Trash2 } from "lucide-react";
 
 import { deleteRoomAction } from "@/app/(app)/admin/rooms/actions";
 import { CategoryColorSwatch } from "@/components/admin/category-color-picker";
 import { RoomFormSheet } from "@/components/admin/room-form-sheet";
 import { Button } from "@/components/kit/button";
 import { DropdownMenuItem } from "@/components/kit/dropdown-menu";
+import { IconButton } from "@/components/kit/icon-button";
 import {
   Modal,
   ModalClose,
@@ -20,16 +21,54 @@ import {
 } from "@/components/kit/modal";
 import { Table, type TableColumn, type TableSort } from "@/components/kit/table";
 import { useToast } from "@/components/kit/toast";
+import { formatAmenities, formatRoomLocation } from "@/lib/rooms";
 
 export interface AdminRoomRow {
   id: string;
   name: string;
-  code: string | null;
-  capacity: number | null;
+  building: string | null;
+  floor: string | null;
   amenities: string[];
-  location: string | null;
-  rules: string | null;
   categoryColor: string | null;
+}
+
+interface RoomCardRowProps {
+  row: AdminRoomRow;
+  onEdit: () => void;
+  onDelete: () => void;
+}
+
+/** Mobile-width stand-in for the desktop table row (Table's renderMobileCard).
+ * Keeps both Edit and Delete reachable — the desktop row's kebab menu offers
+ * both, so hiding delete here would be a real capability loss on mobile, not
+ * just a different layout. */
+function RoomCardRow({ row, onEdit, onDelete }: RoomCardRowProps) {
+  const location = formatRoomLocation(row.building, row.floor);
+  return (
+    <div className="flex items-center gap-3 rounded-lg border border-line bg-surface p-3 shadow-sm">
+      <span className="shrink-0 text-caption">
+        <CategoryColorSwatch color={row.categoryColor} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p lang="ar" dir="rtl" className="truncate text-small font-semibold text-ink-900">
+          {row.name}
+        </p>
+        {location && (
+          <p lang="ar" dir="rtl" className="truncate text-caption text-ink-500">
+            {location}
+          </p>
+        )}
+      </div>
+      <div className="flex shrink-0 gap-1">
+        <IconButton label="Edit room" variant="ghost" size="sm" onClick={onEdit}>
+          <Pencil />
+        </IconButton>
+        <IconButton label="Delete room" variant="ghost" size="sm" onClick={onDelete}>
+          <Trash2 />
+        </IconButton>
+      </div>
+    </div>
+  );
 }
 
 export function RoomsTable({ rooms }: { rooms: AdminRoomRow[] }) {
@@ -53,9 +92,13 @@ export function RoomsTable({ rooms }: { rooms: AdminRoomRow[] }) {
     const copy = [...rooms];
     copy.sort((a, b) => {
       let result = 0;
-      if (sort.key === "capacity") result = (a.capacity ?? 0) - (b.capacity ?? 0);
-      else if (sort.key === "location") result = (a.location ?? "").localeCompare(b.location ?? "");
-      else result = a.name.localeCompare(b.name);
+      if (sort.key === "location") {
+        result = (formatRoomLocation(a.building, a.floor) ?? "").localeCompare(
+          formatRoomLocation(b.building, b.floor) ?? ""
+        );
+      } else {
+        result = a.name.localeCompare(b.name);
+      }
       return sort.direction === "asc" ? result : -result;
     });
     return copy;
@@ -83,6 +126,7 @@ export function RoomsTable({ rooms }: { rooms: AdminRoomRow[] }) {
         router.refresh();
       } else {
         setDeleteError(result.error ?? "Something went wrong.");
+        toast.error({ title: "Couldn't delete room", description: result.error });
       }
     } finally {
       setIsDeleting(false);
@@ -91,33 +135,43 @@ export function RoomsTable({ rooms }: { rooms: AdminRoomRow[] }) {
 
   const columns: TableColumn<AdminRoomRow>[] = [
     {
-      key: "name",
-      header: "Room",
-      sortable: true,
-      render: (row) => (
-        <div className="flex flex-col">
-          <span className="font-medium text-ink-900">{row.name}</span>
-          {row.code && <span className="font-mono text-caption text-ink-500">{row.code}</span>}
-        </div>
-      ),
-    },
-    {
-      key: "capacity",
-      header: "Capacity",
-      sortable: true,
-      className: "font-mono tabular-nums",
-      render: (row) => row.capacity ?? "—",
-    },
-    {
       key: "color",
       header: "Color",
       render: (row) => <CategoryColorSwatch color={row.categoryColor} />,
     },
     {
-      key: "location",
-      header: "Location",
+      key: "name",
+      header: "Room",
       sortable: true,
-      render: (row) => row.location ?? "—",
+      render: (row) => (
+        <span lang="ar" dir="rtl" className="font-medium text-ink-900">
+          {row.name}
+        </span>
+      ),
+    },
+    {
+      key: "location",
+      header: "Building / floor",
+      sortable: true,
+      render: (row) => {
+        const location = formatRoomLocation(row.building, row.floor);
+        return location ? (
+          <span lang="ar" dir="rtl">
+            {location}
+          </span>
+        ) : (
+          "—"
+        );
+      },
+    },
+    {
+      key: "amenities",
+      header: "Amenities",
+      render: (row) => (
+        <span lang="ar" dir="rtl" className="text-caption text-ink-500">
+          {formatAmenities(row.amenities)}
+        </span>
+      ),
     },
   ];
 
@@ -136,6 +190,16 @@ export function RoomsTable({ rooms }: { rooms: AdminRoomRow[] }) {
         getRowId={(row) => row.id}
         sort={sort}
         onSortChange={setSort}
+        renderMobileCard={(row) => (
+          <RoomCardRow
+            row={row}
+            onEdit={() => openEdit(row)}
+            onDelete={() => {
+              setDeleteError(null);
+              setDeleteTarget(row);
+            }}
+          />
+        )}
         rowActions={(row) => (
           <>
             <DropdownMenuItem onClick={() => openEdit(row)}>Edit</DropdownMenuItem>

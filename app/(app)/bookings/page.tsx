@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
+import { BookingToastFeedback } from "@/components/bookings/booking-toast-feedback";
 import { MyBookingsTabs, type MyBookingCardData } from "@/components/bookings/my-bookings-tabs";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
 import { bucketForBooking, type BookingBucket } from "@/lib/bookings/status";
@@ -13,6 +15,7 @@ interface MyBooking {
   end_time: string;
   service: string;
   status: BookingStatus;
+  reject_reason: string | null;
   rooms: { name: string } | { name: string }[] | null;
 }
 
@@ -21,7 +24,7 @@ function roomName(rooms: MyBooking["rooms"]): string {
   return Array.isArray(rooms) ? (rooms[0]?.name ?? "Unknown room") : rooms.name;
 }
 
-const BUCKETS: BookingBucket[] = ["upcoming", "pending", "past", "cancelled"];
+const BUCKETS: BookingBucket[] = ["upcoming", "pending", "past", "rejected", "cancelled"];
 
 function sortBookings(bookings: MyBooking[], bucket: BookingBucket): MyBooking[] {
   const sorted = [...bookings].sort((a, b) =>
@@ -36,20 +39,24 @@ function sortBookings(bookings: MyBooking[], bucket: BookingBucket): MyBooking[]
 export default async function MyBookingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; submitted?: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
-  const { error, submitted } = await searchParams;
+  const { error } = await searchParams;
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const { data: bookings } = await supabase
+  const { data: bookings, error: bookingsError } = await supabase
     .from("bookings")
-    .select("id, date, start_time, end_time, service, status, rooms(name)")
+    .select("id, date, start_time, end_time, service, status, reject_reason, rooms(name)")
     .eq("user_id", user?.id ?? "")
     .order("date", { ascending: false })
     .order("start_time", { ascending: false });
+
+  if (bookingsError) {
+    throw new Error(bookingsError.message);
+  }
 
   const myBookings = (bookings ?? []) as MyBooking[];
 
@@ -57,6 +64,7 @@ export default async function MyBookingsPage({
     upcoming: [],
     pending: [],
     past: [],
+    rejected: [],
     cancelled: [],
   };
   for (const booking of myBookings) {
@@ -67,6 +75,7 @@ export default async function MyBookingsPage({
     upcoming: [],
     pending: [],
     past: [],
+    rejected: [],
     cancelled: [],
   };
   for (const bucket of BUCKETS) {
@@ -78,6 +87,7 @@ export default async function MyBookingsPage({
       endTime: booking.end_time,
       service: booking.service,
       status: booking.status,
+      rejectReason: booking.reject_reason,
     }));
   }
 
@@ -94,11 +104,9 @@ export default async function MyBookingsPage({
         </div>
       </div>
 
-      {submitted === "1" ? (
-        <p role="status" className="text-sm font-medium text-status-approved-fg">
-          Request submitted — pending approval.
-        </p>
-      ) : null}
+      <Suspense fallback={null}>
+        <BookingToastFeedback />
+      </Suspense>
 
       {error ? (
         <p role="alert" className="text-sm text-destructive">

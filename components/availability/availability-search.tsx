@@ -20,7 +20,6 @@ import { todayDateString } from "@/lib/dates";
 export interface AvailabilityRoom {
   id: string;
   name: string;
-  capacity: number | null;
   location: string | null;
 }
 
@@ -50,7 +49,6 @@ export function AvailabilitySearch({ rooms }: { rooms: AvailabilityRoom[] }) {
   const [date, setDate] = useState(() => todayDateString());
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
-  const [capacity, setCapacity] = useState("");
 
   const [searched, setSearched] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -88,14 +86,9 @@ export function AvailabilitySearch({ rooms }: { rooms: AvailabilityRoom[] }) {
     }
 
     const bookingsForDate = (data ?? []) as ScheduleBooking[];
-    const minCapacity = capacity ? Number(capacity) : null;
 
     const nextResults: AvailabilityResult[] = [];
     for (const room of rooms) {
-      if (minCapacity !== null && (room.capacity === null || room.capacity < minCapacity)) {
-        continue;
-      }
-
       const conflicts = findConflictingBookings(
         { room_id: room.id, date, start_time: start, end_time: end },
         bookingsForDate,
@@ -147,18 +140,6 @@ export function AvailabilitySearch({ rooms }: { rooms: AvailabilityRoom[] }) {
             />
           </div>
         </div>
-        <div className="flex flex-col gap-1.5">
-          <Label htmlFor="availability-capacity">Minimum capacity (optional)</Label>
-          <Input
-            id="availability-capacity"
-            type="number"
-            min={1}
-            inputMode="numeric"
-            value={capacity}
-            onChange={(e) => setCapacity(e.target.value)}
-            placeholder="Any"
-          />
-        </div>
         <Button type="submit" disabled={loading}>
           {loading ? "Searching…" : "Search"}
         </Button>
@@ -205,8 +186,7 @@ export function AvailabilitySearch({ rooms }: { rooms: AvailabilityRoom[] }) {
                     )}
                   </CardHeader>
                   <CardContent className="text-sm text-muted-foreground">
-                    Capacity: {formatRoomField(room.capacity)} · Location:{" "}
-                    {formatRoomField(room.location)}
+                    Location: {formatRoomField(room.location)}
                   </CardContent>
                 </Card>
               </li>

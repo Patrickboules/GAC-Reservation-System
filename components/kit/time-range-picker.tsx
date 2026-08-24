@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { AlertTriangle, ChevronDown, ChevronUp } from "lucide-react"
+import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { formatTimeLabel, minutesToTime, snapMinutesToStep, timeToMinutes } from "@/lib/dates"
@@ -80,6 +80,10 @@ interface TimeRangePickerProps {
   /** Externally supplied conflict flag — this component only renders the warning. */
   hasConflict?: boolean
   conflictMessage?: React.ReactNode
+  /** Shown in a success-styled banner when set and `hasConflict` is false —
+   * lets the caller confirm "this slot is free" instead of leaving a
+   * successful check silent. Ignored while `hasConflict` is true. */
+  freeMessage?: React.ReactNode
   disabled?: boolean
   className?: string
 }
@@ -98,6 +102,7 @@ function TimeRangePicker({
   stepMinutes = BOOKING_TIME_STEP_MINUTES,
   hasConflict = false,
   conflictMessage = "This time may conflict with an existing booking.",
+  freeMessage,
   disabled,
   className,
 }: TimeRangePickerProps) {
@@ -151,7 +156,7 @@ function TimeRangePicker({
       <p className="font-mono text-caption tabular-nums text-ink-500">
         duration: {hours}h {minutes}m
       </p>
-      {hasConflict && (
+      {hasConflict ? (
         <div
           role="alert"
           className="flex items-start gap-1.5 rounded-md bg-status-pending-bg px-2.5 py-2 text-caption font-medium text-status-pending-fg"
@@ -159,6 +164,16 @@ function TimeRangePicker({
           <AlertTriangle aria-hidden="true" className="size-4 shrink-0" />
           <span>{conflictMessage}</span>
         </div>
+      ) : (
+        freeMessage && (
+          <div
+            role="status"
+            className="flex items-start gap-1.5 rounded-md bg-status-approved-bg px-2.5 py-2 text-caption font-medium text-status-approved-fg"
+          >
+            <CheckCircle2 aria-hidden="true" className="size-4 shrink-0" />
+            <span>{freeMessage}</span>
+          </div>
+        )
       )}
     </div>
   )

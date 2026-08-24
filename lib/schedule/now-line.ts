@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { toDateString } from "@/lib/dates";
+import { formatTimeLabel, toDateString } from "@/lib/dates";
 import { percentForTime } from "@/lib/schedule/hours";
 
 /** How often the now-line position refreshes while the tab stays open. */
@@ -14,12 +14,19 @@ function currentTimeOfDay(now: Date): string {
   ).padStart(2, "0")}`;
 }
 
+export interface NowOffset {
+  /** Horizontal position (0-100) along the time axis (see lib/schedule/hours.ts). */
+  percent: number;
+  /** Current time formatted for display, e.g. "2:20 PM". */
+  timeLabel: string;
+}
+
 /**
- * Horizontal position (0-100) along the time axis (see lib/schedule/hours.ts) of the
- * current time, or null when `date` isn't today. Recomputes on an interval so the
- * now-line moves without a page reload while the tab stays open.
+ * Current position/time along the time axis, or null when `date` isn't
+ * today. Recomputes on an interval so the now-line moves (and its label
+ * stays accurate) without a page reload while the tab stays open.
  */
-export function useNowOffsetPercent(date: string): number | null {
+export function useNowOffsetPercent(date: string): NowOffset | null {
   const [now, setNow] = useState(() => new Date());
 
   useEffect(() => {
@@ -28,5 +35,6 @@ export function useNowOffsetPercent(date: string): number | null {
   }, []);
 
   if (toDateString(now) !== date) return null;
-  return percentForTime(currentTimeOfDay(now));
+  const time = currentTimeOfDay(now);
+  return { percent: percentForTime(time), timeLabel: formatTimeLabel(time) };
 }

@@ -24,7 +24,8 @@ import {
 import { Table, type TableColumn, type TableSort } from "@/components/kit/table";
 import { Textarea } from "@/components/kit/textarea";
 import { useToast } from "@/components/kit/toast";
-import { formatDateLabel, formatTimeLabel } from "@/lib/dates";
+import { formatDateLabel, formatRelativeTime, formatTimeLabel } from "@/lib/dates";
+import { cn } from "@/lib/utils";
 
 export interface AdminRequestRow {
   id: string;
@@ -36,6 +37,7 @@ export interface AdminRequestRow {
   endTime: string;
   service: string;
   notes: string | null;
+  createdAt: string;
 }
 
 interface RejectTarget {
@@ -60,6 +62,90 @@ function summarizeResults(
     }
   }
   return { succeeded, failed };
+}
+
+interface RequestCardProps {
+  row: AdminRequestRow;
+  selected: boolean;
+  onToggleSelect: () => void;
+  onApprove: () => void;
+  onReject: () => void;
+  approvePending: boolean;
+  approveDisabled: boolean;
+  rejectDisabled: boolean;
+}
+
+/** Mobile-width stand-in for the desktop table row (Table's renderMobileCard) —
+ * same data and the same handlers as the table, just laid out as a card
+ * instead of a horizontally-scrolling row. */
+function RequestCard({
+  row,
+  selected,
+  onToggleSelect,
+  onApprove,
+  onReject,
+  approvePending,
+  approveDisabled,
+  rejectDisabled,
+}: RequestCardProps) {
+  return (
+    <div className={cn("rounded-lg border border-line bg-surface p-3 shadow-sm", selected && "ring-2 ring-sky-300")}>
+      <div className="flex items-start gap-3">
+        <input
+          type="checkbox"
+          aria-label={`Select request for ${row.roomName}`}
+          checked={selected}
+          onChange={onToggleSelect}
+          className="mt-1 size-5 rounded border-line accent-sky-600"
+        />
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <span lang="ar" dir="rtl" className="text-small font-semibold text-ink-900">
+              {row.roomName}
+            </span>
+            <span className="shrink-0 text-caption text-ink-500">
+              requested {formatRelativeTime(row.createdAt)}
+            </span>
+          </div>
+          <p className="mt-0.5 text-caption text-ink-700">{row.requesterName}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-caption text-ink-700">
+            <span>{formatDateLabel(row.date)}</span>
+            <span aria-hidden="true" className="text-ink-300">
+              ·
+            </span>
+            <span className="font-mono">
+              {formatTimeLabel(row.startTime)}–{formatTimeLabel(row.endTime)}
+            </span>
+          </div>
+          <span className="mt-1.5 inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-caption font-medium text-sky-700">
+            {row.service}
+          </span>
+          {row.notes && <p className="mt-1.5 text-caption text-ink-500 italic">&ldquo;{row.notes}&rdquo;</p>}
+          <div className="mt-3 flex gap-2">
+            <Button
+              variant="success"
+              size="sm"
+              className="flex-1"
+              onClick={onApprove}
+              loading={approvePending}
+              disabled={approveDisabled}
+            >
+              Approve
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              className="flex-1"
+              onClick={onReject}
+              disabled={rejectDisabled}
+            >
+              Reject
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function AdminRequestsTable({ requests }: { requests: AdminRequestRow[] }) {
@@ -253,6 +339,12 @@ export function AdminRequestsTable({ requests }: { requests: AdminRequestRow[] }
       ),
     },
     {
+      key: "requested",
+      header: "Requested",
+      className: "whitespace-nowrap text-caption text-ink-500",
+      render: (row) => formatRelativeTime(row.createdAt),
+    },
+    {
       key: "actions",
       header: "Actions",
       className: "whitespace-nowrap",
@@ -260,6 +352,7 @@ export function AdminRequestsTable({ requests }: { requests: AdminRequestRow[] }
         <div className="flex items-center gap-2">
           <Button
             size="sm"
+            variant="success"
             onClick={() => handleApprove(row.id)}
             loading={pendingRowId === row.id}
             disabled={pendingRowId !== null && pendingRowId !== row.id}
@@ -346,6 +439,18 @@ export function AdminRequestsTable({ requests }: { requests: AdminRequestRow[] }
         onSortChange={setSort}
         emptyTitle="No pending requests"
         emptyDescription="New booking requests will show up here for approval."
+        renderMobileCard={(row) => (
+          <RequestCard
+            row={row}
+            selected={selectedIds.has(row.id)}
+            onToggleSelect={() => toggleRow(row.id)}
+            onApprove={() => handleApprove(row.id)}
+            onReject={() => openRejectModal({ ids: [row.id], mode: "single" })}
+            approvePending={pendingRowId === row.id}
+            approveDisabled={pendingRowId !== null && pendingRowId !== row.id}
+            rejectDisabled={pendingRowId !== null}
+          />
+        )}
       />
 
       <Modal

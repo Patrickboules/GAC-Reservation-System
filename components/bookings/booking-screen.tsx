@@ -2,7 +2,7 @@
 
 import { useActionState, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { MapPin, Users } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 import {
   requestBooking,
@@ -25,7 +25,6 @@ import { cn } from "@/lib/utils";
 export interface BookingScreenRoom {
   id: string;
   name: string;
-  capacity?: number | null;
   location?: string | null;
   amenities?: string[] | null;
 }
@@ -98,6 +97,11 @@ export function BookingScreen({
   const [service, setService] = useState(booking?.service ?? "");
   const [notes, setNotes] = useState(booking?.notes ?? "");
   const [warning, setWarning] = useState<string | null>(null);
+  // Distinguishes "checked and free" from "not yet checked" (invalid inputs,
+  // or the check hasn't resolved yet) — setWarning(null) alone can't tell
+  // those apart, and the free-slot confirmation should only show once a real
+  // check has actually completed.
+  const [slotChecked, setSlotChecked] = useState(false);
 
   const willRevertToPending =
     isEdit &&
@@ -113,6 +117,7 @@ export function BookingScreen({
 
     if (!date || !startTime || !endTime || startTime >= endTime) {
       setWarning(null);
+      setSlotChecked(false);
       return;
     }
 
@@ -143,6 +148,7 @@ export function BookingScreen({
       } else {
         setWarning("This slot overlaps another pending request for this room.");
       }
+      setSlotChecked(true);
     }
 
     checkConflict();
@@ -176,36 +182,89 @@ export function BookingScreen({
         />
       </div>
 
-      {/* The room is already decided — shown here for confirmation, never re-picked. */}
+      {/* The room is already decided — shown here for confirmation, never re-picked
+          (except via the "Change room" link below, create flow only: editing an
+          existing booking has no picker to return to, so changing rooms there
+          would strand the user mid-edit — see booking-form implementation notes). */}
       <div className="rounded-md border border-sky-600 bg-sky-50 px-3 py-3">
-        <p className="text-body font-semibold text-ink-900">{room.name}</p>
-        <div className="mt-1 flex flex-wrap items-center gap-3 text-caption text-ink-500">
-          <span className="flex items-center gap-1">
-            <Users className="size-3.5 shrink-0" aria-hidden="true" />
-            {room.capacity ?? "–"}
-          </span>
-          {room.location && (
-            <span className="flex items-center gap-1">
-              <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
-              {room.location}
-            </span>
-          )}
-          {amenities.length > 0 && (
-            <span className="flex items-center gap-1.5">
-              {amenities.map((amenity) => {
-                const Icon = amenityIcon(amenity);
-                return (
-                  <span key={amenity} title={amenity}>
-                    <Icon aria-hidden="true" className="size-3.5 shrink-0" />
-                  </span>
-                );
-              })}
-            </span>
+        <div className="flex items-start justify-between gap-2">
+          <div>
+            <p lang="ar" dir="rtl" className="text-body font-semibold text-ink-900">
+              {room.name}
+            </p>
+            <div className="mt-1 flex flex-wrap items-center gap-3 text-caption text-ink-500">
+              {room.location && (
+                <span className="flex items-center gap-1">
+                  <MapPin className="size-3.5 shrink-0" aria-hidden="true" />
+                  {room.location}
+                </span>
+              )}
+              {amenities.length > 0 && (
+                <span className="flex items-center gap-1.5">
+                  {amenities.map((amenity) => {
+                    const Icon = amenityIcon(amenity);
+                    return (
+                      <span key={amenity} title={amenity}>
+                        <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+                      </span>
+                    );
+                  })}
+                </span>
+              )}
+            </div>
+          </div>
+          {!isEdit && (
+            <Link
+              href="/rooms"
+              className="shrink-0 text-caption font-medium text-sky-700 underline underline-offset-2 hover:text-sky-800"
+            >
+              Change room
+            </Link>
           )}
         </div>
       </div>
 
-      <form action={formAction} className="flex flex-col gap-4">
+      {!isEdit && (
+        <div
+          role={atPendingCap ? "alert" : undefined}
+          className={cn(
+            "flex items-center justify-between gap-2 rounded-md border px-3 py-2",
+            atPendingCap
+              ? "border-status-rejected-fg/30 bg-status-rejected-bg"
+              : "border-sky-200 bg-sky-50"
+          )}
+        >
+          <span
+            className={cn(
+              "text-caption",
+              atPendingCap ? "font-medium text-status-rejected-fg" : "text-sky-700"
+            )}
+          >
+            You have{" "}
+            <strong>
+              {openPendingCount} of {MAX_OPEN_PENDING_BOOKINGS}
+            </strong>{" "}
+            pending requests in review{atPendingCap ? " — cancel one before submitting another." : "."}
+          </span>
+          <div className="flex shrink-0 gap-1" aria-hidden="true">
+            {Array.from({ length: MAX_OPEN_PENDING_BOOKINGS }).map((_, i) => (
+              <span
+                key={i}
+                className={cn(
+                  "size-2 rounded-full",
+                  i < openPendingCount
+                    ? atPendingCap
+                      ? "bg-status-rejected-fg"
+                      : "bg-sky-600"
+                    : "bg-sky-200"
+                )}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <form action={formAction} className="flex flex-col gap-6 pb-24 lg:pb-0">
         {isEdit && <input type="hidden" name="booking_id" value={booking!.id} />}
         <input type="hidden" name="room_id" value={room.id} />
         <input type="hidden" name="date" value={date} />
@@ -213,58 +272,68 @@ export function BookingScreen({
         <input type="hidden" name="end_time" value={endTime} />
         <input type="hidden" name="service" value={service} />
 
-        {!isEdit && (
-          <p
-            role={atPendingCap ? "alert" : undefined}
-            className={cn(
-              "text-caption font-medium",
-              atPendingCap ? "text-status-rejected-fg" : "text-ink-500"
-            )}
-          >
-            {openPendingCount} of {MAX_OPEN_PENDING_BOOKINGS} pending requests in review
-            {atPendingCap ? " — cancel one before submitting another." : "."}
-          </p>
-        )}
+        <section className="flex flex-col gap-3">
+          <h2 className="text-caption font-semibold tracking-wide text-ink-500 uppercase">
+            Date &amp; time
+          </h2>
 
-        <DatePicker
-          label="Date"
-          mode="popover"
-          value={date}
-          onValueChange={setDate}
-          isDateDisabled={(d) => d < todayDateString()}
-        />
-
-        <div className="flex flex-col gap-1.5">
-          <span className="text-sm font-medium text-ink-700">Time range</span>
-          <TimeRangePicker
-            startTime={startTime}
-            endTime={endTime}
-            onStartTimeChange={setStartTime}
-            onEndTimeChange={setEndTime}
-            hasConflict={!!warning}
-            conflictMessage={warning}
+          <DatePicker
+            label="Date"
+            mode="popover"
+            value={date}
+            onValueChange={setDate}
+            isDateDisabled={(d) => d < todayDateString()}
           />
-        </div>
 
-        <Select
-          label="Service / purpose"
-          placeholder="Select a service/purpose"
-          options={BOOKING_SERVICES.map((option) => ({
-            value: option as string,
-            label: option,
-          }))}
-          value={service || null}
-          onValueChange={(value) => setService(value)}
-          required
-        />
+          <div className="flex flex-col gap-1.5">
+            <span className="text-sm font-medium text-ink-700">Time range</span>
+            <TimeRangePicker
+              startTime={startTime}
+              endTime={endTime}
+              onStartTimeChange={setStartTime}
+              onEndTimeChange={setEndTime}
+              hasConflict={!!warning}
+              conflictMessage={warning}
+              freeMessage={
+                slotChecked && !warning ? (
+                  <>
+                    This slot is free for{" "}
+                    <span lang="ar" dir="rtl">
+                      {room.name}
+                    </span>
+                    .
+                  </>
+                ) : undefined
+              }
+            />
+          </div>
+        </section>
 
-        <Textarea
-          label="Notes (optional)"
-          name="notes"
-          rows={3}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-        />
+        <section className="flex flex-col gap-3">
+          <h2 className="text-caption font-semibold tracking-wide text-ink-500 uppercase">
+            Details
+          </h2>
+
+          <Select
+            label="Service / purpose"
+            placeholder="Select a service/purpose"
+            options={BOOKING_SERVICES.map((option) => ({
+              value: option as string,
+              label: option,
+            }))}
+            value={service || null}
+            onValueChange={(value) => setService(value)}
+            required
+          />
+
+          <Textarea
+            label="Notes (optional)"
+            name="notes"
+            rows={3}
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+          />
+        </section>
 
         {willRevertToPending && (
           <p role="status" className="text-small font-medium text-status-pending-fg">
@@ -278,10 +347,23 @@ export function BookingScreen({
           </p>
         )}
 
-        <div>
+        {/* Desktop/large screens: normal in-flow button. Below lg, the shell
+            switches to the mobile top bar + persistent bottom tab bar (see
+            components/shell/app-shell.tsx), so the submit action moves to the
+            fixed bar below instead, offset above that tab bar rather than
+            duplicating its breakpoint by guesswork. */}
+        <div className="hidden lg:block">
           <Button type="submit" loading={pending} disabled={pending}>
             {isEdit ? "Save changes" : "Submit request"}
           </Button>
+        </div>
+
+        <div className="fixed inset-x-0 bottom-[calc(4rem+env(safe-area-inset-bottom))] z-30 border-t border-line bg-surface/95 p-4 backdrop-blur lg:hidden">
+          <div className="mx-auto w-full max-w-2xl">
+            <Button type="submit" loading={pending} disabled={pending} className="w-full">
+              {isEdit ? "Save changes" : "Submit request"}
+            </Button>
+          </div>
         </div>
       </form>
     </div>

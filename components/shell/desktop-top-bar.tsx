@@ -43,11 +43,10 @@ export async function DesktopTopBar() {
     .select("id, name, amenities, building, floor")
     .order("name");
 
-  // capacity/location dropped in migration 20260801000000 — see lib/rooms.ts.
+  // location dropped in migration 20260801000000 — see lib/rooms.ts.
   const searchRooms: GlobalSearchRoom[] = (rooms ?? []).map((room) => ({
     id: room.id,
     name: room.name,
-    capacity: null,
     amenities: room.amenities ?? [],
     location: formatRoomLocation(room.building, room.floor),
   }));

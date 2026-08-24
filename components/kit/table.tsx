@@ -56,6 +56,14 @@ interface TableProps<T> extends Omit<React.ComponentProps<"div">, "children"> {
   emptyDescription?: string
   emptyAction?: React.ReactNode
   pagination?: TablePagination
+  /**
+   * When set, rendered as a card list below the `md` breakpoint instead of
+   * the table — a wide multi-column table forced into a horizontal scroll
+   * on a phone is worse than reflowing to cards. The table itself still
+   * renders (hidden) at `md` and up. Omit to keep the table at every width,
+   * unchanged from before this prop existed.
+   */
+  renderMobileCard?: (row: T) => React.ReactNode
 }
 
 function alignClass(align: TableColumn<unknown>["align"]) {
@@ -76,10 +84,12 @@ function Table<T>({
   emptyDescription,
   emptyAction,
   pagination,
+  renderMobileCard,
   ...props
 }: TableProps<T>) {
   const hasActions = !!rowActions
   const colSpan = columns.length + (hasActions ? 1 : 0)
+  const hasMobileCard = !!renderMobileCard
 
   function handleSort(column: TableColumn<T>) {
     if (!column.sortable || !onSortChange) return
@@ -90,7 +100,23 @@ function Table<T>({
 
   return (
     <div data-slot="table" className={cn("flex flex-col gap-3", className)} {...props}>
-      <div className="max-h-[28rem] overflow-auto rounded-lg border border-line">
+      {hasMobileCard && (
+        <div className="flex flex-col gap-3 md:hidden">
+          {isLoading ? (
+            Array.from({ length: loadingRowCount }).map((_, i) => (
+              <div key={i} className="flex flex-col gap-2 rounded-lg border border-line bg-surface p-3">
+                <Skeleton className="h-4 w-3/4" />
+                <Skeleton className="h-4 w-1/2" />
+              </div>
+            ))
+          ) : data.length === 0 ? (
+            <EmptyState title={emptyTitle} description={emptyDescription} action={emptyAction} />
+          ) : (
+            data.map((row) => <React.Fragment key={getRowId(row)}>{renderMobileCard!(row)}</React.Fragment>)
+          )}
+        </div>
+      )}
+      <div className={cn("max-h-[28rem] overflow-auto rounded-lg border border-line", hasMobileCard && "hidden md:block")}>
         <table className="w-full border-collapse text-left text-small">
           <thead>
             <tr>

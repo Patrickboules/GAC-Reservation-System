@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-import { fetchConflictingBookings } from "@/lib/bookings/conflict-check";
+import { BLOCKING_STATUSES, fetchConflictingBookings } from "@/lib/bookings/conflict-check";
 import { MAX_OPEN_PENDING_BOOKINGS } from "@/lib/bookings/limits";
 import { isBookingService } from "@/lib/bookings/services";
 import { isBookingModifiable } from "@/lib/bookings/status";
@@ -53,15 +53,22 @@ export async function requestBooking(
     redirect("/login");
   }
 
-  const conflicts = await fetchConflictingBookings(supabase, {
-    room_id: roomId,
-    date,
-    start_time: startTime,
-    end_time: endTime,
-  });
+  // Only an already-approved booking blocks a new request — two pending
+  // requests for the same slot are allowed to coexist, and the admin decides
+  // which one gets approved.
+  const conflicts = await fetchConflictingBookings(
+    supabase,
+    {
+      room_id: roomId,
+      date,
+      start_time: startTime,
+      end_time: endTime,
+    },
+    BLOCKING_STATUSES
+  );
   if (conflicts.length > 0) {
     return {
-      error: "This slot overlaps an existing pending or approved booking for that room.",
+      error: "This slot overlaps an existing approved booking for that room.",
     };
   }
 
@@ -96,6 +103,15 @@ export async function requestBooking(
     .single();
 
   if (insertError) {
+    // 23P01 = exclusion_violation: the bookings_no_overlap constraint caught
+    // a race the conflict check above missed (another request for the same
+    // slot landed first). Same message as the check above, since it's the
+    // same condition — just caught at the database layer instead.
+    if (insertError.code === "23P01") {
+      return {
+        error: "This slot overlaps an existing approved booking for that room.",
+      };
+    }
     return { error: insertError.message };
   }
 
@@ -167,16 +183,20 @@ export async function updateBooking(
     return { error: "This booking can no longer be edited." };
   }
 
-  const conflicts = await fetchConflictingBookings(supabase, {
-    room_id: roomId,
-    date,
-    start_time: startTime,
-    end_time: endTime,
-    excludeBookingId: bookingId,
-  });
+  const conflicts = await fetchConflictingBookings(
+    supabase,
+    {
+      room_id: roomId,
+      date,
+      start_time: startTime,
+      end_time: endTime,
+      excludeBookingId: bookingId,
+    },
+    BLOCKING_STATUSES
+  );
   if (conflicts.length > 0) {
     return {
-      error: "This slot overlaps an existing pending or approved booking for that room.",
+      error: "This slot overlaps an existing approved booking for that room.",
     };
   }
 
@@ -202,12 +222,18 @@ export async function updateBooking(
     .eq("user_id", user.id);
 
   if (updateError) {
+    // 23P01 = exclusion_violation: see the matching comment in requestBooking.
+    if (updateError.code === "23P01") {
+      return {
+        error: "This slot overlaps an existing approved booking for that room.",
+      };
+    }
     return { error: updateError.message };
   }
 
   revalidatePath("/bookings");
   revalidatePath(`/bookings/${bookingId}`);
-  redirect("/bookings");
+  redirect("/bookings?updated=1");
 }
 
 export interface CancelBookingState {
@@ -271,5 +297,5 @@ export async function cancelBooking(
   // in its old tab after the redirect.
   revalidatePath("/bookings");
   revalidatePath(`/bookings/${bookingId}`);
-  redirect("/bookings");
+  redirect("/bookings?cancelled=1");
 }

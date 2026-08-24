@@ -249,7 +249,7 @@ export function TopBar({
           <ModalHeader>
             <ModalTitle>Find a room</ModalTitle>
             <ModalDescription>
-              Search by date, time, capacity, and amenities.
+              Search by date, time, and amenities.
             </ModalDescription>
           </ModalHeader>
           <GlobalAvailabilitySearch rooms={rooms} onResultSelect={() => setSearchOpen(false)} />

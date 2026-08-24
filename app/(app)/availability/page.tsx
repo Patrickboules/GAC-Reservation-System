@@ -12,12 +12,11 @@ export default async function AvailabilityPage() {
     .select("id, name, building, floor")
     .order("name");
 
-  // capacity/location were dropped in migration 20260801000000; location is now
-  // derived from the building/floor facets and capacity is no longer tracked.
+  // location was dropped in migration 20260801000000; it's now derived from
+  // the building/floor facets.
   const availabilityRooms: AvailabilityRoom[] = (rooms ?? []).map((room) => ({
     id: room.id,
     name: room.name,
-    capacity: null,
     location: formatRoomLocation(room.building, room.floor),
   }));
 

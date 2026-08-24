@@ -86,6 +86,18 @@ async function approveBookingById(
     .eq("status", "pending");
 
   if (updateError) {
+    // 23P01 = exclusion_violation: the bookings_no_overlap constraint is the
+    // real backstop against this race — two concurrent approvals for
+    // overlapping slots can both pass the conflict check above before either
+    // UPDATE lands, but only one UPDATE can satisfy the constraint. Same
+    // message as the check above, since it's the same condition just caught
+    // one layer down.
+    if (updateError.code === "23P01") {
+      return {
+        ok: false,
+        error: "This slot now conflicts with another approved booking.",
+      };
+    }
     return { ok: false, error: updateError.message };
   }
 

@@ -299,6 +299,7 @@ export function TimelineGrid({
                   const roomIndex = group.startIndex + roomInGroupIndex;
                   const roomBookings = laidOutBookingsByRoom.get(room.id) ?? [];
             const laneCount = roomBookings.reduce((max, { columnCount }) => Math.max(max, columnCount), 0);
+            const isEmpty = roomBookings.length === 0;
             return (
               <div key={room.id} className="flex" style={{ height: roomRowHeight(laneCount) }}>
                 <div
@@ -310,14 +311,21 @@ export function TimelineGrid({
                 >
                   <span aria-hidden="true" className={cn("w-1 shrink-0", categoryColorBarClassName(room.category_color))} />
                   <div className="flex min-w-0 flex-1 flex-col justify-center overflow-hidden py-1 pl-1">
-                    <span className="truncate font-display text-small text-ink-900">{room.name}</span>
-                    {room.capacity !== null && (
-                      <span className="truncate font-mono text-caption text-ink-500">cap. {room.capacity}</span>
+                    <span lang="ar" dir="rtl" className="truncate font-display text-small text-ink-900">
+                      {room.name}
+                    </span>
+                    {room.floor && (
+                      <span lang="ar" dir="rtl" className="truncate text-caption text-ink-500">
+                        {room.floor}
+                      </span>
                     )}
                   </div>
                 </div>
                 <div
-                  className="relative min-w-0 flex-1 border-b border-line/60"
+                  className={cn(
+                    "relative min-w-0 flex-1 border-b border-line/60",
+                    isEmpty && "group"
+                  )}
                   style={{ minWidth: AXIS_MIN_WIDTH_PX }}
                 >
                   {visibleGridlines.map((mark) => (
@@ -342,6 +350,16 @@ export function TimelineGrid({
                       height={EVENT_LANE_HEIGHT_PX}
                     />
                   ))}
+                  {isEmpty && (
+                    <div
+                      aria-hidden="true"
+                      className="pointer-events-none absolute inset-0 flex items-center justify-center opacity-0 transition-opacity group-hover:opacity-100"
+                    >
+                      <span className="rounded-full bg-sky-600 px-2.5 py-1 text-caption font-medium text-white shadow-sm">
+                        Free all day
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             );

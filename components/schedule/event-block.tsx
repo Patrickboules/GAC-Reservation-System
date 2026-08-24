@@ -160,7 +160,7 @@ function EventBlock({
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <span className="truncate font-display text-small text-ink-900">{service ?? roomName}</span>
-                  <StatusBadge status={status} dot />
+                  <StatusBadge status={status} />
                 </div>
                 {service && <span className="truncate text-caption text-ink-700">{roomName}</span>}
                 <span className="font-mono text-caption text-ink-700">{timeLabel}</span>
@@ -183,7 +183,7 @@ function EventBlock({
             <ModalDescription className="font-mono">{timeLabel}</ModalDescription>
           </ModalHeader>
           <div className="flex flex-col gap-2 text-small text-ink-700">
-            <StatusBadge status={status} dot />
+            <StatusBadge status={status} />
             <p>Room: {roomName}</p>
             {requesterName && <p>Requested by {requesterName}</p>}
           </div>
