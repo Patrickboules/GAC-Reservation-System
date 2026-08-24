@@ -20,7 +20,6 @@ import {
   ModalHeader,
   ModalTitle,
 } from "@/components/kit/modal";
-import { Textarea } from "@/components/kit/textarea";
 import { useToast } from "@/components/kit/toast";
 import type { RoomCategoryColor } from "@/lib/rooms/category-colors";
 
@@ -36,10 +35,9 @@ interface RoomFormSheetProps {
 function emptyForm(): RoomInput {
   return {
     name: "",
-    code: "",
+    building: "",
+    floor: "",
     amenities: [],
-    location: "",
-    rules: "",
     categoryColor: null,
   };
 }
@@ -47,10 +45,9 @@ function emptyForm(): RoomInput {
 function formFromRoom(room: AdminRoomRow): RoomInput {
   return {
     name: room.name,
-    code: room.code ?? "",
+    building: room.building ?? "",
+    floor: room.floor ?? "",
     amenities: room.amenities,
-    location: room.location ?? "",
-    rules: room.rules ?? "",
     categoryColor: room.categoryColor,
   };
 }
@@ -102,6 +99,10 @@ export function RoomFormSheet({
         onSaved();
       } else {
         setError(result.error ?? "Something went wrong.");
+        toast.error({
+          title: room ? "Couldn't update room" : "Couldn't add room",
+          description: result.error,
+        });
       }
     } finally {
       setIsSubmitting(false);
@@ -122,22 +123,31 @@ export function RoomFormSheet({
           <Input
             label="Name"
             required
+            lang="ar"
+            dir="rtl"
             value={form.name}
             onChange={(event) => setForm((prev) => ({ ...prev, name: event.target.value }))}
           />
 
-          <Input
-            label="Code"
-            placeholder="e.g. A101"
-            value={form.code ?? ""}
-            onChange={(event) => setForm((prev) => ({ ...prev, code: event.target.value }))}
-          />
-
-          <Input
-            label="Location"
-            value={form.location ?? ""}
-            onChange={(event) => setForm((prev) => ({ ...prev, location: event.target.value }))}
-          />
+          {/* Building/floor previously had no admin UI at all — they were only
+              ever set by direct DB/migration — despite driving the floor
+              grouping used by the Rooms directory and schedule grid. */}
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Building"
+              lang="ar"
+              dir="rtl"
+              value={form.building ?? ""}
+              onChange={(event) => setForm((prev) => ({ ...prev, building: event.target.value }))}
+            />
+            <Input
+              label="Floor"
+              lang="ar"
+              dir="rtl"
+              value={form.floor ?? ""}
+              onChange={(event) => setForm((prev) => ({ ...prev, floor: event.target.value }))}
+            />
+          </div>
 
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-ink-700">Amenities</span>
@@ -152,7 +162,9 @@ export function RoomFormSheet({
                     removable
                     onRemove={() => removeAmenity(amenity)}
                   >
-                    {amenity}
+                    <span lang="ar" dir="rtl">
+                      {amenity}
+                    </span>
                   </FilterChip>
                 ))
               )}
@@ -161,7 +173,10 @@ export function RoomFormSheet({
               <div className="flex flex-wrap gap-1.5">
                 {suggestions.map((amenity) => (
                   <FilterChip key={amenity} onSelectedChange={() => addAmenity(amenity)}>
-                    + {amenity}
+                    +{" "}
+                    <span lang="ar" dir="rtl">
+                      {amenity}
+                    </span>
                   </FilterChip>
                 ))}
               </div>
@@ -192,12 +207,6 @@ export function RoomFormSheet({
               </Button>
             </div>
           </div>
-
-          <Textarea
-            label="Rules"
-            value={form.rules ?? ""}
-            onChange={(event) => setForm((prev) => ({ ...prev, rules: event.target.value }))}
-          />
 
           <CategoryColorPicker
             value={(form.categoryColor as RoomCategoryColor | null) ?? null}

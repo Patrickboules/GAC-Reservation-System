@@ -13,6 +13,7 @@ interface PendingBookingRow {
   end_time: string;
   service: string;
   notes: string | null;
+  created_at: string;
   rooms: { name: string } | { name: string }[] | null;
 }
 
@@ -24,21 +25,29 @@ function roomName(rooms: PendingBookingRow["rooms"]): string {
 export default async function AdminRequestsPage() {
   const supabase = await createClient();
 
-  const { data: bookings } = await supabase
+  const { data: bookings, error: bookingsError } = await supabase
     .from("bookings")
     .select(
-      "id, room_id, user_id, date, start_time, end_time, service, notes, rooms(name)"
+      "id, room_id, user_id, date, start_time, end_time, service, notes, created_at, rooms(name)"
     )
     .eq("status", "pending")
     .order("date", { ascending: true })
     .order("start_time", { ascending: true });
 
+  if (bookingsError) {
+    throw new Error(bookingsError.message);
+  }
+
   const pending = (bookings ?? []) as PendingBookingRow[];
 
   const userIds = [...new Set(pending.map((booking) => booking.user_id))];
-  const { data: profiles } = userIds.length
+  const { data: profiles, error: profilesError } = userIds.length
     ? await supabase.from("profiles").select("id, display_name").in("id", userIds)
-    : { data: [] as { id: string; display_name: string | null }[] };
+    : { data: [] as { id: string; display_name: string | null }[], error: null };
+
+  if (profilesError) {
+    throw new Error(profilesError.message);
+  }
 
   const requesterNameById = new Map(
     (profiles ?? []).map((profile) => [profile.id, profile.display_name ?? "Unknown member"])
@@ -54,6 +63,7 @@ export default async function AdminRequestsPage() {
     endTime: booking.end_time,
     service: booking.service,
     notes: booking.notes,
+    createdAt: booking.created_at,
   }));
 
   return (

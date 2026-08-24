@@ -17,6 +17,8 @@ const buttonVariants = cva(
         ghost: "bg-transparent text-ink-700 hover:bg-sky-50",
         danger:
           "bg-status-rejected-bg text-status-rejected-fg hover:bg-status-rejected-fg/15",
+        success:
+          "bg-status-approved-bg text-status-approved-fg hover:bg-status-approved-fg/15",
       },
       size: {
         sm: "h-8 px-3 text-[0.8125rem]",

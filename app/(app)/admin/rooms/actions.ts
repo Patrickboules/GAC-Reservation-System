@@ -14,10 +14,9 @@ export interface RoomActionResult {
 
 export interface RoomInput {
   name: string;
-  code: string | null;
+  building: string | null;
+  floor: string | null;
   amenities: string[];
-  location: string | null;
-  rules: string | null;
   categoryColor: string | null;
 }
 
@@ -52,23 +51,14 @@ function validateRoomInput(input: RoomInput): string | null {
   return null;
 }
 
-/** Migration 20260801000000 dropped code/capacity/location/rules from rooms, so
- * the remaining code/location/rules RoomInput fields are deliberately not written
- * — including them would make PostgREST reject the insert/update with "column
- * does not exist". The form still collects them; until it's trimmed, values
- * typed into those inputs are discarded. (capacity itself was removed from
- * RoomInput and the UI entirely — it's no longer collected at all.) */
 function toRow(input: RoomInput) {
   return {
     name: input.name.trim(),
+    building: input.building?.trim() || null,
+    floor: input.floor?.trim() || null,
     amenities: input.amenities,
     category_color: input.categoryColor,
   };
-}
-
-function friendlyError(error: { code?: string; message: string }): string {
-  if (error.code === "23505") return "That room code is already in use.";
-  return error.message;
 }
 
 export async function createRoomAction(input: RoomInput): Promise<RoomActionResult> {
@@ -77,7 +67,7 @@ export async function createRoomAction(input: RoomInput): Promise<RoomActionResu
   if (validationError) return { ok: false, error: validationError };
 
   const { error } = await supabase.from("rooms").insert(toRow(input));
-  if (error) return { ok: false, error: friendlyError(error) };
+  if (error) return { ok: false, error: error.message };
 
   revalidatePath("/admin/rooms");
   return { ok: true };
@@ -92,7 +82,7 @@ export async function updateRoomAction(
   if (validationError) return { ok: false, error: validationError };
 
   const { error } = await supabase.from("rooms").update(toRow(input)).eq("id", roomId);
-  if (error) return { ok: false, error: friendlyError(error) };
+  if (error) return { ok: false, error: error.message };
 
   revalidatePath("/admin/rooms");
   return { ok: true };
@@ -126,7 +116,7 @@ export async function deleteRoomAction(roomId: string): Promise<RoomActionResult
   }
 
   const { error } = await supabase.from("rooms").delete().eq("id", roomId);
-  if (error) return { ok: false, error: friendlyError(error) };
+  if (error) return { ok: false, error: error.message };
 
   revalidatePath("/admin/rooms");
   return { ok: true };

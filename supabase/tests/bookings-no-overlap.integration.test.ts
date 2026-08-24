@@ -3,14 +3,16 @@ import { createClient as createSupabaseClient, type SupabaseClient } from "@supa
 
 /**
  * Integration test for the bookings_no_overlap exclusion constraint
- * (supabase/migrations/20260823000000_add_bookings_no_overlap_exclusion.sql).
+ * (supabase/migrations/20260823000000_add_bookings_no_overlap_exclusion.sql,
+ * narrowed to approved-only by 20260824000000_bookings_no_overlap_approved_only.sql).
  *
- * Requires a running local Supabase stack (`supabase start`) with this
- * migration applied. It exercises real concurrent writes against Postgres —
+ * Requires a running local Supabase stack (`supabase start`) with these
+ * migrations applied. It exercises real concurrent writes against Postgres —
  * something the pure-function tests in lib/bookings/conflict-check.test.ts
  * can't do — to prove the database itself, not just the application's
  * check-then-act conflict check, refuses to let two overlapping bookings
- * both land in the 'pending'/'approved' state.
+ * both land in the 'approved' state, while still allowing two overlapping
+ * 'pending' requests to coexist (the admin decides which one gets approved).
  *
  * Skips itself (rather than failing) when no local Supabase is reachable, so
  * `npm test` stays green in CI (.github/workflows/ci.yml runs with
@@ -95,14 +97,10 @@ describe.skipIf(!reachable)("bookings_no_overlap exclusion constraint", () => {
   });
 
   it("prevents two concurrent UPDATEs from producing overlapping approved bookings", async () => {
-    // bookingB starts 'rejected' rather than 'pending': the exclusion
-    // constraint also covers pending-pending overlaps (status IN
-    // ('pending','approved')), so two overlapping *pending* rows can no
-    // longer coexist at all post-migration — which is the correct, stronger
-    // behavior, but it means the only legal way to get two overlapping rows
-    // into the table ahead of the race is to start one of them outside the
-    // protected status set. A rejected booking sitting on an
-    // already-requested slot is an entirely ordinary real-world state.
+    // Both rows start 'pending' — that's now a perfectly legal, ordinary
+    // state for two overlapping requests to sit in, since the constraint no
+    // longer covers pending-pending overlaps. The race only bites once both
+    // try to become 'approved' at the same moment.
     const { data: bookingA, error: insertAError } = await admin
       .from("bookings")
       .insert({
@@ -127,8 +125,7 @@ describe.skipIf(!reachable)("bookings_no_overlap exclusion constraint", () => {
         start_time: "10:30:00",
         end_time: "11:30:00",
         service: "Meeting",
-        status: "rejected",
-        reject_reason: "test setup",
+        status: "pending",
       })
       .select("id")
       .single();
@@ -160,7 +157,7 @@ describe.skipIf(!reachable)("bookings_no_overlap exclusion constraint", () => {
     expect(approvedCount).toBe(1);
   });
 
-  it("prevents two concurrent INSERTs from creating overlapping pending bookings", async () => {
+  it("allows two concurrent overlapping pending bookings (admin decides which to approve)", async () => {
     const [resultA, resultB] = await Promise.all([
       admin
         .from("bookings")
@@ -188,12 +185,7 @@ describe.skipIf(!reachable)("bookings_no_overlap exclusion constraint", () => {
         .select("id"),
     ]);
 
-    const outcomes = [resultA, resultB];
-    const succeeded = outcomes.filter((r) => !r.error);
-    const failed = outcomes.filter((r) => r.error);
-
-    expect(succeeded).toHaveLength(1);
-    expect(failed).toHaveLength(1);
-    expect(failed[0]!.error!.code).toBe(POSTGRES_EXCLUSION_VIOLATION);
+    expect(resultA.error).toBeNull();
+    expect(resultB.error).toBeNull();
   });
 });

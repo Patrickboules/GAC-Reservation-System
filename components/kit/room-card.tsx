@@ -1,6 +1,7 @@
 import * as React from "react"
 import Link from "next/link"
 import {
+  Building2,
   Coffee,
   MapPin,
   Mic,
@@ -16,10 +17,19 @@ import {
 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
+import {
+  ROOM_CATEGORY_COLOR_HEADER_CLASSES,
+  ROOM_CATEGORY_COLOR_ICON_CLASSES,
+  type RoomCategoryColor,
+} from "@/lib/rooms/category-colors"
 
+// Room amenities are stored in Arabic (see supabase/rooms.json /
+// migration 20260801000000) — English-only keys here meant every real
+// amenity silently fell back to the generic Tag icon.
 const AMENITY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
   wifi: Wifi,
   projector: Projector,
+  "بروجيكتور": Projector,
   whiteboard: PenSquare,
   screen: Monitor,
   tv: Monitor,
@@ -29,6 +39,7 @@ const AMENITY_ICONS: Record<string, React.ComponentType<{ className?: string }>>
   speaker: Speaker,
   sound: Speaker,
   audio: Speaker,
+  "صوتيات": Speaker,
   "video conferencing": Video,
   video: Video,
   ac: Wind,
@@ -56,8 +67,13 @@ interface RoomCardProps {
   location?: string | null
   /** Live availability: green dot when free, amber dot when busy right now. */
   availability?: RoomCardAvailability
-  /** Header accent color (category color); accepts any Tailwind bg-* class. */
+  /** Header accent color (category color); accepts any Tailwind bg-* class.
+   * Ignored when `categoryColor` is set. */
   headerColorClassName?: string
+  /** When set (grid density only), renders a soft gradient header with a
+   * building glyph and an overlaid availability badge instead of the flat
+   * `headerColorClassName` block. */
+  categoryColor?: RoomCategoryColor | null
   density?: "grid" | "list"
   href?: string
   onClick?: () => void
@@ -72,6 +88,7 @@ function RoomCard({
   location,
   availability,
   headerColorClassName = "bg-sky-100",
+  categoryColor,
   density = "grid",
   href,
   onClick,
@@ -93,6 +110,25 @@ function RoomCard({
         )}
       />
       {availability === "free" ? "Free" : "Busy now"}
+    </span>
+  ) : null
+
+  /** Overlaid on the categoryColor header instead of sitting inline next to the name. */
+  const availabilityBadge = availability ? (
+    <span
+      className={cn(
+        "absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-caption font-medium shadow-sm backdrop-blur",
+        availability === "free" ? "text-status-approved-fg" : "text-status-pending-fg"
+      )}
+    >
+      <span
+        aria-hidden="true"
+        className={cn(
+          "size-1.5 shrink-0 rounded-full",
+          availability === "free" ? "bg-status-approved-fg" : "bg-status-pending-fg"
+        )}
+      />
+      {availability === "free" ? "Free now" : "Busy now"}
     </span>
   ) : null
 
@@ -148,6 +184,38 @@ function RoomCard({
             {nameRow}
             {availabilityDot}
           </div>
+          {locationRow}
+          {amenityRow}
+        </div>
+      </Link>
+    )
+  }
+
+  if (categoryColor) {
+    return (
+      <Link
+        href={href ?? `/rooms/${id}`}
+        onClick={onClick}
+        data-slot="room-card"
+        className={cn(
+          "flex flex-col overflow-hidden rounded-lg border border-line bg-surface shadow-sm transition-shadow hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+          className
+        )}
+      >
+        <div
+          className={cn(
+            "relative flex h-28 w-full shrink-0 items-center justify-center",
+            ROOM_CATEGORY_COLOR_HEADER_CLASSES[categoryColor]
+          )}
+        >
+          <Building2
+            aria-hidden="true"
+            className={cn("size-9 opacity-70", ROOM_CATEGORY_COLOR_ICON_CLASSES[categoryColor])}
+          />
+          {availabilityBadge}
+        </div>
+        <div className="flex flex-1 flex-col gap-2 p-4">
+          {nameRow}
           {locationRow}
           {amenityRow}
         </div>

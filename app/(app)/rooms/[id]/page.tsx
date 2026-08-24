@@ -80,7 +80,11 @@ export default async function RoomDetailPage({
   const startDate = todayDateString();
   const endDate = addDays(startDate, STRIP_DAYS - 1);
 
-  const [{ data: room }, { data: upcomingBookings }, { data: todayBookings }] = await Promise.all([
+  const [
+    { data: room, error: roomError },
+    { data: upcomingBookings, error: upcomingError },
+    { data: todayBookings, error: todayError },
+  ] = await Promise.all([
     supabase
       .from("rooms")
       .select("id, name, amenities, building, floor")
@@ -101,6 +105,10 @@ export default async function RoomDetailPage({
       .in("status", CONFLICTING_STATUSES)
       .order("start_time", { ascending: true }),
   ]);
+
+  if (roomError || upcomingError || todayError) {
+    throw new Error((roomError ?? upcomingError ?? todayError)!.message);
+  }
 
   if (!room) {
     notFound();

@@ -61,4 +61,5 @@ next-env.d.ts
 
 # markdown and plans
 *.md
+!PROJECT-ROADMAP.md
 *plan*

@@ -1,3 +1,4 @@
+import { Ban, Check, Clock, X } from "lucide-react"
 import { cva, type VariantProps } from "class-variance-authority"
 
 import { cn } from "@/lib/utils"
@@ -24,25 +25,29 @@ const STATUS_LABELS: Record<BookingStatus, string> = {
   cancelled: "Cancelled",
 }
 
+// Color alone shouldn't carry the status — pairs each badge with a distinct
+// icon so it still reads correctly for colorblind users, on a grayscale
+// screen, or in print.
+const STATUS_ICONS: Record<BookingStatus, React.ComponentType<{ className?: string }>> = {
+  approved: Check,
+  pending: Clock,
+  rejected: X,
+  cancelled: Ban,
+}
+
 interface StatusBadgeProps extends VariantProps<typeof statusBadgeVariants> {
   status: BookingStatus
-  /** Show a small leading dot in addition to the text label. */
-  dot?: boolean
   className?: string
 }
 
-function StatusBadge({ status, dot = false, className }: StatusBadgeProps) {
+function StatusBadge({ status, className }: StatusBadgeProps) {
+  const Icon = STATUS_ICONS[status]
   return (
     <span
       data-slot="status-badge"
       className={cn(statusBadgeVariants({ status }), className)}
     >
-      {dot && (
-        <span
-          aria-hidden="true"
-          className="size-1.5 shrink-0 rounded-full bg-current"
-        />
-      )}
+      <Icon aria-hidden="true" className="size-3 shrink-0" />
       {STATUS_LABELS[status]}
     </span>
   )
