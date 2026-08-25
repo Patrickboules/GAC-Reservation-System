@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/components/kit/button";
 import { BookingToastFeedback } from "@/components/bookings/booking-toast-feedback";
 import { MyBookingsTabs, type MyBookingCardData } from "@/components/bookings/my-bookings-tabs";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
@@ -95,12 +95,12 @@ export default async function MyBookingsPage({
     <div className="mx-auto flex min-h-full w-full max-w-2xl flex-col gap-4 p-4">
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-semibold">My bookings</h1>
-          <p className="text-sm text-muted-foreground">Requests you&apos;ve submitted.</p>
+          <h1 className="font-display text-h2 text-ink-900">My bookings</h1>
+          <p className="text-small text-ink-500">Requests you&apos;ve submitted.</p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" render={<Link href="/rooms">New request</Link>} />
-          <Button variant="outline" render={<Link href="/">Home</Link>} />
+          <Button variant="secondary" render={<Link href="/rooms">New request</Link>} />
+          <Button variant="secondary" render={<Link href="/">Home</Link>} />
         </div>
       </div>
 
@@ -109,7 +109,7 @@ export default async function MyBookingsPage({
       </Suspense>
 
       {error ? (
-        <p role="alert" className="text-sm text-destructive">
+        <p role="alert" className="text-small text-status-rejected-fg">
           {error}
         </p>
       ) : null}

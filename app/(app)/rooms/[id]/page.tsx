@@ -133,7 +133,9 @@ export default async function RoomDetailPage({
         <div className="h-24 w-full bg-sky-100" aria-hidden="true" />
         <div className="flex flex-col gap-4 p-4">
           <div className="flex items-start justify-between gap-2">
-            <h1 className="font-display text-h2 text-ink-900">{room.name}</h1>
+            <h1 lang="ar" dir="rtl" className="font-display text-h2 text-ink-900">
+              {room.name}
+            </h1>
             <Button variant="secondary" size="sm" render={<Link href="/rooms">Back to rooms</Link>} />
           </div>
 

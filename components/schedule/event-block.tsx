@@ -159,10 +159,20 @@ function EventBlock({
             >
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center justify-between gap-2">
-                  <span className="truncate font-display text-small text-ink-900">{service ?? roomName}</span>
+                  <span className="truncate font-display text-small text-ink-900">
+                    {service ?? (
+                      <span lang="ar" dir="rtl">
+                        {roomName}
+                      </span>
+                    )}
+                  </span>
                   <StatusBadge status={status} />
                 </div>
-                {service && <span className="truncate text-caption text-ink-700">{roomName}</span>}
+                {service && (
+                  <span lang="ar" dir="rtl" className="truncate text-caption text-ink-700">
+                    {roomName}
+                  </span>
+                )}
                 <span className="font-mono text-caption text-ink-700">{timeLabel}</span>
                 {requesterName && (
                   <span className="flex items-center gap-1 text-caption text-ink-700">
@@ -179,12 +189,23 @@ function EventBlock({
       <Modal open={detailOpen} onOpenChange={setDetailOpen}>
         <ModalContent>
           <ModalHeader>
-            <ModalTitle>{service ?? roomName}</ModalTitle>
+            <ModalTitle>
+              {service ?? (
+                <span lang="ar" dir="rtl">
+                  {roomName}
+                </span>
+              )}
+            </ModalTitle>
             <ModalDescription className="font-mono">{timeLabel}</ModalDescription>
           </ModalHeader>
           <div className="flex flex-col gap-2 text-small text-ink-700">
             <StatusBadge status={status} />
-            <p>Room: {roomName}</p>
+            <p>
+              Room:{" "}
+              <span lang="ar" dir="rtl">
+                {roomName}
+              </span>
+            </p>
             {requesterName && <p>Requested by {requesterName}</p>}
           </div>
         </ModalContent>

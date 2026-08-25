@@ -155,7 +155,9 @@ function RoomCard({
 
   const nameRow = (
     <div className="flex items-baseline gap-2">
-      <span className="truncate text-body font-semibold text-ink-900">{name}</span>
+      <span lang="ar" dir="rtl" className="truncate text-body font-semibold text-ink-900">
+        {name}
+      </span>
       {code && <span className="shrink-0 font-mono text-caption text-ink-500">{code}</span>}
     </div>
   )

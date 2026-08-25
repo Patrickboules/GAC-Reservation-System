@@ -69,7 +69,7 @@ function BookingCard({
           className="flex min-w-0 flex-col gap-1.5 outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
         >
           <div className="flex items-start justify-between gap-2">
-            <span className="truncate text-body font-semibold text-ink-900">
+            <span lang="ar" dir="rtl" className="truncate text-body font-semibold text-ink-900">
               {roomName}
             </span>
             <StatusBadge status={status} />
