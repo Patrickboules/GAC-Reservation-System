@@ -20,7 +20,7 @@ This roadmap replaces the 2026-08-23 version entirely, from a fresh verification
 
 ---
 
-## Phase 1 — Fix CLAUDE.md's stale schema documentation
+## Phase 1 — Fix CLAUDE.md's stale schema documentation ✅ Done (2026-08-25)
 
 **Goal:** The project's own instructions file stops describing a schema that hasn't existed since early August.
 
@@ -28,14 +28,14 @@ This roadmap replaces the 2026-08-23 version entirely, from a fresh verification
 
 **Items:**
 
-- **[Documentation accuracy]** `CLAUDE.md`'s "Planned data model" section still lists `rooms: id, name, capacity, amenities (text[]/jsonb), location, rules, created_at` — three of those columns (`capacity`, `location`, `rules`) were dropped by `supabase/migrations/20260801000000_adopt_rooms_json_schema.sql` weeks ago and replaced by `building`/`floor`/`category_color`. This isn't a stray comment — it's the file every future contributor (human or agent) reads first, and it currently tells them to expect columns that don't exist.
+- **[Documentation accuracy]** ✅ `CLAUDE.md`'s "Planned data model" section listed `rooms: id, name, capacity, amenities (text[]/jsonb), location, rules, created_at` — three of those columns (`capacity`, `location`, `rules`) were dropped by `supabase/migrations/20260801000000_adopt_rooms_json_schema.sql` weeks ago and replaced by `building`/`floor`/`category_color`. Fixed: the line now reads `id, name, building, floor, room_type, amenities (text[]), category_color, created_at`, matching the live schema.
 - **[Documentation accuracy]** The prior roadmap itself cited `app/(app)/admin/rooms/actions.ts:55,59` as containing "explanatory comments" about capacity — that citation is also stale; the current file has no mention of capacity anywhere. (This rewrite fixes that by not repeating it.)
 
 **Not in this phase:** no code changes — `rooms`' actual schema is correct and fully wired; this is purely bringing the docs in line with reality.
 
 ---
 
-## Phase 2 — Finish the six-screen redesign
+## Phase 2 — Finish the six-screen redesign ✅ Mostly done (2026-08-25) — one item deferred
 
 **Goal:** Close the specific, identifiable seams left by implementing the redesign one screen at a time — no new visual design, just applying the same patterns already established elsewhere in the redesign to the spots that were missed.
 
@@ -43,47 +43,47 @@ This roadmap replaces the 2026-08-23 version entirely, from a fresh verification
 
 **Items:**
 
-- **[Structure & architecture]** Two pages never got the `kit/*` treatment even though they're reachable from redesigned screens:
-  - `app/(app)/bookings/page.tsx` — the page's *content* (`MyBookingsTabs`, `kit/booking-card.tsx`) was fully redesigned, but its shell wasn't brought along: `Button` still imports from `@/components/ui/button` (line 4, used for the "New request"/"Home" header actions) and the header/error text still uses generic Tailwind classes (`text-2xl font-semibold`, `text-sm text-muted-foreground`, `text-destructive`) instead of the kit tokens every sibling redesigned page uses (`font-display text-h2 text-ink-900`, `text-small text-ink-500`).
-  - `app/(app)/bookings/[id]/page.tsx` (the booking detail page) was **never touched by the redesign at all** — still on `components/ui/button`, `components/ui/card`, and `components/schedule/booking-status-badge.tsx` (hardcoded `amber-`/`green-`/`red-` colors) rather than `kit/status-badge.tsx`. This matters because it's one click away from the newly-redesigned My Bookings list (`BookingCard` links straight into it) — a member currently gets a jarring visual downgrade clicking from the new list into an old-style detail page.
-- **[UI / visual design]** Retire `components/schedule/booking-status-badge.tsx` in favor of `components/kit/status-badge.tsx` once the detail page above is migrated — it's the only other live consumer. This also resolves the "3 status-badge implementations" fragmentation from the old roadmap's Phase 5 without needing a separate consolidation effort.
-- **[UI / visual design]** `app/(app)/availability/page.tsx` and its `AvailabilitySearch` component are **orphaned** — a repo-wide link search found zero inbound navigation to `/availability` anywhere; it's dead code superseded by `/schedule`, still on `components/ui/*` with hardcoded amber/green badge colors. Needs a decision (delete it, or re-link it if it has functionality `/schedule` doesn't) rather than silent bit-rot — see Open Questions.
-- **[UI / visual design]** RTL/Arabic-name wrapping is real but inconsistently applied *within the same redesigned screens*. The pattern (`<span lang="ar" dir="rtl">`) is correctly used in 6 files (admin rooms table + form, schedule grid's room column, booking screen, rooms directory's amenity chips), but these specific spots render Arabic room/service names **unwrapped**, right next to correctly-wrapped siblings:
-  - `components/kit/room-card.tsx:158` — the shared room-name span (used by Rooms directory and the global header search) has no wrapping at all.
-  - `components/kit/booking-card.tsx:72-74` — My Bookings' room name is unwrapped.
-  - `components/schedule/event-block.tsx:162,165,182,187` — the hover popover and tap-modal's room/service text is unwrapped, even though `timeline-grid.tsx`'s room-column label one column over *is* wrapped.
-  - `components/admin/room-utilization-chart.tsx:17-18` — admin reports chart room labels, unwrapped.
-  - `app/(app)/rooms/[id]/page.tsx:136` — the room detail page's `<h1>` is unwrapped.
-  This is mechanical — apply the exact pattern already proven correct in the other 6 files, no new design decision required.
+- **[Structure & architecture]** ✅ Both pages migrated to `kit/*`:
+  - `app/(app)/bookings/page.tsx` — `Button` now imports from `@/components/kit/button` (variant `secondary` for the "New request"/"Home" header actions), header/error text now uses `font-display text-h2 text-ink-900`, `text-small text-ink-500`, `text-status-rejected-fg`.
+  - `app/(app)/bookings/[id]/page.tsx` — migrated off `components/ui/button`/`components/ui/card` to `kit/button` and a plain `kit`-styled card shell (`rounded-lg border border-line bg-surface shadow-sm`, matching the pattern already used by `app/(app)/rooms/[id]/page.tsx` and `kit/booking-card.tsx`), and off `components/schedule/booking-status-badge.tsx` onto `kit/status-badge.tsx`.
+- **[UI / visual design]** ✅ `components/schedule/booking-status-badge.tsx` retired and deleted — confirmed zero remaining consumers after the detail-page migration above. Resolves the "3 status-badge implementations" fragmentation from the old roadmap's Phase 5.
+- **[UI / visual design]** ⏸ Deferred — `app/(app)/availability/page.tsx` orphaned-page decision. Asked the user; answer was to leave it as-is for now rather than delete or re-link. Still open — see Open Questions.
+- **[UI / visual design]** ✅ RTL/Arabic-name wrapping fixed in all 5 identified spots, matching the existing `<span lang="ar" dir="rtl">` pattern:
+  - `components/kit/room-card.tsx:158` — room-name span now wrapped.
+  - `components/kit/booking-card.tsx:72-74` — My Bookings' room name now wrapped.
+  - `components/schedule/event-block.tsx` — room name wrapped in both the hover popover and tap-modal; the English `service` fixed-dropdown label (`lib/bookings/services.ts`) is deliberately left unwrapped since it's never Arabic — only the `roomName` fallback/secondary text gets `lang="ar" dir="rtl"`, restructured as a nested span rather than wrapping the whole `service ?? roomName` expression.
+  - `components/admin/room-utilization-chart.tsx:17-18` — admin reports chart room labels now wrapped.
+  - `app/(app)/rooms/[id]/page.tsx:136` — room detail page's `<h1>` now wrapped.
+
+**Verification:** `npx tsc --noEmit` clean, `npm run lint` clean (pre-existing unrelated errors only, in `.claude/skills/*` scripts), `npm run build` compiles all 17 routes successfully. Visual confirmation in a signed-in browser session wasn't possible in this environment (Google OAuth required) — worth a manual pass before considering this phase fully closed.
 
 **Not in this phase:** no full mirrored RTL (that's Phase 6 — a much bigger, still-undecided scope); no wrapping of free-text fields like `service`/`notes`/`reject_reason` (user-typed, indeterminate language — leaving those unwrapped looks like a deliberate, reasonable boundary, not a gap); no visual redesign of anything — every fix here re-applies a pattern that already exists elsewhere in the app.
 
 ---
 
-## Phase 3 — Test coverage
+## Phase 3 — Test coverage ✅ 3a + 3b done (2026-08-26), 3c deferred
 
 **Goal:** The logic most likely to silently break — pure booking/room helpers, and every Server Action that mutates state — has real test coverage.
 
 **Effort:** M/L (see sub-phases — they have very different effort/risk profiles and don't need to happen together)
 
-### 3a — Pure-function coverage (cheap, do first)
+### 3a — Pure-function coverage (cheap, do first) ✅ Done
 
-- **[Correctness]** `lib/bookings/status.ts` (`bucketForBooking`, `isBookingModifiable`) has **zero tests**, despite sitting right next to `lib/bookings/conflict-check.ts` — which has thorough tests — and despite being the exact logic that decides which tab a booking shows up in across all of My Bookings.
-- **[Correctness]** `lib/rooms/category-colors.ts` has **zero tests**, despite being consumed in 8+ places across the redesign (Rooms directory, Schedule grid, Admin room form/table, category color picker).
-- Both are pure functions with no I/O — this is a `conflict-check.test.ts`-shaped afternoon, not a project.
+- **[Correctness]** ✅ `lib/bookings/status.test.ts` added — 13 tests covering `bucketForBooking` and `isBookingModifiable` across all status/date combinations.
+- **[Correctness]** ✅ `lib/rooms/category-colors.test.ts` added — covers `isRoomCategoryColor` and that every lookup table (`ROOM_CATEGORY_COLOR_LABELS`/`_SWATCH_CLASSES`/`_HEADER_CLASSES`/`_ICON_CLASSES`) has an entry for all 8 palette colors.
 
-### 3b — Server Action coverage (the real gap, harder)
+### 3b — Server Action coverage (the real gap, harder) ✅ Done
 
-- **[Correctness / risk-reduction]** All 6 Server Action files — `app/(app)/admin/actions.ts`, `app/(app)/admin/rooms/actions.ts`, `app/(app)/bookings/actions.ts`, `app/(app)/notifications/actions.ts`, `app/login/actions.ts`, `app/logout/actions.ts` — have **zero test coverage**. This is unchanged from the last roadmap and is still the single biggest risk-reduction opportunity in the codebase: the two-tier conflict policy (Phase-2-era "Recently resolved" above) and the exclusion-constraint race guard both live in these files, and nothing would catch a regression.
-- **Why this is harder than it sounds:** `approveBookingById`/`rejectBookingById` and the booking actions call `supabase.from(...)` directly with no injected repository/seam for pure mocking. Two realistic approaches exist, both already precedented in this repo: extend `supabase/tests/`'s local-Supabase integration pattern (`bookings-no-overlap.integration.test.ts`), or build a fake-client shim like `lib/notifications.test.ts`'s `createFakeAdmin`. Note the integration pattern **self-skips** when no local Supabase is reachable (so it's currently a no-op in CI per its own doc comment) — that's an accepted tradeoff already, not a new problem, but it means "coverage" via that route needs `supabase start` to actually run in practice.
-- **Priority within this sub-phase:** `admin/actions.ts` first (exactly where the race guard lives), then `bookings/actions.ts` (pending-cap + two-tier conflict logic), then the rest.
+- **[Correctness / risk-reduction]** ✅ All 6 Server Action files now have test coverage: `app/(app)/admin/actions.test.ts` (13 tests — `requireAdmin`, approve/reject including the 23P01 race-guard mapping and the approved-conflict re-check, bulk actions), `app/(app)/bookings/actions.test.ts` (21 tests — `requestBooking`/`updateBooking`/`cancelBooking`, including the pending-cap, the two-tier conflict policy, and the reschedule-reverts-to-pending transition), `app/(app)/admin/rooms/actions.test.ts` (11 tests, including the delete-blocking logic's past/future and pending/approved distinctions), `app/(app)/notifications/actions.test.ts` (3 tests), `app/login/actions.test.ts` (6 tests, including the open-redirect guard on `next`), `app/logout/actions.test.ts` (1 test). 55 new Server Action tests total.
+- **Approach taken:** neither of the two options the previous pass of this roadmap considered — instead, `vi.mock` on `@/lib/supabase/server`, `@/lib/supabase/admin`, `next/navigation`, and `next/cache` swaps in a new shared in-memory fake client (`lib/testing/fake-supabase.ts`) via dependency injection at the module level, with no changes to production code and no local Supabase instance required. `FakeSupabaseClient`/`FakeTable` implement the subset of the supabase-js query builder these action files actually use (`select`/`update`/`insert`/`delete` chained with `eq`/`in`/`is`/`single`/`maybeSingle`, plus `{count: "exact", head: true}` and a `failNextWriteWith()` hook for exercising `23P01` exclusion-constraint races) — not a general Postgres simulator, but enough to test real branching logic against real in-memory state.
+- Verified: `npx tsc --noEmit`, `npm run lint`, `npx vitest run` (164 passed, 2 skipped — the pre-existing self-skipping integration test), and `npm run build` all clean.
 
-### 3c — New redesign component coverage (needs a tooling decision first)
+### 3c — New redesign component coverage ⏸ Deferred (needs a tooling decision — asked, user chose to skip for now)
 
 - **[Structure & architecture]** 9 components/behaviors created or substantially rewritten during the redesign have zero test coverage: `components/rooms/rooms-directory.tsx`, `components/kit/booking-card.tsx`, `components/kit/route-error.tsx`, `components/kit/table.tsx`'s `renderMobileCard` prop, `components/kit/status-badge.tsx`, `components/kit/time-range-picker.tsx`, `components/schedule/now-line.tsx` + `lib/schedule/now-line.ts`, `components/bookings/booking-toast-feedback.tsx`, `components/bookings/my-bookings-tabs.tsx`.
-- This repo currently has **no component-testing setup at all** (Vitest covers pure functions plus one DB integration test — no React Testing Library, no component render tests anywhere). Adding coverage here means first deciding whether that investment is worth it — see Open Questions — rather than it being a pure "add tests" task.
+- This repo currently has **no component-testing setup at all** (Vitest covers pure functions plus Server Actions plus one DB integration test — no React Testing Library, no component render tests anywhere). Asked the user whether to invest in React Testing Library for this; answer was to skip for now. Still open — see Open Questions.
 
-**Not in this phase:** no refactoring of the Server Actions to add a repository seam "to make testing easier" — write tests against the current structure using one of the two approaches above; that's a separate, larger architectural call if it's ever wanted.
+**Not in this phase:** no refactoring of the Server Actions to add a repository seam "to make testing easier" — 3b's tests were written against the current structure via module mocking, not a production-code seam.
 
 ---
 
@@ -136,16 +136,16 @@ This roadmap replaces the 2026-08-23 version entirely, from a fresh verification
 
 ## If you only do 3 things next
 
-1. **Phase 1 — fix CLAUDE.md's stale schema.** Minutes of work, closes a real trust gap in the document every future contributor (human or agent) reads first.
-2. **Phase 2 — finish the redesign.** The most user-visible gap on this list: a member today can click from the newly-redesigned My Bookings list straight into an old-styled, unmigrated booking detail page, and several Arabic room names go unwrapped in exactly the screens that were supposed to handle them correctly. Every fix here reuses a pattern already proven elsewhere in the app — no new design work.
-3. **Phase 3a + 3b — test coverage, pure functions first, then Server Actions.** Still the single highest risk-reduction lever available: the two-tier conflict policy and the exclusion-constraint race guard — both correctness-critical, both recently changed — currently have no regression protection at the Server Action layer.
+1. ~~**Phase 1 — fix CLAUDE.md's stale schema.**~~ ✅ Done (2026-08-25).
+2. ~~**Phase 2 — finish the redesign.**~~ ✅ Done (2026-08-25), except the `/availability` orphaned-page decision, deferred at the user's request.
+3. ~~**Phase 3a + 3b — test coverage, pure functions first, then Server Actions.**~~ ✅ Done (2026-08-26). The two-tier conflict policy and the exclusion-constraint race guard now have real regression protection at the Server Action layer.
 
 ## Open questions (need a product decision, not just implementation)
 
 - **Orphaned `/availability` page (Phase 2):** delete it outright, or does it have functionality worth preserving that `/schedule` doesn't cover? It currently has zero inbound navigation links anywhere in the app.
 - **`components/ui/*` / login page (Phase 5):** once Phase 2 migrates the booking detail page, `ui/*`'s only consumer is `app/login/page.tsx`. Migrate that too and delete `ui/*` entirely, or deliberately keep it as a base for future shadcn-generated components?
 - **Breakpoint numbers (Phase 5):** formalize 390/768/1440 as actual named breakpoints (touches every `lg:`/`md:` in the shell plus a `--breakpoint-*` override), or accept the current Tailwind-default `lg:`-only gating as good enough and revise the documented target instead?
-- **Component/UI test tooling (Phase 3c):** the app currently has zero React component tests (pure functions + one DB integration test only). Is investing in a component-testing setup (e.g. React Testing Library) worth it for the 9 newly-identified untested components, or should testing effort stay focused on Server Actions and pure logic (3a/3b) for now?
+- **Component/UI test tooling (Phase 3c):** the app currently has zero React component tests (pure functions + Server Actions + one DB integration test only, as of 2026-08-26). Asked the user 2026-08-26 whether to invest in a component-testing setup (e.g. React Testing Library) for the 9 newly-identified untested components; chose to skip for now. Revisit if that changes.
 - **Full mirrored RTL (Phase 6):** is the bidi-in-LTR-shell approach already shipped the permanent answer, or does the product eventually need full mirrored RTL for a fully Arabic-first audience?
 - **Reminder delivery channel:** unchanged from before — `lib/notifications.ts` confirms reminders are deliberately on-demand/in-app only per the original PRD. Still acceptable, or does a member who doesn't open the app before their booking need to be reached another way (email/push/SMS)? Infrastructure decision, not a small fix.
 - **Recurring bookings / cross-room availability during booking / duplicate-past-booking:** confirmed still absent from the code (no recurrence logic, no duplicate affordance). Given the project's v1 philosophy of fixed, non-editable service types, is any of this in near-term scope?
