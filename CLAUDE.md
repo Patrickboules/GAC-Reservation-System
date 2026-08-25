@@ -23,7 +23,7 @@ See `DEPLOYMENT.md` for how the Vercel production deploy pipeline and PR CI gate
 
 ### Planned data model
 
-- **rooms**: `id, name, capacity, amenities (text[]/jsonb), location, rules, created_at`
+- **rooms**: `id, name, building, floor, room_type, amenities (text[]), category_color, created_at`
 - **bookings**: `id, room_id (FK), user_id (FK), date, start_time, end_time, service, notes, status ('pending'|'approved'|'rejected'|'cancelled'), reject_reason, created_at, updated_at`
 - **profiles** (extends Supabase Auth): `id (FK auth.users), display_name, role ('member'|'admin', default 'member'), created_at`
 
