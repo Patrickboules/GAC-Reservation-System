@@ -6,8 +6,9 @@ import { AlertTriangle, CheckCircle2, ChevronDown, ChevronUp } from "lucide-reac
 import { cn } from "@/lib/utils"
 import { formatTimeLabel, minutesToTime, snapMinutesToStep, timeToMinutes } from "@/lib/dates"
 import { BOOKING_TIME_STEP_MINUTES } from "@/lib/bookings/time-granularity"
+import { LATEST_BOOKING_END_MINUTES } from "@/lib/bookings/limits"
 
-const MAX_MINUTES = 23 * 60 + 59
+const MAX_MINUTES = LATEST_BOOKING_END_MINUTES
 
 interface TimeStepperProps {
   label: string

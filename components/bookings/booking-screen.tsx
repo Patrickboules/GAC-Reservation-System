@@ -16,10 +16,10 @@ import { Select } from "@/components/kit/select";
 import { Textarea } from "@/components/kit/textarea";
 import { TimeRangePicker } from "@/components/kit/time-range-picker";
 import { findConflictingBookings, type BookingStatus } from "@/lib/bookings/conflict-check";
-import { MAX_OPEN_PENDING_BOOKINGS } from "@/lib/bookings/limits";
+import { LATEST_BOOKING_END_MINUTES, MAX_OPEN_PENDING_BOOKINGS } from "@/lib/bookings/limits";
 import { BOOKING_SERVICES } from "@/lib/bookings/services";
 import { createClient } from "@/lib/supabase/client";
-import { normalizeTimeString, todayDateString } from "@/lib/dates";
+import { minutesToTime, normalizeTimeString, timeToMinutes, todayDateString } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 
 export interface BookingScreenRoom {
@@ -55,6 +55,13 @@ const DEFAULT_START_TIME = "09:00";
 const DEFAULT_END_TIME = "10:00";
 const MAX_VISIBLE_ROOM_AMENITIES = 5;
 
+/** Clamps a caller-supplied default (e.g. a ?start=/?end= deep link) to the
+ * booking cap, so the picker never opens already past what it will let the
+ * user step to or submit. */
+function clampToLatestEnd(time: string): string {
+  return minutesToTime(Math.min(timeToMinutes(time), LATEST_BOOKING_END_MINUTES));
+}
+
 export interface BookingScreenProps {
   /** The room being reserved — always chosen already, on the Rooms page. */
   room: BookingScreenRoom;
@@ -89,10 +96,12 @@ export function BookingScreen({
 
   const [date, setDate] = useState(booking?.date ?? defaultDate ?? todayDateString());
   const [startTime, setStartTime] = useState(
-    booking ? booking.start_time.slice(0, 5) : (defaultStartTime ?? DEFAULT_START_TIME)
+    booking
+      ? booking.start_time.slice(0, 5)
+      : clampToLatestEnd(defaultStartTime ?? DEFAULT_START_TIME)
   );
   const [endTime, setEndTime] = useState(
-    booking ? booking.end_time.slice(0, 5) : (defaultEndTime ?? DEFAULT_END_TIME)
+    booking ? booking.end_time.slice(0, 5) : clampToLatestEnd(defaultEndTime ?? DEFAULT_END_TIME)
   );
   const [service, setService] = useState(booking?.service ?? "");
   const [notes, setNotes] = useState(booking?.notes ?? "");

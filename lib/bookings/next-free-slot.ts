@@ -1,7 +1,8 @@
 import { findConflictingBookings, type BookingTimeSlot } from "@/lib/bookings/conflict-check";
+import { LATEST_BOOKING_END_MINUTES } from "@/lib/bookings/limits";
 import { BOOKING_TIME_STEP_MINUTES } from "@/lib/bookings/time-granularity";
 import { minutesToTime } from "@/lib/dates";
-import { SCHEDULE_END_HOUR, SCHEDULE_START_HOUR } from "@/lib/schedule/hours";
+import { SCHEDULE_START_HOUR } from "@/lib/schedule/hours";
 
 const SLOT_DURATION_MINUTES = 60;
 
@@ -18,7 +19,9 @@ export function findNextFreeSlot(
   existingBookings: readonly BookingTimeSlot[]
 ): { startTime: string; endTime: string } | null {
   const windowStart = SCHEDULE_START_HOUR * 60;
-  const windowEnd = SCHEDULE_END_HOUR * 60;
+  // Bounded by the booking cap, not the schedule view's (later) visual
+  // rendering window — a suggested slot must itself be a bookable slot.
+  const windowEnd = LATEST_BOOKING_END_MINUTES;
 
   for (
     let candidateStart = windowStart;

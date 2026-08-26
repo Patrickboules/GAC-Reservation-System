@@ -110,6 +110,23 @@ describe("requestBooking", () => {
     expect(result.error).toBe("Can't request a booking in the past.");
   });
 
+  it("rejects an end time later than 10:30 PM", async () => {
+    setupClient({ userId: MEMBER_ID });
+    const result = await requestBooking(
+      {},
+      formData(validRequestFields({ start_time: "22:00", end_time: "22:31" }))
+    );
+    expect(result.error).toBe("Bookings can't run later than 10:30 PM.");
+  });
+
+  it("allows an end time exactly at 10:30 PM", async () => {
+    const client = setupClient({ userId: MEMBER_ID });
+    await expect(
+      requestBooking({}, formData(validRequestFields({ start_time: "22:00", end_time: "22:30" })))
+    ).rejects.toThrow("REDIRECT:/bookings?submitted=1");
+    expect(client.table("bookings").rows).toHaveLength(1);
+  });
+
   it("redirects to /login when not authenticated", async () => {
     setupClient({ userId: null });
     await expect(requestBooking({}, formData(validRequestFields()))).rejects.toThrow(
@@ -214,6 +231,15 @@ describe("updateBooking", () => {
       ...overrides,
     };
   }
+
+  it("rejects rescheduling to an end time later than 10:30 PM", async () => {
+    setupClient({ userId: MEMBER_ID, bookings: [existingBooking()] });
+    const result = await updateBooking(
+      {},
+      formData(updateFields({ start_time: "22:00", end_time: "22:31" }))
+    );
+    expect(result.error).toBe("Bookings can't run later than 10:30 PM.");
+  });
 
   it("fails when the booking doesn't exist or isn't owned by the caller", async () => {
     setupClient({ userId: MEMBER_ID, bookings: [] });

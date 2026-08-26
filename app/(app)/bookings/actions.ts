@@ -4,10 +4,15 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
 import { BLOCKING_STATUSES, fetchConflictingBookings } from "@/lib/bookings/conflict-check";
-import { MAX_OPEN_PENDING_BOOKINGS } from "@/lib/bookings/limits";
+import { LATEST_BOOKING_END_MINUTES, MAX_OPEN_PENDING_BOOKINGS } from "@/lib/bookings/limits";
 import { isBookingService } from "@/lib/bookings/services";
 import { isBookingModifiable } from "@/lib/bookings/status";
-import { isBookingPast, isBookingStartInPast, normalizeTimeString } from "@/lib/dates";
+import {
+  isBookingPast,
+  isBookingStartInPast,
+  normalizeTimeString,
+  timeToMinutes,
+} from "@/lib/dates";
 import { notifyAdminsNewRequest, notifyBookingCancelled } from "@/lib/notifications";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -39,6 +44,9 @@ export async function requestBooking(
 
   if (startTime >= endTime) {
     return { error: "End time must be after start time." };
+  }
+  if (timeToMinutes(endTime) > LATEST_BOOKING_END_MINUTES) {
+    return { error: "Bookings can't run later than 10:30 PM." };
   }
   if (isBookingStartInPast(date, startTime)) {
     return { error: "Can't request a booking in the past." };
@@ -158,6 +166,9 @@ export async function updateBooking(
 
   if (startTime >= endTime) {
     return { error: "End time must be after start time." };
+  }
+  if (timeToMinutes(endTime) > LATEST_BOOKING_END_MINUTES) {
+    return { error: "Bookings can't run later than 10:30 PM." };
   }
   if (isBookingStartInPast(date, startTime)) {
     return { error: "Can't reschedule a booking into the past." };
