@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Free now badge — before / after</title>
+<style>
+  :root {
+    --canvas: #f6f9fe;
+    --surface: #ffffff;
+    --line: #e6ebf1;
+    --ink-900: #1b2430;
+    --ink-700: #38434f;
+    --ink-500: #64707d;
+    --status-approved-fg: #0c7f56;
+    --radius-lg: 16px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 24px 64px;
+    background: var(--canvas);
+    font-family: -apple-system, "Segoe UI", Roboto, "IBM Plex Sans Arabic", Arial, sans-serif;
+    color: var(--ink-900);
+  }
+  h1 { font-size: 22px; font-weight: 700; margin: 0 0 6px; }
+  p.intro { color: var(--ink-500); font-size: 14px; margin: 0 0 40px; max-width: 640px; line-height: 1.5; }
+
+  .section { margin-bottom: 56px; }
+  .section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-500);
+    margin-bottom: 16px;
+  }
+  .section-label .tag {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: normal;
+    padding: 2px 8px;
+    border-radius: 999px;
+  }
+  .tag.before { background: #fbefd6; color: #9a5f05; }
+  .tag.after { background: #e4f7ef; color: #0c7f56; }
+
+  .row { display: flex; gap: 16px; flex-wrap: wrap; }
+
+  /* --- Room card, matching components/kit/room-card.tsx's categoryColor branch --- */
+  .card {
+    width: 240px;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+  .card-header {
+    position: relative;
+    height: 112px;
+    width: 100%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card-header.sky { background: linear-gradient(to bottom right, rgb(59 130 246 / 0.25), rgb(59 130 246 / 0.05)); }
+  .card-header.rose { background: linear-gradient(to bottom right, rgb(251 113 133 / 0.25), rgb(251 113 133 / 0.05)); }
+  .card-header.violet { background: linear-gradient(to bottom right, rgb(167 139 250 / 0.25), rgb(167 139 250 / 0.05)); }
+  .card-header .icon { opacity: 0.7; }
+  .card-header.sky .icon { color: #3b82f6; }
+  .card-header.rose .icon { color: #fb7185; }
+  .card-header.violet .icon { color: #a78bfa; }
+  .card-body { display: flex; flex: 1; flex-direction: column; gap: 8px; padding: 16px; }
+  .name-row { display: flex; align-items: baseline; gap: 8px; }
+  .room-name { font-size: 15px; font-weight: 600; color: var(--ink-900); direction: rtl; font-family: "IBM Plex Sans Arabic", sans-serif; }
+  .location-row { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-500); }
+  .amenity-row { display: flex; align-items: center; gap: 6px; }
+  .amenity-chip { width: 24px; height: 24px; border-radius: 999px; background: #f0f6ff; display: flex; align-items: center; justify-content: center; color: var(--ink-500); }
+
+  /* --- BEFORE badge: current implementation --- */
+  .badge-before {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.9);
+    padding: 2px 8px;
+    font-size: 12px;
+    line-height: 1.5; /* text-caption's default — this is the main hidden cause of the bulk */
+    font-weight: 500;
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    backdrop-filter: blur(4px);
+    color: var(--status-approved-fg);
+  }
+  .badge-before .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--status-approved-fg); flex-shrink: 0; }
+
+  /* --- AFTER badge: recommended --- */
+  .badge-after {
+    position: absolute;
+    left: 8px;
+    top: 8px;
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    border-radius: 999px;
+    background: rgb(255 255 255 / 0.85);
+    padding: 3px 6px;
+    font-size: 11px; /* new "micro" size, one step below text-caption — see note below */
+    line-height: 1; /* leading-none — collapses the 1.5 line-height inflation */
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    backdrop-filter: blur(4px);
+    color: var(--status-approved-fg);
+  }
+  .badge-after .dot { width: 4px; height: 4px; border-radius: 999px; background: var(--status-approved-fg); flex-shrink: 0; }
+
+  .diff {
+    margin-top: 40px;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 24px;
+    max-width: 640px;
+  }
+  .diff h2 { font-size: 14px; margin: 0 0 12px; }
+  .diff table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  .diff td { padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .diff td:first-child { color: var(--ink-500); width: 110px; white-space: nowrap; }
+  .diff code { background: #f0f6ff; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .diff .reason { color: var(--ink-500); font-size: 12px; margin-top: 2px; }
+
+  .measure {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 16px;
+    font-size: 12px;
+    color: var(--ink-500);
+  }
+  .measure .swatch { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .measure .box { border: 1.5px dashed #94a3b8; border-radius: 999px; }
+  .measure .box.before-h { width: 74px; height: 22px; }
+  .measure .box.after-h { width: 65px; height: 17px; }
+</style>
+</head>
+<body>
+  <h1>"Free now" badge — before / after</h1>
+  <p class="intro">
+    Room cards from the Rooms directory grid (components/kit/room-card.tsx's categoryColor branch),
+    rendered with real room data. Nothing here has touched the real component — this is a preview only.
+  </p>
+
+  <div class="section">
+    <div class="section-label"><span class="tag before">BEFORE</span> current implementation</div>
+    <div class="row">
+      <div class="card">
+        <div class="card-header sky">
+          <svg class="icon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+          <span class="badge-before"><span class="dot"></span>Free now</span>
+        </div>
+        <div class="card-body">
+          <div class="name-row"><span class="room-name">قاعة أم النور</span></div>
+          <div class="location-row">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>المبنى الرئيسي — الدور الأرضي</span>
+          </div>
+          <div class="amenity-row">
+            <span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span>
+            <span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M19 9a5 5 0 0 1 0 6"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header rose">
+          <svg class="icon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+          <span class="badge-before"><span class="dot"></span>Free now</span>
+        </div>
+        <div class="card-body">
+          <div class="name-row"><span class="room-name">قاعة الدور الثالث</span></div>
+          <div class="location-row">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>المبنى الرئيسي — الدور الثالث</span>
+          </div>
+          <div class="amenity-row">
+            <span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span>
+            <span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M19 9a5 5 0 0 1 0 6"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header violet">
+          <svg class="icon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+          <span class="badge-before"><span class="dot"></span>Free now</span>
+        </div>
+        <div class="card-body">
+          <div class="name-row"><span class="room-name">قاعة الدور الرابع</span></div>
+          <div class="location-row">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>المبنى الرئيسي — الدور الرابع</span>
+          </div>
+          <div class="amenity-row">
+            <span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="measure">
+      <div class="swatch"><div class="box before-h"></div><span>badge ≈ 74×22px</span></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label"><span class="tag after">AFTER</span> recommended</div>
+    <div class="row">
+      <div class="card">
+        <div class="card-header sky">
+          <svg class="icon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+          <span class="badge-after"><span class="dot"></span>Free now</span>
+        </div>
+        <div class="card-body">
+          <div class="name-row"><span class="room-name">قاعة أم النور</span></div>
+          <div class="location-row">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>المبنى الرئيسي — الدور الأرضي</span>
+          </div>
+          <div class="amenity-row">
+            <span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span>
+            <span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M19 9a5 5 0 0 1 0 6"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header rose">
+          <svg class="icon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+          <span class="badge-after"><span class="dot"></span>Free now</span>
+        </div>
+        <div class="card-body">
+          <div class="name-row"><span class="room-name">قاعة الدور الثالث</span></div>
+          <div class="location-row">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>المبنى الرئيسي — الدور الثالث</span>
+          </div>
+          <div class="amenity-row">
+            <span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span>
+            <span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M19 9a5 5 0 0 1 0 6"/></svg></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header violet">
+          <svg class="icon" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+          <span class="badge-after"><span class="dot"></span>Free now</span>
+        </div>
+        <div class="card-body">
+          <div class="name-row"><span class="room-name">قاعة الدور الرابع</span></div>
+          <div class="location-row">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>المبنى الرئيسي — الدور الرابع</span>
+          </div>
+          <div class="amenity-row">
+            <span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="measure">
+      <div class="swatch"><div class="box after-h"></div><span>badge ≈ 65×17px — measured in-browser: −13.6% width, −22.7% height (≈33% smaller footprint overall)</span></div>
+    </div>
+  </div>
+
+  <div class="diff">
+    <h2>What actually changes (Tailwind classes, kit/room-card.tsx)</h2>
+    <table>
+      <tr><td>font size</td><td><code>text-caption</code> (12px) → new <code>text-[11px]</code> micro size
+        <div class="reason">You explicitly invited "smaller text" as an option — <code>text-caption</code> is currently this design system's smallest defined token, so going smaller means introducing a dedicated micro size for exactly this kind of dense overlay badge (not reusing it for body captions elsewhere). If you'd rather stay strictly within existing tokens, drop this one change and keep 12px — the padding/line-height/dot/shadow changes below still give a real, if smaller, improvement on their own.</div></td></tr>
+      <tr><td>padding</td><td><code>px-2 py-0.5</code> → <code>px-1.5 py-[3px]</code>, gap <code>gap-1</code> → <code>gap-0.75</code></td></tr>
+      <tr><td>line-height</td><td>add <code>leading-none</code>
+        <div class="reason">The biggest real lever: <code>text-caption</code>'s inherited 1.5 line-height renders an 18px-tall line box around 12px text — that's the main hidden cause of the bulk, more than the padding itself. <code>leading-none</code> collapses it to match the font size.</div></td></tr>
+      <tr><td>dot size</td><td><code>size-1.5</code> (6px) → <code>size-1</code> (4px)</td></tr>
+      <tr><td>shadow</td><td><code>shadow-sm</code> → dropped
+        <div class="reason">Less elevation = reads as quieter/supporting rather than a competing focal point.</div></td></tr>
+      <tr><td>background</td><td><code>bg-white/90</code> → <code>bg-white/85</code>, <code>backdrop-blur</code> kept
+        <div class="reason">Still needed for legibility against all 8 category header colors — just slightly less opaque/flat now that the shadow is gone.</div></td></tr>
+      <tr><td>measured result</td><td>−13.6% width, −22.7% height (≈33% smaller footprint), measured in-browser via getBoundingClientRect — not estimated</td></tr>
+      <tr><td>unchanged</td><td>color tokens, dot+text pairing (color is never the only signal for availability)</td></tr>
+    </table>
+  </div>
+</body>
+</html>

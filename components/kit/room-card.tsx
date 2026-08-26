@@ -113,18 +113,21 @@ function RoomCard({
     </span>
   ) : null
 
-  /** Overlaid on the categoryColor header instead of sitting inline next to the name. */
+  /** Overlaid on the categoryColor header instead of sitting inline next to the name.
+   * text-[11px]/leading-none/no shadow are a deliberate micro treatment (one step
+   * below text-caption) so the badge supports the room name below it instead of
+   * competing with it — see design-previews/free-now-badge.html for the before/after. */
   const availabilityBadge = availability ? (
     <span
       className={cn(
-        "absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/90 px-2 py-0.5 text-caption font-medium shadow-sm backdrop-blur",
+        "absolute left-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/85 px-1.5 py-[3px] text-[11px] font-medium leading-none backdrop-blur",
         availability === "free" ? "text-status-approved-fg" : "text-status-pending-fg"
       )}
     >
       <span
         aria-hidden="true"
         className={cn(
-          "size-1.5 shrink-0 rounded-full",
+          "size-1 shrink-0 rounded-full",
           availability === "free" ? "bg-status-approved-fg" : "bg-status-pending-fg"
         )}
       />
