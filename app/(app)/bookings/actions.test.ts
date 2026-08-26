@@ -188,6 +188,18 @@ describe("requestBooking", () => {
     const result = await requestBooking({}, formData(validRequestFields()));
     expect(result.error).toBe("This slot overlaps an existing approved booking for that room.");
   });
+
+  it("maps an unrelated insert failure to a generic message, without leaking the raw DB error", async () => {
+    const client = setupClient({ userId: MEMBER_ID });
+    client
+      .table("bookings")
+      .failNextWriteWith({ message: 'column "notes" of relation "bookings" does not exist', code: "42703" });
+
+    const result = await requestBooking({}, formData(validRequestFields()));
+    expect(result.error).toBe(
+      "Something went wrong while submitting your request. Please try again."
+    );
+  });
 });
 
 describe("updateBooking", () => {

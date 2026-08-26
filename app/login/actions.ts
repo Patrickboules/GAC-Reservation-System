@@ -33,7 +33,10 @@ export async function login(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`);
+    console.error("login: signInWithOAuth failed", error);
+    redirect(
+      `/login?error=${encodeURIComponent("Something went wrong starting Google sign-in. Please try again.")}`
+    );
   }
 
   redirect(data.url);

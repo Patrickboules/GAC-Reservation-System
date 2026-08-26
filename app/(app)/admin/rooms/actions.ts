@@ -67,7 +67,10 @@ export async function createRoomAction(input: RoomInput): Promise<RoomActionResu
   if (validationError) return { ok: false, error: validationError };
 
   const { error } = await supabase.from("rooms").insert(toRow(input));
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    console.error("createRoomAction: failed to insert room", error);
+    return { ok: false, error: "Something went wrong while creating the room. Please try again." };
+  }
 
   revalidatePath("/admin/rooms");
   return { ok: true };
@@ -82,7 +85,10 @@ export async function updateRoomAction(
   if (validationError) return { ok: false, error: validationError };
 
   const { error } = await supabase.from("rooms").update(toRow(input)).eq("id", roomId);
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    console.error("updateRoomAction: failed to update room", error);
+    return { ok: false, error: "Something went wrong while updating the room. Please try again." };
+  }
 
   revalidatePath("/admin/rooms");
   return { ok: true };
@@ -101,7 +107,11 @@ export async function deleteRoomAction(roomId: string): Promise<RoomActionResult
     .in("status", ["pending", "approved"]);
 
   if (fetchError) {
-    return { ok: false, error: fetchError.message };
+    console.error("deleteRoomAction: failed to check room's bookings", fetchError);
+    return {
+      ok: false,
+      error: "Something went wrong while checking this room's bookings. Please try again.",
+    };
   }
 
   const hasBlockingBooking = (blockingBookings ?? []).some(
@@ -116,7 +126,10 @@ export async function deleteRoomAction(roomId: string): Promise<RoomActionResult
   }
 
   const { error } = await supabase.from("rooms").delete().eq("id", roomId);
-  if (error) return { ok: false, error: error.message };
+  if (error) {
+    console.error("deleteRoomAction: failed to delete room", error);
+    return { ok: false, error: "Something went wrong while deleting the room. Please try again." };
+  }
 
   revalidatePath("/admin/rooms");
   return { ok: true };

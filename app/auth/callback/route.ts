@@ -33,8 +33,9 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}${next}`);
     }
 
+    console.error("auth/callback: exchangeCodeForSession failed", error);
     return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent(error.message)}`,
+      `${origin}/login?error=${encodeURIComponent("Something went wrong signing you in. Please try again.")}`,
     );
   }
 

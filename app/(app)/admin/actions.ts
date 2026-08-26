@@ -98,7 +98,11 @@ async function approveBookingById(
         error: "This slot now conflicts with another approved booking.",
       };
     }
-    return { ok: false, error: updateError.message };
+    console.error("approveBookingById: failed to update booking", updateError);
+    return {
+      ok: false,
+      error: "Something went wrong while approving this request. Please try again.",
+    };
   }
 
   await notifyBookingApproved(createAdminClient(), {
@@ -144,7 +148,11 @@ async function rejectBookingById(
     .eq("status", "pending");
 
   if (updateError) {
-    return { ok: false, error: updateError.message };
+    console.error("rejectBookingById: failed to update booking", updateError);
+    return {
+      ok: false,
+      error: "Something went wrong while rejecting this request. Please try again.",
+    };
   }
 
   await notifyBookingRejected(createAdminClient(), {

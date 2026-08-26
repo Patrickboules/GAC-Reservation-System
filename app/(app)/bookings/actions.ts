@@ -79,7 +79,8 @@ export async function requestBooking(
     .eq("status", "pending");
 
   if (countError) {
-    return { error: countError.message };
+    console.error("requestBooking: failed to count pending bookings", countError);
+    return { error: "Something went wrong while checking your pending requests. Please try again." };
   }
   if ((count ?? 0) >= MAX_OPEN_PENDING_BOOKINGS) {
     return {
@@ -112,7 +113,8 @@ export async function requestBooking(
         error: "This slot overlaps an existing approved booking for that room.",
       };
     }
-    return { error: insertError.message };
+    console.error("requestBooking: failed to insert booking", insertError);
+    return { error: "Something went wrong while submitting your request. Please try again." };
   }
 
   await notifyAdminsNewRequest(createAdminClient(), {
@@ -228,7 +230,8 @@ export async function updateBooking(
         error: "This slot overlaps an existing approved booking for that room.",
       };
     }
-    return { error: updateError.message };
+    console.error("updateBooking: failed to update booking", updateError);
+    return { error: "Something went wrong while saving your changes. Please try again." };
   }
 
   revalidatePath("/bookings");
@@ -281,7 +284,8 @@ export async function cancelBooking(
     .eq("user_id", user.id);
 
   if (updateError) {
-    return { error: updateError.message };
+    console.error("cancelBooking: failed to update booking", updateError);
+    return { error: "Something went wrong while cancelling your booking. Please try again." };
   }
 
   await notifyBookingCancelled(createAdminClient(), {

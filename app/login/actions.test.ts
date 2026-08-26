@@ -80,10 +80,10 @@ describe("login", () => {
     expect(call.options.redirectTo).toBe("https://gac.example.com/auth/callback");
   });
 
-  it("redirects to /login with the error message when sign-in fails", async () => {
+  it("redirects to /login with a generic message when sign-in fails, without leaking the raw OAuth error", async () => {
     setupAuth({ error: { message: "OAuth misconfigured" } });
     await expect(login(formData({}))).rejects.toThrow(
-      "REDIRECT:/login?error=OAuth%20misconfigured"
+      "REDIRECT:/login?error=Something%20went%20wrong%20starting%20Google%20sign-in.%20Please%20try%20again."
     );
   });
 

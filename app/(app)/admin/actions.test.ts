@@ -159,6 +159,19 @@ describe("approveBookingAction", () => {
       error: "This slot now conflicts with another approved booking.",
     });
   });
+
+  it("maps an unrelated update failure to a generic message, without leaking the raw DB error", async () => {
+    const client = setupClient({ userId: ADMIN_ID });
+    client.table("bookings").failNextWriteWith({ message: "permission denied for table bookings", code: "42501" });
+
+    const result = await approveBookingAction("booking-1");
+
+    expect(result).toEqual({
+      id: "booking-1",
+      ok: false,
+      error: "Something went wrong while approving this request. Please try again.",
+    });
+  });
 });
 
 describe("rejectBookingAction", () => {

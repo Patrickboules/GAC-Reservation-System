@@ -99,6 +99,18 @@ describe("createRoomAction", () => {
     ]);
     expect(mocks.revalidatePath).toHaveBeenCalledWith("/admin/rooms");
   });
+
+  it("maps an insert failure to a generic message, without leaking the raw DB error", async () => {
+    const client = setupClient({ userId: ADMIN_ID, rooms: [] });
+    client.table("rooms").failNextWriteWith({ message: "duplicate key value violates unique constraint", code: "23505" });
+
+    const result = await createRoomAction(validInput());
+
+    expect(result).toEqual({
+      ok: false,
+      error: "Something went wrong while creating the room. Please try again.",
+    });
+  });
 });
 
 describe("updateRoomAction", () => {
