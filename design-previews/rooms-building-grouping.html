@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Rooms directory — building grouping</title>
+<style>
+  :root {
+    --canvas: #f6f9fe;
+    --surface: #ffffff;
+    --line: #e6ebf1;
+    --ink-900: #1b2430;
+    --ink-700: #38434f;
+    --ink-500: #64707d;
+    --ink-300: #aeb7c1;
+    --sky-50: #f0f6ff;
+    --sky-100: #dcebff;
+    --sand-50: #fbf8f3;
+    --sand-100: #f4eee3;
+    --sand-200: #e9dfce;
+    --status-approved-fg: #0c7f56;
+    --radius-lg: 16px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 40px 24px 64px;
+    background: var(--canvas);
+    font-family: -apple-system, "Segoe UI", Roboto, "IBM Plex Sans Arabic", Arial, sans-serif;
+    color: var(--ink-900);
+  }
+  h1 { font-size: 22px; font-weight: 700; margin: 0 0 6px; }
+  p.intro { color: var(--ink-500); font-size: 14px; margin: 0 0 40px; max-width: 680px; line-height: 1.5; }
+
+  .section { margin-bottom: 56px; }
+  .section-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-500);
+    margin-bottom: 16px;
+  }
+  .tag { font-size: 11px; font-weight: 600; text-transform: none; letter-spacing: normal; padding: 2px 8px; border-radius: 999px; }
+  .tag.before { background: #fbefd6; color: #9a5f05; }
+  .tag.after { background: #e4f7ef; color: #0c7f56; }
+  .tag.illustrative { background: #f0f6ff; color: #1b4fb0; }
+
+  .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  /* --- Room card, matching components/kit/room-card.tsx's categoryColor branch --- */
+  .card {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  }
+  .card-header {
+    position: relative;
+    height: 96px;
+    width: 100%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card-header.sky { background: linear-gradient(to bottom right, rgb(59 130 246 / 0.25), rgb(59 130 246 / 0.05)); }
+  .card-header.lime { background: linear-gradient(to bottom right, rgb(163 230 53 / 0.25), rgb(163 230 53 / 0.05)); }
+  .card-header.coral { background: linear-gradient(to bottom right, rgb(248 113 113 / 0.25), rgb(248 113 113 / 0.05)); }
+  .card-header.violet { background: linear-gradient(to bottom right, rgb(167 139 250 / 0.25), rgb(167 139 250 / 0.05)); }
+  .card-header.teal { background: linear-gradient(to bottom right, rgb(45 212 191 / 0.25), rgb(45 212 191 / 0.05)); }
+  .card-header.rose { background: linear-gradient(to bottom right, rgb(251 113 133 / 0.25), rgb(251 113 133 / 0.05)); }
+  .card-header .icon { opacity: 0.7; }
+  .card-header.sky .icon { color: #3b82f6; }
+  .card-header.lime .icon { color: #84cc16; }
+  .card-header.coral .icon { color: #f87171; }
+  .card-header.violet .icon { color: #a78bfa; }
+  .card-header.teal .icon { color: #2dd4bf; }
+  .card-header.rose .icon { color: #fb7185; }
+  .card-body { display: flex; flex: 1; flex-direction: column; gap: 8px; padding: 14px; }
+  .room-name { font-size: 15px; font-weight: 600; color: var(--ink-900); direction: rtl; font-family: "IBM Plex Sans Arabic", sans-serif; }
+  .location-row { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ink-500); }
+  .location-row span[dir="rtl"] { direction: rtl; font-family: "IBM Plex Sans Arabic", sans-serif; }
+  .amenity-row { display: flex; align-items: center; gap: 6px; }
+  .amenity-chip { width: 24px; height: 24px; border-radius: 999px; background: #f0f6ff; display: flex; align-items: center; justify-content: center; color: var(--ink-500); }
+  /* Free now badge — smaller "after" treatment from design-previews/free-now-badge.html:
+     text-caption (12px) -> 11px micro size, leading-none, tighter padding, smaller dot, no shadow. */
+  .badge {
+    position: absolute; left: 8px; top: 8px; display: inline-flex; align-items: center; gap: 3px;
+    border-radius: 999px; background: rgb(255 255 255 / 0.85); padding: 3px 6px; font-size: 11px;
+    line-height: 1; font-weight: 500; letter-spacing: 0.01em; backdrop-filter: blur(4px);
+    color: var(--status-approved-fg);
+  }
+  .badge .dot { width: 4px; height: 4px; border-radius: 999px; background: var(--status-approved-fg); flex-shrink: 0; }
+
+  .repeat-flag { position: absolute; inset: 0; border: 1.5px dashed #d97706; border-radius: var(--radius-lg); pointer-events: none; opacity: 0; transition: opacity .15s; }
+  .card:hover .repeat-flag { opacity: 1; }
+  .card { position: relative; }
+
+  /* --- Building group: a distinct tinted, recessed "tray" containing its own header + card grid ---
+     Sits between --canvas (page bg) and --surface (card bg) in the depth stack: the page recedes,
+     this frame reads as its own inset layer, and the white cards float forward on top of it. */
+  .building-group { margin-bottom: 24px; }
+  .building-group:last-child { margin-bottom: 0; }
+  /* The frame's decoration (tint, border, inset shadow) lives on a separate
+     absolutely-positioned layer behind the content, not on .building-frame
+     itself — mask-image masks an element's full rendered output, content
+     included, and the header/cards must stay fully opaque regardless of the
+     background fading out beneath them. */
+  .building-frame {
+    position: relative;
+    padding: 20px;
+  }
+  .building-frame-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    border-radius: 22px;
+    /* Bolder near the header, fading lighter toward the bottom — same
+       "stronger tint fading to a lighter one" language the room card headers
+       already use (bg-gradient-to-br from-X/25 to-X/5), just vertical and
+       in a neutral gray-blue rather than a category color. This is a color
+       gradient only — the dissolve-to-nothing effect below is a mask, a
+       separate concern from what color the tint is.
+       Color option A (applied here) — built from two tokens already in this
+       app (--line and --canvas) rather than an invented gray: starts at the
+       app's own divider color and fades to the exact page background, so it
+       reads as "this app's neutral," lightened, not a new color. See the
+       swatch comparison above for options B (sky tint) and C (warm sand). */
+    background: linear-gradient(to bottom, var(--line) 0%, #eef2f7 45%, var(--canvas) 100%);
+    border-top: 1px solid #dbe2ec;
+    border-left: 1px solid #dbe2ec;
+    border-right: 1px solid #dbe2ec;
+    box-shadow:
+      inset 0 1px 4px 0 rgb(27 36 48 / 0.06),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.5);
+    /* True dissolve: masks this layer's tint, side borders, and inset shadow
+       together, so nothing (line, corner, or fill) renders below the fade.
+       Solid through the top half (matches the header + first card row), then
+       fades out entirely by 92% down, clearing the bottom corners completely
+       rather than leaving a rounded sliver. */
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, black 50%, transparent 92%);
+    mask-image: linear-gradient(to bottom, black 0%, black 50%, transparent 92%);
+    -webkit-mask-size: 100% 100%;
+    mask-size: 100% 100%;
+    -webkit-mask-repeat: no-repeat;
+    mask-repeat: no-repeat;
+  }
+  .building-header, .building-frame > .grid {
+    position: relative;
+    z-index: 1;
+  }
+  .building-header {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 16px;
+    padding-bottom: 12px; border-bottom: 1px solid #dbe2ec;
+  }
+  .building-header .icon { color: var(--ink-500); flex-shrink: 0; }
+  .building-header h2 { font-size: 17px; font-weight: 700; margin: 0; direction: rtl; font-family: "IBM Plex Sans Arabic", sans-serif; }
+  .building-header .count { font-size: 12px; color: var(--ink-500); font-weight: 500; }
+
+  .icon-building {
+    width: 16px; height: 16px;
+  }
+
+  .diff {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 20px 24px;
+    max-width: 720px;
+  }
+  .diff h2 { font-size: 14px; margin: 0 0 12px; }
+  .diff table { border-collapse: collapse; width: 100%; font-size: 13px; }
+  .diff td { padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  .diff td:first-child { color: var(--ink-500); width: 130px; white-space: nowrap; }
+  .diff code { background: #f0f6ff; padding: 1px 5px; border-radius: 4px; font-size: 12px; }
+  .diff .reason { color: var(--ink-500); font-size: 12px; margin-top: 2px; }
+  .note { color: var(--ink-500); font-size: 13px; max-width: 680px; margin: 0 0 16px; line-height: 1.5; }
+
+  /* --- Color option swatches --- */
+  .swatch-row { display: flex; gap: 20px; flex-wrap: wrap; }
+  .swatch { display: flex; flex-direction: column; gap: 10px; }
+  .swatch-frame {
+    position: relative;
+    width: 220px;
+    height: 120px;
+    padding: 14px;
+  }
+  .swatch-frame-bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border-radius: 18px;
+    border-top: 1px solid #dbe2ec;
+    border-left: 1px solid #dbe2ec;
+    border-right: 1px solid #dbe2ec;
+    box-shadow:
+      inset 0 1px 4px 0 rgb(27 36 48 / 0.06),
+      inset 0 1px 0 0 rgb(255 255 255 / 0.5);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, black 50%, transparent 92%);
+    mask-image: linear-gradient(to bottom, black 0%, black 50%, transparent 92%);
+  }
+  .swatch-frame-bg.opt-a { background: linear-gradient(to bottom, var(--line) 0%, #eef2f7 45%, var(--canvas) 100%); }
+  .swatch-frame-bg.opt-b { background: linear-gradient(to bottom, var(--sky-100) 0%, #eaf3ff 45%, var(--canvas) 100%); }
+  .swatch-frame-bg.opt-c { background: linear-gradient(to bottom, var(--sand-200) 0%, var(--sand-100) 45%, var(--sand-50) 100%); }
+  .swatch-frame-content { position: relative; z-index: 1; display: flex; align-items: center; gap: 6px; }
+  .swatch-frame-content svg { color: var(--ink-500); flex-shrink: 0; }
+  .swatch-frame-content span { font-size: 12px; font-weight: 600; color: var(--ink-700); direction: rtl; font-family: "IBM Plex Sans Arabic", sans-serif; }
+  .swatch-label { font-size: 13px; font-weight: 700; color: var(--ink-900); }
+  .swatch-stops { font-size: 11px; color: var(--ink-500); font-family: ui-monospace, "SF Mono", Menlo, monospace; }
+  .swatch.picked .swatch-frame-bg { border-color: #3b82f6; box-shadow: inset 0 1px 4px 0 rgb(27 36 48 / 0.06), inset 0 1px 0 0 rgb(255 255 255 / 0.5), 0 0 0 2px rgb(59 130 246 / 0.35); }
+  .swatch.picked .swatch-label::after { content: " — applied below"; font-weight: 500; color: #2465d8; }
+</style>
+</head>
+<body>
+  <h1>Rooms directory — group by building</h1>
+  <p class="intro">
+    Rooms directory grid (components/rooms/rooms-directory.tsx + components/kit/room-card.tsx), rendered with
+    the actual 6 seeded rooms (supabase/migrations/20260801000000_adopt_rooms_json_schema.sql). Nothing here
+    has touched the real component — this is a preview only.
+  </p>
+
+  <div class="section">
+    <div class="section-label"><span class="tag before">BEFORE</span> current implementation — building repeated on every card</div>
+    <div class="grid">
+      <div class="card">
+        <div class="repeat-flag"></div>
+        <div class="card-header sky">
+          <svg class="icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+          <span class="badge"><span class="dot"></span>Free now</span>
+        </div>
+        <div class="card-body">
+          <span class="room-name">قاعة أم النور</span>
+          <div class="location-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span dir="rtl">المبنى الرئيسي — الدور الأرضي</span></div>
+          <div class="amenity-row"><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M19 9a5 5 0 0 1 0 6"/></svg></span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="repeat-flag"></div>
+        <div class="card-header lime">
+          <svg class="icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+          <span class="badge"><span class="dot"></span>Free now</span>
+        </div>
+        <div class="card-body">
+          <span class="room-name">قاعة الخضراء</span>
+          <div class="location-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span dir="rtl">المبنى الرئيسي — الدور السفلي</span></div>
+          <div class="amenity-row"><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M19 9a5 5 0 0 1 0 6"/></svg></span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="repeat-flag"></div>
+        <div class="card-header coral">
+          <svg class="icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+          <span class="badge"><span class="dot"></span>Free now</span>
+        </div>
+        <div class="card-body">
+          <span class="room-name">قاعة الدور الثالث</span>
+          <div class="location-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span dir="rtl">المبنى الرئيسي — الدور الثالث</span></div>
+          <div class="amenity-row"><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M19 9a5 5 0 0 1 0 6"/></svg></span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="repeat-flag"></div>
+        <div class="card-header violet">
+          <svg class="icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+          <span class="badge"><span class="dot"></span>Free now</span>
+        </div>
+        <div class="card-body">
+          <span class="room-name">قاعة الدور الرابع</span>
+          <div class="location-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span dir="rtl">المبنى الرئيسي — الدور الرابع</span></div>
+          <div class="amenity-row"><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="repeat-flag"></div>
+        <div class="card-header teal">
+          <svg class="icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+          <span class="badge"><span class="dot"></span>Free now</span>
+        </div>
+        <div class="card-body">
+          <span class="room-name">قاعة الدور الخامس</span>
+          <div class="location-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span dir="rtl">المبنى الرئيسي — الدور الخامس</span></div>
+          <div class="amenity-row"><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="repeat-flag"></div>
+        <div class="card-header rose">
+          <svg class="icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+          <span class="badge"><span class="dot"></span>Free now</span>
+        </div>
+        <div class="card-body">
+          <span class="room-name">قاعة الدور السادس</span>
+          <div class="location-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span dir="rtl">المبنى الرئيسي — الدور السادس</span></div>
+          <div class="amenity-row"><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span></div>
+        </div>
+      </div>
+    </div>
+    <p class="note" style="margin-top:14px;">"المبنى الرئيسي" (hover any card to see it flagged) repeats 6 times — pure redundancy today, since all 6 rooms share one building.</p>
+  </div>
+
+  <div class="section">
+    <div class="section-label">CONTAINER COLOR — 3 OPTIONS TO PICK FROM</div>
+    <p class="note">
+      Same shape, border, and bottom fade as the container below — only the tint changes. The previous
+      version's tint (#dde5f1 at its boldest point) read as medium-gray/blue; all three of these are
+      lighter, and each is built from tokens already used elsewhere in this app rather than an invented color.
+    </p>
+    <div class="swatch-row">
+      <div class="swatch picked">
+        <div class="swatch-frame">
+          <div class="swatch-frame-bg opt-a"></div>
+          <div class="swatch-frame-content">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/></svg>
+            <span>المبنى الرئيسي</span>
+          </div>
+        </div>
+        <div class="swatch-label">A — Neutral (line → canvas)</div>
+        <div class="swatch-stops">#e6ebf1 → #eef2f7 → #f6f9fe</div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-frame">
+          <div class="swatch-frame-bg opt-b"></div>
+          <div class="swatch-frame-content">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/></svg>
+            <span>المبنى الرئيسي</span>
+          </div>
+        </div>
+        <div class="swatch-label">B — Sky tint (brand accent)</div>
+        <div class="swatch-stops">#dcebff → #eaf3ff → #f6f9fe</div>
+      </div>
+      <div class="swatch">
+        <div class="swatch-frame">
+          <div class="swatch-frame-bg opt-c"></div>
+          <div class="swatch-frame-content">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/></svg>
+            <span>المبنى الرئيسي</span>
+          </div>
+        </div>
+        <div class="swatch-label">C — Warm sand</div>
+        <div class="swatch-stops">#e9dfce → #f4eee3 → #fbf8f3</div>
+      </div>
+    </div>
+    <p class="note" style="margin-top:16px;">
+      <b>A (applied below):</b> built from this app's own <code>--line</code> and <code>--canvas</code> tokens — reads as "this app's neutral," just lighter, no new hue introduced.<br>
+      <b>B:</b> uses <code>sky-100</code>/<code>sky-50</code>, the same blue already used for amenity-chip backgrounds and the primary button/link color — ties the container to the app's one accent color.<br>
+      <b>C:</b> uses the <code>sand</code> scale (already used for the cancelled-booking treatment and chart tracks) — a warm alternative if you'd rather the container not read as "more blue" than the sky-colored card headers sitting on top of it.
+    </p>
+  </div>
+
+  <div class="section">
+    <div class="section-label"><span class="tag after">AFTER</span> recommended — grouped and contained, real data</div>
+
+    <div class="building-group">
+      <div class="building-frame">
+      <div class="building-frame-bg"></div>
+      <div class="building-header">
+        <svg class="icon icon-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/></svg>
+        <h2>المبنى الرئيسي</h2>
+        <span class="count">6 rooms</span>
+      </div>
+      <div class="grid">
+        <div class="card">
+          <div class="card-header sky">
+            <svg class="icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+            <span class="badge"><span class="dot"></span>Free now</span>
+          </div>
+          <div class="card-body">
+            <span class="room-name">قاعة أم النور</span>
+            <div class="location-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span dir="rtl">الدور الأرضي</span></div>
+            <div class="amenity-row"><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M19 9a5 5 0 0 1 0 6"/></svg></span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header lime">
+            <svg class="icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+            <span class="badge"><span class="dot"></span>Free now</span>
+          </div>
+          <div class="card-body">
+            <span class="room-name">قاعة الخضراء</span>
+            <div class="location-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span dir="rtl">الدور السفلي</span></div>
+            <div class="amenity-row"><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M19 9a5 5 0 0 1 0 6"/></svg></span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header coral">
+            <svg class="icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+            <span class="badge"><span class="dot"></span>Free now</span>
+          </div>
+          <div class="card-body">
+            <span class="room-name">قاعة الدور الثالث</span>
+            <div class="location-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span dir="rtl">الدور الثالث</span></div>
+            <div class="amenity-row"><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 5 6 9H2v6h4l5 4V5Z"/><path d="M19 9a5 5 0 0 1 0 6"/></svg></span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header violet">
+            <svg class="icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+            <span class="badge"><span class="dot"></span>Free now</span>
+          </div>
+          <div class="card-body">
+            <span class="room-name">قاعة الدور الرابع</span>
+            <div class="location-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span dir="rtl">الدور الرابع</span></div>
+            <div class="amenity-row"><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header teal">
+            <svg class="icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+            <span class="badge"><span class="dot"></span>Free now</span>
+          </div>
+          <div class="card-body">
+            <span class="room-name">قاعة الدور الخامس</span>
+            <div class="location-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span dir="rtl">الدور الخامس</span></div>
+            <div class="amenity-row"><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header rose">
+            <svg class="icon" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+            <span class="badge"><span class="dot"></span>Free now</span>
+          </div>
+          <div class="card-body">
+            <span class="room-name">قاعة الدور السادس</span>
+            <div class="location-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span dir="rtl">الدور السادس</span></div>
+            <div class="amenity-row"><span class="amenity-chip"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="10" rx="2"/><circle cx="12" cy="12" r="2"/></svg></span></div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-label"><span class="tag illustrative">ILLUSTRATIVE — NOT REAL DATA</span> proves this isn't hardcoded to one building</div>
+    <p class="note">
+      All 6 real rooms today belong to one building, so the grouping above only ever renders one section.
+      The two mini sections below use placeholder room names to show what happens the moment a second
+      building appears in the data — grouping is driven entirely by <code>room.building</code>, not a
+      hardcoded label.
+    </p>
+    <div class="building-group">
+      <div class="building-frame">
+      <div class="building-frame-bg"></div>
+      <div class="building-header">
+        <svg class="icon icon-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/></svg>
+        <h2>المبنى الرئيسي</h2>
+        <span class="count">2 rooms</span>
+      </div>
+      <div class="grid two">
+        <div class="card">
+          <div class="card-header sky">
+            <svg class="icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+          </div>
+          <div class="card-body">
+            <span class="room-name">قاعة أم النور</span>
+            <div class="location-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span dir="rtl">الدور الأرضي</span></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header lime">
+            <svg class="icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+          </div>
+          <div class="card-body">
+            <span class="room-name">قاعة الخضراء</span>
+            <div class="location-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span dir="rtl">الدور السفلي</span></div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+    <div class="building-group">
+      <div class="building-frame">
+      <div class="building-frame-bg"></div>
+      <div class="building-header">
+        <svg class="icon icon-building" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/></svg>
+        <h2>مبنى الخدمات</h2>
+        <span class="count">1 room · placeholder name/building, not in the real data</span>
+      </div>
+      <div class="grid two">
+        <div class="card">
+          <div class="card-header coral">
+            <svg class="icon" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 22V4a1 1 0 0 1 1-1h9a1 1 0 0 1 1 1v18Z"/><path d="M6 12H4a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h2"/><path d="M18 9h2a1 1 0 0 1 1 1v11a1 1 0 0 1-1 1h-2"/><path d="M10 6h4M10 10h4M10 14h4M10 18h4"/></svg>
+          </div>
+          <div class="card-body">
+            <span class="room-name">قاعة الخدمات</span>
+            <div class="location-row"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg><span dir="rtl">الدور الأول</span></div>
+          </div>
+        </div>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="diff">
+    <h2>Implementation approach (components/rooms/rooms-directory.tsx)</h2>
+    <table>
+      <tr><td>grouping</td><td><code>Object.groupBy</code> (or a reduce) over <code>filteredRooms</code> by <code>room.building ?? "Unspecified"</code>, preserving first-appearance order (not alphabetical — the current fetch order is already a deliberate ground→basement→3rd...6th floor wayfinding sequence per rooms/page.tsx's own comment; alphabetical Arabic order would scramble that)
+        <div class="reason">Not hardcoded to "المبنى الرئيسي" — any distinct <code>building</code> value gets its own section automatically, as shown in the illustrative example above.</div></td></tr>
+      <tr><td>section header</td><td>Building2 icon + <code>&lt;h2 lang="ar" dir="rtl"&gt;{building}&lt;/h2&gt;</code> + room count, bottom border — new markup, no existing component reused since nothing quite like it exists yet</td></tr>
+      <tr><td>container</td><td>each building's header + card grid now sits inside a shared rounded frame (<code>rounded-[22px]</code> — bigger radius than the 16px cards, so the frame reads as the bigger containing shape) with an <code>inset</code> shadow instead of the cards' own outward one
+        <div class="reason">Background is a vertical gradient, bolder near the header and fading lighter toward the bottom edge — the same "stronger tint fading to lighter" language the room card headers already use (<code>bg-gradient-to-br from-X/25 to-X/5</code>), just vertical and in a neutral gray-blue instead of a category color. Page recedes, frame sits as a tray, cards float forward on top with their existing shadow-sm. 20px padding keeps cards off the frame edges.</div></td></tr>
+      <tr><td>container fade</td><td>the frame's tint/border/inset-shadow moved onto a separate absolutely-positioned <code>.building-frame-bg</code> layer behind the header/cards, masked with <code>mask-image: linear-gradient(to bottom, black 0%, black 50%, transparent 92%)</code> (+ <code>-webkit-mask-image</code>)
+        <div class="reason"><code>mask-image</code> on an element masks everything it renders, content included — masking <code>.building-frame</code> directly would have faded the second row of cards along with the background, which breaks "keep the cards unchanged." Splitting the decoration onto its own layer behind the real content (<code>z-index: 0</code> vs. <code>z-index: 1</code>) lets the frame dissolve — no border, corner, or tint below the fade line — while the cards stay fully opaque regardless of where they sit vertically.</div></td></tr>
+      <tr><td>card location line</td><td><code>formatRoomLocation(room.building, room.floor)</code> → just <code>formatRoomField(room.floor)</code>
+        <div class="reason">Building is now implied by the section; repeating it per card was the actual redundancy being fixed.</div></td></tr>
+      <tr><td>search/amenity filtering</td><td>unaffected — still filters the flat room list first, then groups the filtered result, so a search that matches rooms across 2 buildings still shows 2 sections (each only with its matching rooms)</td></tr>
+      <tr><td>a room with no building set</td><td>falls into its own "Unspecified" section (rather than crashing or being silently dropped) — doesn't apply to any of the 6 real rooms today, all of which have <code>building</code> set</td></tr>
+      <tr><td>grid</td><td>same <code>grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4</code> per building section — the per-card grid itself doesn't change, it's just repeated once per building group instead of once globally</td></tr>
+    </table>
+  </div>
+</body>
+</html>

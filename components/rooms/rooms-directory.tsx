@@ -3,11 +3,12 @@
 import { useMemo, useState } from "react";
 import { DoorOpen, Search } from "lucide-react";
 
+import { BuildingGroup } from "@/components/rooms/building-group";
 import { EmptyState } from "@/components/kit/empty-state";
 import { FilterChip } from "@/components/kit/filter-chip";
 import { Input } from "@/components/kit/input";
 import { RoomCard, type RoomCardAvailability } from "@/components/kit/room-card";
-import { formatRoomLocation } from "@/lib/rooms";
+import { formatRoomField } from "@/lib/rooms";
 import type { RoomCategoryColor } from "@/lib/rooms/category-colors";
 
 export interface RoomsDirectoryRoom {
@@ -24,6 +25,27 @@ function distinctAmenities(rooms: RoomsDirectoryRoom[]): string[] {
   return Array.from(new Set(rooms.flatMap((room) => room.amenities))).sort((a, b) =>
     a.localeCompare(b)
   );
+}
+
+/** Groups rooms by building, preserving first-appearance order rather than
+ * alphabetizing — the incoming fetch order is already a deliberate ground →
+ * basement → 3rd...6th floor wayfinding sequence (see rooms/page.tsx), and
+ * alphabetical Arabic order would scramble that. A room with no building set
+ * falls into its own "Unspecified" group rather than being dropped. */
+function groupByBuilding(
+  rooms: RoomsDirectoryRoom[]
+): { building: string; rooms: RoomsDirectoryRoom[] }[] {
+  const order: string[] = [];
+  const groups = new Map<string, RoomsDirectoryRoom[]>();
+  for (const room of rooms) {
+    const building = room.building?.trim() || "Unspecified";
+    if (!groups.has(building)) {
+      groups.set(building, []);
+      order.push(building);
+    }
+    groups.get(building)!.push(room);
+  }
+  return order.map((building) => ({ building, rooms: groups.get(building)! }));
 }
 
 /**
@@ -92,17 +114,23 @@ export function RoomsDirectory({ rooms }: { rooms: RoomsDirectoryRoom[] }) {
       </div>
 
       {filteredRooms.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {filteredRooms.map((room) => (
-            <RoomCard
-              key={room.id}
-              id={room.id}
-              name={room.name}
-              amenities={room.amenities}
-              location={formatRoomLocation(room.building, room.floor)}
-              availability={room.availability}
-              categoryColor={room.categoryColor}
-            />
+        <div className="flex flex-col gap-6">
+          {groupByBuilding(filteredRooms).map(({ building, rooms: buildingRooms }) => (
+            <BuildingGroup key={building} building={building} roomCount={buildingRooms.length}>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {buildingRooms.map((room) => (
+                  <RoomCard
+                    key={room.id}
+                    id={room.id}
+                    name={room.name}
+                    amenities={room.amenities}
+                    location={formatRoomField(room.floor)}
+                    availability={room.availability}
+                    categoryColor={room.categoryColor}
+                  />
+                ))}
+              </div>
+            </BuildingGroup>
           ))}
         </div>
       ) : (
