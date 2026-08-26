@@ -27,6 +27,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit production dependencies
+        # --omit=dev scopes this to dependencies actually shipped in the app
+        # (not devDependencies like eslint/shadcn's CLI-only tooling, whose
+        # transitive advisories don't affect the deployed app and would
+        # otherwise make this gate noisy/always-red). --audit-level=high
+        # fails the job on any high or critical finding in that scope.
+        run: npm audit --omit=dev --audit-level=high
+
       - name: Typecheck
         run: npx tsc --noEmit
 
