@@ -14,6 +14,7 @@ import {
   timeToMinutes,
 } from "@/lib/dates";
 import { notifyAdminsNewRequest, notifyBookingCancelled } from "@/lib/notifications";
+import { sendBookingStatusEmail } from "@/lib/email";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -125,8 +126,18 @@ export async function requestBooking(
     return { error: "Something went wrong while submitting your request. Please try again." };
   }
 
-  await notifyAdminsNewRequest(createAdminClient(), {
+  const admin = createAdminClient();
+  await notifyAdminsNewRequest(admin, {
     bookingId: inserted.id,
+    requesterId: user.id,
+    roomId,
+    date,
+    startTime,
+    endTime,
+  });
+  await sendBookingStatusEmail(admin, {
+    bookingId: inserted.id,
+    status: "pending",
     requesterId: user.id,
     roomId,
     date,
@@ -299,9 +310,19 @@ export async function cancelBooking(
     return { error: "Something went wrong while cancelling your booking. Please try again." };
   }
 
-  await notifyBookingCancelled(createAdminClient(), {
+  const admin = createAdminClient();
+  await notifyBookingCancelled(admin, {
     bookingId: booking.id,
     userId: booking.user_id,
+    roomId: booking.room_id,
+    date: booking.date,
+    startTime: booking.start_time,
+    endTime: booking.end_time,
+  });
+  await sendBookingStatusEmail(admin, {
+    bookingId: booking.id,
+    status: "cancelled",
+    requesterId: booking.user_id,
     roomId: booking.room_id,
     date: booking.date,
     startTime: booking.start_time,

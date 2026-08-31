@@ -93,7 +93,7 @@ interface NotifyBookingParams {
   endTime: string;
 }
 
-async function getRoomName(admin: SupabaseClient, roomId: string): Promise<string> {
+export async function getRoomName(admin: SupabaseClient, roomId: string): Promise<string> {
   const { data } = await admin.from("rooms").select("name").eq("id", roomId).single();
   return data?.name ?? "the room";
 }

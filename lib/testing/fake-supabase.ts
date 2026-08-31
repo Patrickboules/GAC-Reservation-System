@@ -174,16 +174,21 @@ export interface FakeSupabaseOptions {
   user?: FakeUser | null;
   tables?: Record<string, FakeRow[]>;
   oauth?: { url?: string; error?: FakeError };
+  /** Backs auth.admin.getUserById — keyed by user id, e.g. for looking up a
+   * requester's email (not stored on `profiles`) via the admin client. */
+  authUsers?: Record<string, { email?: string | null }>;
 }
 
 export class FakeSupabaseClient {
   private tables: Record<string, FakeTable> = {};
   private user: FakeUser | null;
   private oauth: FakeSupabaseOptions["oauth"];
+  private authUsers: Record<string, { email?: string | null }>;
 
   constructor(opts: FakeSupabaseOptions = {}) {
     this.user = opts.user ?? null;
     this.oauth = opts.oauth;
+    this.authUsers = opts.authUsers ?? {};
     for (const [name, rows] of Object.entries(opts.tables ?? {})) {
       this.tables[name] = new FakeTable(rows);
     }
@@ -195,6 +200,13 @@ export class FakeSupabaseClient {
     signInWithOAuth: async () => {
       if (this.oauth?.error) return { data: { url: null }, error: this.oauth.error };
       return { data: { url: this.oauth?.url ?? "https://accounts.google.com/o/oauth2/auth" }, error: null };
+    },
+    admin: {
+      getUserById: async (id: string) => {
+        const found = this.authUsers[id];
+        if (!found) return { data: { user: null }, error: { message: "User not found" } };
+        return { data: { user: { id, email: found.email ?? null } }, error: null };
+      },
     },
   };
 

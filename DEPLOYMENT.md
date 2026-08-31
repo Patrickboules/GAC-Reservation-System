@@ -92,3 +92,25 @@ row in the database.
    This runs as the service role, which is the only caller allowed to change
    `role` (the `profiles_prevent_role_self_update` trigger blocks everyone else).
 3. To revoke, set `role = 'member'` the same way.
+
+## Email notifications (Resend)
+
+The booking's own requester gets an email whenever their booking's status
+changes (pending on creation, approved, rejected) — see `lib/email.ts`. The
+recipient is looked up per-booking via `admin.auth.admin.getUserById` (not a
+fixed address), so there's no recipient env var to configure. This is
+separate from the in-app notification bell (`lib/notifications.ts`), which
+keeps working regardless of email configuration.
+
+1. Create a [Resend](https://resend.com) account and an API key.
+2. Set env vars (alongside the four Supabase ones, both locally in `.env` and
+   in Vercel's **Production** environment scope):
+   - `RESEND_API_KEY` — from the Resend dashboard.
+   - `RESEND_FROM_EMAIL` (optional) — defaults to Resend's shared test sender
+     (`onboarding@resend.dev`), which only delivers to the account's own
+     verified email. Set this once a sending domain is verified in Resend, e.g.
+     `GAC Reservations <reservations@your-verified-domain.com>`.
+3. If `RESEND_API_KEY` is unset, or a given requester has no email on file,
+   `sendBookingStatusEmail` logs a warning and skips sending — it never throws
+   or blocks the booking status change itself, so this integration is safe to
+   leave unconfigured (e.g. in local dev) without breaking anything else.

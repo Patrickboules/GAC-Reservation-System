@@ -6,6 +6,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { fetchConflictingBookings } from "@/lib/bookings/conflict-check";
 import { notifyBookingApproved, notifyBookingRejected } from "@/lib/notifications";
+import { sendBookingStatusEmail } from "@/lib/email";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
@@ -105,9 +106,19 @@ async function approveBookingById(
     };
   }
 
-  await notifyBookingApproved(createAdminClient(), {
+  const admin = createAdminClient();
+  await notifyBookingApproved(admin, {
     bookingId: booking.id,
     userId: booking.user_id,
+    roomId: booking.room_id,
+    date: booking.date,
+    startTime: booking.start_time,
+    endTime: booking.end_time,
+  });
+  await sendBookingStatusEmail(admin, {
+    bookingId: booking.id,
+    status: "approved",
+    requesterId: booking.user_id,
     roomId: booking.room_id,
     date: booking.date,
     startTime: booking.start_time,
@@ -155,7 +166,8 @@ async function rejectBookingById(
     };
   }
 
-  await notifyBookingRejected(createAdminClient(), {
+  const admin = createAdminClient();
+  await notifyBookingRejected(admin, {
     bookingId: booking.id,
     userId: booking.user_id,
     roomId: booking.room_id,
@@ -163,6 +175,16 @@ async function rejectBookingById(
     startTime: booking.start_time,
     endTime: booking.end_time,
     reason: trimmedReason,
+  });
+  await sendBookingStatusEmail(admin, {
+    bookingId: booking.id,
+    status: "rejected",
+    requesterId: booking.user_id,
+    roomId: booking.room_id,
+    date: booking.date,
+    startTime: booking.start_time,
+    endTime: booking.end_time,
+    rejectReason: trimmedReason,
   });
 
   return { ok: true };
