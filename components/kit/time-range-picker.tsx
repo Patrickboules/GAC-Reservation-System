@@ -45,12 +45,12 @@ function TimeStepper({
     >
       <button
         type="button"
-        aria-label={`Increase ${label} by ${stepMinutes} minutes`}
-        disabled={disabled || minutes >= maxMinutes}
-        onClick={() => step(1)}
+        aria-label={`Decrease ${label} by ${stepMinutes} minutes`}
+        disabled={disabled || minutes <= minMinutes}
+        onClick={() => step(-1)}
         className="inline-flex size-6 items-center justify-center rounded-sm text-ink-500 outline-none transition-colors hover:bg-sky-50 hover:text-ink-700 focus-visible:ring-2 focus-visible:ring-sky-300 disabled:pointer-events-none disabled:opacity-40"
       >
-        <ChevronUp aria-hidden="true" className="size-4" />
+        <ChevronDown aria-hidden="true" className="size-4" />
       </button>
       <span
         aria-live="polite"
@@ -60,12 +60,12 @@ function TimeStepper({
       </span>
       <button
         type="button"
-        aria-label={`Decrease ${label} by ${stepMinutes} minutes`}
-        disabled={disabled || minutes <= minMinutes}
-        onClick={() => step(-1)}
+        aria-label={`Increase ${label} by ${stepMinutes} minutes`}
+        disabled={disabled || minutes >= maxMinutes}
+        onClick={() => step(1)}
         className="inline-flex size-6 items-center justify-center rounded-sm text-ink-500 outline-none transition-colors hover:bg-sky-50 hover:text-ink-700 focus-visible:ring-2 focus-visible:ring-sky-300 disabled:pointer-events-none disabled:opacity-40"
       >
-        <ChevronDown aria-hidden="true" className="size-4" />
+        <ChevronUp aria-hidden="true" className="size-4" />
       </button>
     </div>
   )
@@ -81,6 +81,10 @@ interface TimeRangePickerProps {
   /** Externally supplied conflict flag — this component only renders the warning. */
   hasConflict?: boolean
   conflictMessage?: React.ReactNode
+  /** Label between the two steppers. @default "to" */
+  toLabel?: React.ReactNode
+  /** Label prefixing the duration readout. @default "duration" */
+  durationLabel?: React.ReactNode
   /** Shown in a success-styled banner when set and `hasConflict` is false —
    * lets the caller confirm "this slot is free" instead of leaving a
    * successful check silent. Ignored while `hasConflict` is true. */
@@ -103,6 +107,8 @@ function TimeRangePicker({
   stepMinutes = BOOKING_TIME_STEP_MINUTES,
   hasConflict = false,
   conflictMessage = "This time may conflict with an existing booking.",
+  toLabel = "to",
+  durationLabel = "duration",
   freeMessage,
   disabled,
   className,
@@ -143,7 +149,7 @@ function TimeRangePicker({
           maxMinutes={MAX_MINUTES - stepMinutes}
         />
         <span aria-hidden="true" className="text-sm text-ink-500">
-          to
+          {toLabel}
         </span>
         <TimeStepper
           label="end time"
@@ -155,7 +161,7 @@ function TimeRangePicker({
         />
       </div>
       <p className="font-mono text-caption tabular-nums text-ink-500">
-        duration: {hours}h {minutes}m
+        {durationLabel}: {hours}h {minutes}m
       </p>
       {hasConflict ? (
         <div

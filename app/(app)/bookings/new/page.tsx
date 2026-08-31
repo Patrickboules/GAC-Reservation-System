@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import { BookingScreen } from "@/components/bookings/booking-screen";
 import type { BookingTimeSlot } from "@/lib/bookings/conflict-check";
 import { findNextFreeSlot } from "@/lib/bookings/next-free-slot";
-import { todayDateString } from "@/lib/dates";
+import { minutesToTime, todayDateString } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function NewBookingPage({
@@ -44,20 +44,28 @@ export default async function NewBookingPage({
   }
 
   // Default to this room's next free slot rather than a blind 9-10am that may
-  // already be taken.
+  // already be taken — except on today, where scanning from the room's
+  // opening hour could suggest an already-passed slot, so default to the
+  // current hour rounded down instead.
   let defaultStartTime = start;
   let defaultEndTime = end;
   if (!start && !end) {
     const suggestedDate = date ?? todayDateString();
-    const { data: roomBookings } = await supabase
-      .from("bookings_schedule")
-      .select("id, room_id, date, start_time, end_time, status")
-      .eq("room_id", room)
-      .eq("date", suggestedDate);
-    const nextFree = findNextFreeSlot(room, suggestedDate, (roomBookings ?? []) as BookingTimeSlot[]);
-    if (nextFree) {
-      defaultStartTime = nextFree.startTime;
-      defaultEndTime = nextFree.endTime;
+    if (suggestedDate === todayDateString()) {
+      const currentHour = new Date().getHours();
+      defaultStartTime = minutesToTime(currentHour * 60);
+      defaultEndTime = minutesToTime(currentHour * 60 + 60);
+    } else {
+      const { data: roomBookings } = await supabase
+        .from("bookings_schedule")
+        .select("id, room_id, date, start_time, end_time, status")
+        .eq("room_id", room)
+        .eq("date", suggestedDate);
+      const nextFree = findNextFreeSlot(room, suggestedDate, (roomBookings ?? []) as BookingTimeSlot[]);
+      if (nextFree) {
+        defaultStartTime = nextFree.startTime;
+        defaultEndTime = nextFree.endTime;
+      }
     }
   }
 
