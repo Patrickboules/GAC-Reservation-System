@@ -36,8 +36,8 @@ export function enumerateDates(start: string, end: string): string[] {
   return dates;
 }
 
-export function formatDateLabel(dateStr: string): string {
-  return parseDateString(dateStr).toLocaleDateString(undefined, {
+export function formatDateLabel(dateStr: string, locale?: string): string {
+  return parseDateString(dateStr).toLocaleDateString(locale, {
     weekday: "short",
     month: "short",
     day: "numeric",
