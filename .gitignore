@@ -59,6 +59,9 @@ next-env.d.ts
 
 /graphify-out/
 
+# claude design import source (translated into real code, not app code itself)
+/design-import/
+
 # markdown and plans
 *.md
 !PROJECT-ROADMAP.md
