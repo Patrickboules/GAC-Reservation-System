@@ -131,6 +131,24 @@ describe("updateRoomAction", () => {
 });
 
 describe("deleteRoomAction", () => {
+  it("blocks deletion when another room references it as parent_room_id", async () => {
+    const client = setupClient({
+      userId: ADMIN_ID,
+      rooms: [
+        { id: ROOM_ID, name: "Fellowship Hall" },
+        { id: "subroom-1", name: "401", parent_room_id: ROOM_ID },
+      ],
+      bookings: [],
+    });
+    const result = await deleteRoomAction(ROOM_ID);
+
+    expect(result).toEqual({
+      ok: false,
+      error: "This room has subrooms and can't be deleted. Delete or reassign its subrooms first.",
+    });
+    expect(client.table("rooms").rows).toHaveLength(2);
+  });
+
   it("deletes a room with no pending or upcoming bookings", async () => {
     const client = setupClient({ userId: ADMIN_ID, bookings: [] });
     const result = await deleteRoomAction(ROOM_ID);
