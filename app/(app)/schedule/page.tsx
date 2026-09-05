@@ -15,7 +15,7 @@ export default async function SchedulePage({
   const [{ data: rooms }, { data: userData }] = await Promise.all([
     supabase
       .from("rooms")
-      .select("id, name, amenities, building, floor, room_type, category_color")
+      .select("id, name, amenities, building, floor, room_type, category_color, parent_room_id")
       .order("name"),
     supabase.auth.getUser(),
   ]);
