@@ -94,11 +94,33 @@ export async function updateRoomAction(
   return { ok: true };
 }
 
-/** Blocks deletion if the room has any pending booking, or any approved
- * booking that hasn't ended yet — mirrors the future/past logic already
- * shared by lib/bookings/status.ts via lib/dates.ts's isBookingPast. */
+/** Blocks deletion if the room has any subrooms (other rooms whose
+ * parent_room_id points at it), or any pending booking, or any approved
+ * booking that hasn't ended yet — the booking check mirrors the future/past
+ * logic already shared by lib/bookings/status.ts via lib/dates.ts's
+ * isBookingPast. */
 export async function deleteRoomAction(roomId: string): Promise<RoomActionResult> {
   const supabase = await requireAdmin();
+
+  const { count: subroomCount, error: subroomError } = await supabase
+    .from("rooms")
+    .select("id", { count: "exact", head: true })
+    .eq("parent_room_id", roomId);
+
+  if (subroomError) {
+    console.error("deleteRoomAction: failed to check room's subrooms", subroomError);
+    return {
+      ok: false,
+      error: "Something went wrong while checking this room's subrooms. Please try again.",
+    };
+  }
+
+  if ((subroomCount ?? 0) > 0) {
+    return {
+      ok: false,
+      error: "This room has subrooms and can't be deleted. Delete or reassign its subrooms first.",
+    };
+  }
 
   const { data: blockingBookings, error: fetchError } = await supabase
     .from("bookings")

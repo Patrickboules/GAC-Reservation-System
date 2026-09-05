@@ -22,7 +22,10 @@ export default async function RoomsPage() {
       // rooms were added ground -> basement -> 3rd -> ... -> 6th floor, so
       // this order doubles as a physical/wayfinding order. Alphabetical
       // Arabic-name order has no relationship to where a room actually is.
+      // Subrooms (parent_room_id set) are excluded here - they're only
+      // reachable from their parent hall's detail page (US-005).
       .select("id, name, amenities, building, floor, category_color")
+      .is("parent_room_id", null)
       .order("created_at"),
     supabase
       .from("bookings_schedule")

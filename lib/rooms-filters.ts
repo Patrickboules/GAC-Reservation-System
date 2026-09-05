@@ -8,6 +8,8 @@ export interface ScheduleRoom {
   room_type: string | null;
   /** Calendar palette key (lib/rooms/category-colors.ts), null if unset. */
   category_color: string | null;
+  /** Set for a hall subroom (references its parent hall's id); null for halls/standalone rooms. */
+  parent_room_id: string | null;
 }
 
 export interface RoomFilterState {
