@@ -67,6 +67,10 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     freeNow: "Free now",
     busyNow: "Busy now",
     notSpecified: "Not specified",
+    selectMultiple: "Select multiple",
+    cancelSelection: "Cancel",
+    reserveSelectedOne: "Reserve 1 subroom",
+    reserveSelectedMany: "Reserve {n} subrooms",
   },
   ar: {
     back: "عودة للغرف",
@@ -81,6 +85,10 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     freeNow: "متاح الآن",
     busyNow: "مشغول الآن",
     notSpecified: "غير محدد",
+    selectMultiple: "اختيار متعدد",
+    cancelSelection: "إلغاء",
+    reserveSelectedOne: "حجز غرفة واحدة",
+    reserveSelectedMany: "حجز {n} غرف",
   },
 };
 
@@ -112,6 +120,26 @@ function RoomDetailView({
   const t = STRINGS[lang];
   const dir = isAr ? "rtl" : "ltr";
   const BackIcon = isAr ? ChevronRight : ChevronLeft;
+
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [selectedSubroomIds, setSelectedSubroomIds] = useState<Set<string>>(new Set());
+
+  function toggleSelectionMode() {
+    setSelectionMode((prev) => !prev);
+    setSelectedSubroomIds(new Set());
+  }
+
+  function toggleSubroomSelected(id: string) {
+    setSelectedSubroomIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
 
   return (
     <div dir={dir} className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 p-4">
@@ -276,47 +304,104 @@ function RoomDetailView({
             {/* subrooms — only the three subdivided halls have any */}
             {subrooms.length > 0 && (
               <div>
-                <p className="mb-3 text-caption font-bold uppercase tracking-wide text-ink-500">
-                  {t.subrooms}
-                </p>
-                <div className="flex flex-col gap-2">
-                  {subrooms.map((subroom) => (
-                    <div
-                      key={subroom.id}
-                      className="flex items-center justify-between gap-3 rounded-lg border border-line bg-canvas px-4 py-3"
-                    >
-                      <div className="flex min-w-0 items-center gap-3">
-                        <span lang="ar" dir="rtl" className="truncate text-small font-semibold text-ink-900">
-                          {subroom.name}
-                        </span>
-                        <span
-                          className={cn(
-                            "flex shrink-0 items-center gap-1.5 text-caption font-medium",
-                            subroom.availability === "free"
-                              ? "text-status-approved-fg"
-                              : "text-status-pending-fg"
-                          )}
-                        >
-                          <span
-                            aria-hidden="true"
-                            className={cn(
-                              "size-1.5 rounded-full",
-                              subroom.availability === "free"
-                                ? "bg-status-approved-fg"
-                                : "bg-status-pending-fg"
-                            )}
-                          />
-                          {subroom.availability === "free" ? t.freeNow : t.busyNow}
-                        </span>
-                      </div>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        render={<Link href={`/bookings/new?room=${subroom.id}`}>{t.reserveSubroom}</Link>}
-                      />
-                    </div>
-                  ))}
+                <div className="mb-3 flex items-baseline justify-between gap-2">
+                  <p className="text-caption font-bold uppercase tracking-wide text-ink-500">
+                    {t.subrooms}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={toggleSelectionMode}
+                    className="rounded-md px-1 text-caption font-semibold text-sky-600 outline-none transition-colors hover:text-sky-700 focus-visible:ring-2 focus-visible:ring-sky-300"
+                  >
+                    {selectionMode ? t.cancelSelection : t.selectMultiple}
+                  </button>
                 </div>
+                <div className="flex flex-col gap-2">
+                  {subrooms.map((subroom) => {
+                    const checked = selectedSubroomIds.has(subroom.id);
+                    return (
+                      <div
+                        key={subroom.id}
+                        role={selectionMode ? "button" : undefined}
+                        tabIndex={selectionMode ? 0 : undefined}
+                        onClick={selectionMode ? () => toggleSubroomSelected(subroom.id) : undefined}
+                        onKeyDown={
+                          selectionMode
+                            ? (e) => {
+                                if (e.key === "Enter" || e.key === " ") {
+                                  e.preventDefault();
+                                  toggleSubroomSelected(subroom.id);
+                                }
+                              }
+                            : undefined
+                        }
+                        className={cn(
+                          "flex items-center justify-between gap-3 rounded-lg border px-4 py-3",
+                          selectionMode && checked
+                            ? "border-sky-600 bg-sky-50"
+                            : "border-line bg-canvas",
+                          selectionMode && "cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                        )}
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          {selectionMode && (
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggleSubroomSelected(subroom.id)}
+                              onClick={(e) => e.stopPropagation()}
+                              aria-label={subroom.name}
+                              className="size-4 shrink-0 rounded border-line text-sky-600 focus-visible:ring-2 focus-visible:ring-sky-300"
+                            />
+                          )}
+                          <span lang="ar" dir="rtl" className="truncate text-small font-semibold text-ink-900">
+                            {subroom.name}
+                          </span>
+                          <span
+                            className={cn(
+                              "flex shrink-0 items-center gap-1.5 text-caption font-medium",
+                              subroom.availability === "free"
+                                ? "text-status-approved-fg"
+                                : "text-status-pending-fg"
+                            )}
+                          >
+                            <span
+                              aria-hidden="true"
+                              className={cn(
+                                "size-1.5 rounded-full",
+                                subroom.availability === "free"
+                                  ? "bg-status-approved-fg"
+                                  : "bg-status-pending-fg"
+                              )}
+                            />
+                            {subroom.availability === "free" ? t.freeNow : t.busyNow}
+                          </span>
+                        </div>
+                        {!selectionMode && (
+                          <Button
+                            size="sm"
+                            variant="secondary"
+                            render={<Link href={`/bookings/new?room=${subroom.id}`}>{t.reserveSubroom}</Link>}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+                {selectionMode && selectedSubroomIds.size > 0 && (
+                  <div className="mt-3">
+                    <Button
+                      className="w-full sm:w-auto"
+                      render={
+                        <Link href={`/bookings/new?rooms=${Array.from(selectedSubroomIds).join(",")}`}>
+                          {selectedSubroomIds.size === 1
+                            ? t.reserveSelectedOne
+                            : t.reserveSelectedMany.replace("{n}", String(selectedSubroomIds.size))}
+                        </Link>
+                      }
+                    />
+                  </div>
+                )}
               </div>
             )}
           </div>
