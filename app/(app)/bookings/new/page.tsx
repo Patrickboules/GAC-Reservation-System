@@ -6,6 +6,7 @@ import type { BookingTimeSlot } from "@/lib/bookings/conflict-check";
 import { findNextFreeSlot } from "@/lib/bookings/next-free-slot";
 import { minutesToTime, todayDateString } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/session";
 
 export default async function NewBookingPage({
   searchParams,
@@ -27,12 +28,13 @@ export default async function NewBookingPage({
   }
 
   const supabase = await createClient();
-  const [{ data: selectedRooms }, { data: userData }] = await Promise.all([
+  const [{ data: selectedRoom }, user] = await Promise.all([
     supabase
       .from("rooms")
-      .select("id, name, amenities, building, floor, parent_room_id")
-      .in("id", roomIds),
-    supabase.auth.getUser(),
+      .select("id, name, amenities, building, floor")
+      .eq("id", room)
+      .maybeSingle(),
+    getCachedUser(),
   ]);
 
   const roomsById = new Map((selectedRooms ?? []).map((r) => [r.id as string, r]));
@@ -51,11 +53,11 @@ export default async function NewBookingPage({
   }
 
   let openPendingCount = 0;
-  if (userData.user) {
+  if (user) {
     const { count } = await supabase
       .from("bookings")
       .select("id", { count: "exact", head: true })
-      .eq("user_id", userData.user.id)
+      .eq("user_id", user.id)
       .eq("status", "pending");
     openPendingCount = count ?? 0;
   }

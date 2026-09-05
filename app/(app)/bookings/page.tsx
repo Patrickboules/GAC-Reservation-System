@@ -7,6 +7,7 @@ import { MyBookingsTabs, type MyBookingCardData } from "@/components/bookings/my
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
 import { bucketForBooking, type BookingBucket } from "@/lib/bookings/status";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/session";
 
 interface MyBooking {
   id: string;
@@ -43,9 +44,7 @@ export default async function MyBookingsPage({
 }) {
   const { error } = await searchParams;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedUser();
 
   const { data: bookings, error: bookingsError } = await supabase
     .from("bookings")
