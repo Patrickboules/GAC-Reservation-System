@@ -17,6 +17,11 @@ interface TodayBookingRow {
   service: string | null;
 }
 
+interface SubroomRow {
+  id: string;
+  name: string;
+}
+
 export default async function RoomDetailPage({
   params,
 }: {
@@ -32,6 +37,7 @@ export default async function RoomDetailPage({
     { data: room, error: roomError },
     { data: upcomingBookings, error: upcomingError },
     { data: todayBookings, error: todayError },
+    { data: subroomRows, error: subroomsError },
   ] = await Promise.all([
     supabase
       .from("rooms")
@@ -52,10 +58,13 @@ export default async function RoomDetailPage({
       .eq("date", startDate)
       .in("status", CONFLICTING_STATUSES)
       .order("start_time", { ascending: true }),
+    // Subrooms of this room, if it's one of the three subdivided halls -
+    // most rooms have none, so this comes back empty for them.
+    supabase.from("rooms").select("id, name").eq("parent_room_id", id).order("name"),
   ]);
 
-  if (roomError || upcomingError || todayError) {
-    throw new Error((roomError ?? upcomingError ?? todayError)!.message);
+  if (roomError || upcomingError || todayError || subroomsError) {
+    throw new Error((roomError ?? upcomingError ?? todayError ?? subroomsError)!.message);
   }
 
   if (!room) {
@@ -82,6 +91,39 @@ export default async function RoomDetailPage({
     ? "busy"
     : "free";
 
+  const subroomRowsTyped = (subroomRows ?? []) as SubroomRow[];
+  let subroomBusyIds = new Set<string>();
+  if (subroomRowsTyped.length > 0) {
+    const { data: subroomBookings, error: subroomBookingsError } = await supabase
+      .from("bookings_schedule")
+      .select("room_id, start_time, end_time")
+      .in(
+        "room_id",
+        subroomRowsTyped.map((subroom) => subroom.id)
+      )
+      .eq("date", startDate)
+      .in("status", CONFLICTING_STATUSES);
+
+    if (subroomBookingsError) {
+      throw new Error(subroomBookingsError.message);
+    }
+
+    subroomBusyIds = new Set(
+      (subroomBookings ?? [])
+        .filter(
+          (booking) =>
+            timeToMinutes(booking.start_time) <= nowMinutes && timeToMinutes(booking.end_time) > nowMinutes
+        )
+        .map((booking) => booking.room_id)
+    );
+  }
+
+  const subrooms = subroomRowsTyped.map((subroom) => ({
+    id: subroom.id,
+    name: subroom.name,
+    availability: (subroomBusyIds.has(subroom.id) ? "busy" : "free") as RoomCardAvailability,
+  }));
+
   const amenities: string[] = room.amenities ?? [];
   const location = formatRoomLocation(room.building, room.floor);
   const categoryColor =
@@ -102,6 +144,7 @@ export default async function RoomDetailPage({
         status: b.status,
         service: b.service,
       }))}
+      subrooms={subrooms}
       days={days}
     />
   );

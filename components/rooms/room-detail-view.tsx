@@ -31,6 +31,12 @@ interface DayStripEntry {
   busy: boolean;
 }
 
+interface SubroomEntry {
+  id: string;
+  name: string;
+  availability: RoomCardAvailability;
+}
+
 export interface RoomDetailViewProps {
   roomId: string;
   name: string;
@@ -40,6 +46,7 @@ export interface RoomDetailViewProps {
   availability: RoomCardAvailability;
   todayDate: string;
   todayBookings: TodayBooking[];
+  subrooms: SubroomEntry[];
   days: DayStripEntry[];
 }
 
@@ -53,6 +60,8 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     today: "Today's availability",
     next7: "Next 7 days",
     reserve: "Reserve this room",
+    reserveSubroom: "Reserve",
+    subrooms: "Subrooms",
     free: "Free",
     busy: "Busy",
     freeNow: "Free now",
@@ -65,6 +74,8 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     today: "التوفر اليوم",
     next7: "الأيام السبعة القادمة",
     reserve: "حجز هذه القاعة",
+    reserveSubroom: "حجز",
+    subrooms: "الغرف الفرعية",
     free: "متاح",
     busy: "مشغول",
     freeNow: "متاح الآن",
@@ -93,6 +104,7 @@ function RoomDetailView({
   availability,
   todayDate,
   todayBookings,
+  subrooms,
   days,
 }: RoomDetailViewProps) {
   const [lang, setLang] = useState<Lang>("en");
@@ -260,6 +272,53 @@ function RoomDetailView({
                 <span>{formatHourLabel(SCHEDULE_END_HOUR)}</span>
               </div>
             </div>
+
+            {/* subrooms — only the three subdivided halls have any */}
+            {subrooms.length > 0 && (
+              <div>
+                <p className="mb-3 text-caption font-bold uppercase tracking-wide text-ink-500">
+                  {t.subrooms}
+                </p>
+                <div className="flex flex-col gap-2">
+                  {subrooms.map((subroom) => (
+                    <div
+                      key={subroom.id}
+                      className="flex items-center justify-between gap-3 rounded-lg border border-line bg-canvas px-4 py-3"
+                    >
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span lang="ar" dir="rtl" className="truncate text-small font-semibold text-ink-900">
+                          {subroom.name}
+                        </span>
+                        <span
+                          className={cn(
+                            "flex shrink-0 items-center gap-1.5 text-caption font-medium",
+                            subroom.availability === "free"
+                              ? "text-status-approved-fg"
+                              : "text-status-pending-fg"
+                          )}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={cn(
+                              "size-1.5 rounded-full",
+                              subroom.availability === "free"
+                                ? "bg-status-approved-fg"
+                                : "bg-status-pending-fg"
+                            )}
+                          />
+                          {subroom.availability === "free" ? t.freeNow : t.busyNow}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        render={<Link href={`/bookings/new?room=${subroom.id}`}>{t.reserveSubroom}</Link>}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* sidebar */}
