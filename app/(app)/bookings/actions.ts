@@ -130,7 +130,7 @@ export async function requestBooking(
   await notifyAdminsNewRequest(admin, {
     bookingId: inserted.id,
     requesterId: user.id,
-    roomId,
+    roomIds: [roomId],
     date,
     startTime,
     endTime,
@@ -139,7 +139,7 @@ export async function requestBooking(
     bookingId: inserted.id,
     status: "pending",
     requesterId: user.id,
-    roomId,
+    roomIds: [roomId],
     date,
     startTime,
     endTime,
@@ -263,6 +263,13 @@ export async function requestCollectiveBooking(
     };
   }
 
+  // Every row created by this submission shares one group_id, so the whole
+  // selection is treated as a single reservation from here on: one status,
+  // approved/rejected/edited/cancelled together (see app/(app)/admin/actions.ts
+  // and the update/cancel actions below, which resolve and act on the full
+  // group rather than a single row).
+  const groupId = crypto.randomUUID();
+
   const { data: inserted, error: insertError } = await supabase
     .from("bookings")
     .insert(
@@ -275,6 +282,7 @@ export async function requestCollectiveBooking(
         service,
         notes,
         status: "pending",
+        group_id: groupId,
       }))
     )
     .select("id, room_id");
@@ -293,27 +301,24 @@ export async function requestCollectiveBooking(
   }
 
   const admin = createAdminClient();
-  await Promise.all(
-    (inserted ?? []).flatMap((row) => [
-      notifyAdminsNewRequest(admin, {
-        bookingId: row.id,
-        requesterId: user.id,
-        roomId: row.room_id,
-        date,
-        startTime,
-        endTime,
-      }),
-      sendBookingStatusEmail(admin, {
-        bookingId: row.id,
-        status: "pending",
-        requesterId: user.id,
-        roomId: row.room_id,
-        date,
-        startTime,
-        endTime,
-      }),
-    ])
-  );
+  const representativeId = (inserted ?? [])[0]?.id ?? roomIds[0];
+  await notifyAdminsNewRequest(admin, {
+    bookingId: representativeId,
+    requesterId: user.id,
+    roomIds,
+    date,
+    startTime,
+    endTime,
+  });
+  await sendBookingStatusEmail(admin, {
+    bookingId: representativeId,
+    status: "pending",
+    requesterId: user.id,
+    roomIds,
+    date,
+    startTime,
+    endTime,
+  });
 
   revalidatePath("/bookings");
   redirect(`/bookings?submitted=1${roomIds.length > 1 ? `&count=${roomIds.length}` : ""}`);
@@ -328,14 +333,13 @@ export async function updateBooking(
   formData: FormData
 ): Promise<UpdateBookingState> {
   const bookingId = (formData.get("booking_id") as string | null) ?? "";
-  const roomId = (formData.get("room_id") as string | null) ?? "";
   const date = (formData.get("date") as string | null) ?? "";
   const rawStartTime = (formData.get("start_time") as string | null) ?? "";
   const rawEndTime = (formData.get("end_time") as string | null) ?? "";
   const service = (formData.get("service") as string | null) ?? "";
   const notes = ((formData.get("notes") as string | null) ?? "").trim() || null;
 
-  if (!bookingId || !roomId || !date || !rawStartTime || !rawEndTime || !service) {
+  if (!bookingId || !date || !rawStartTime || !rawEndTime || !service) {
     return { error: "Room, date, start time, end time, and service are required." };
   }
   if (!isBookingService(service)) {
@@ -366,7 +370,7 @@ export async function updateBooking(
 
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
-    .select("id, user_id, room_id, date, start_time, end_time, status")
+    .select("id, user_id, room_id, date, start_time, end_time, status, group_id")
     .eq("id", bookingId)
     .single();
 
@@ -377,34 +381,41 @@ export async function updateBooking(
     return { error: "This booking can no longer be edited." };
   }
 
-  const conflicts = await fetchConflictingBookings(
-    supabase,
-    {
-      room_id: roomId,
-      date,
-      start_time: startTime,
-      end_time: endTime,
-      excludeBookingId: bookingId,
-    },
-    BLOCKING_STATUSES
+  // A booking is never edited alone — every row sharing its group_id (the
+  // rooms of one collective reservation, or just itself for a standalone
+  // booking) moves to the new date/time/service/notes together.
+  const { data: groupRows, error: groupFetchError } = await supabase
+    .from("bookings")
+    .select("id, room_id")
+    .eq("group_id", booking.group_id);
+
+  if (groupFetchError || !groupRows || groupRows.length === 0) {
+    console.error("updateBooking: failed to load reservation group", groupFetchError);
+    return { error: "Something went wrong while loading this reservation. Please try again." };
+  }
+
+  const conflictResults = await Promise.all(
+    groupRows.map((row) =>
+      fetchConflictingBookings(
+        supabase,
+        { room_id: row.room_id, date, start_time: startTime, end_time: endTime, excludeBookingId: row.id },
+        BLOCKING_STATUSES
+      )
+    )
   );
-  if (conflicts.length > 0) {
+  if (conflictResults.some((conflicts) => conflicts.length > 0)) {
     return {
       error: "This slot overlaps an existing approved booking for that room.",
     };
   }
 
   const rescheduled =
-    roomId !== booking.room_id ||
-    date !== booking.date ||
-    startTime !== booking.start_time ||
-    endTime !== booking.end_time;
+    date !== booking.date || startTime !== booking.start_time || endTime !== booking.end_time;
   const newStatus = rescheduled ? "pending" : booking.status;
 
   const { error: updateError } = await supabase
     .from("bookings")
     .update({
-      room_id: roomId,
       date,
       start_time: startTime,
       end_time: endTime,
@@ -412,7 +423,7 @@ export async function updateBooking(
       notes,
       status: newStatus,
     })
-    .eq("id", bookingId)
+    .eq("group_id", booking.group_id)
     .eq("user_id", user.id);
 
   if (updateError) {
@@ -455,7 +466,7 @@ export async function cancelBooking(
 
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
-    .select("id, user_id, room_id, date, start_time, end_time, status")
+    .select("id, user_id, room_id, date, start_time, end_time, status, group_id")
     .eq("id", bookingId)
     .single();
 
@@ -469,10 +480,18 @@ export async function cancelBooking(
     return { error: "Past bookings can't be cancelled." };
   }
 
+  // Cancelling any room of a reservation cancels the whole thing — every row
+  // sharing this group_id frees up together.
+  const { data: groupRows } = await supabase
+    .from("bookings")
+    .select("room_id")
+    .eq("group_id", booking.group_id);
+  const roomIds = (groupRows ?? [booking]).map((row) => row.room_id);
+
   const { error: updateError } = await supabase
     .from("bookings")
     .update({ status: "cancelled" })
-    .eq("id", bookingId)
+    .eq("group_id", booking.group_id)
     .eq("user_id", user.id);
 
   if (updateError) {
@@ -484,7 +503,7 @@ export async function cancelBooking(
   await notifyBookingCancelled(admin, {
     bookingId: booking.id,
     userId: booking.user_id,
-    roomId: booking.room_id,
+    roomIds,
     date: booking.date,
     startTime: booking.start_time,
     endTime: booking.end_time,
@@ -493,7 +512,7 @@ export async function cancelBooking(
     bookingId: booking.id,
     status: "cancelled",
     requesterId: booking.user_id,
-    roomId: booking.room_id,
+    roomIds,
     date: booking.date,
     startTime: booking.start_time,
     endTime: booking.end_time,

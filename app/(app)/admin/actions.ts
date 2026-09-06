@@ -50,30 +50,47 @@ async function approveBookingById(
 ): Promise<Omit<BookingActionResult, "id">> {
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
-    .select("id, user_id, room_id, date, start_time, end_time, status")
+    .select("id, user_id, room_id, date, start_time, end_time, status, group_id")
     .eq("id", bookingId)
     .single();
 
   if (fetchError || !booking) {
     return { ok: false, error: "Booking not found." };
   }
-  if (booking.status !== "pending") {
+
+  // A reservation is approved as one atomic unit: every room sharing this
+  // group_id must currently be pending, and every one of them is re-checked
+  // for an approved conflict before any of them are written.
+  const { data: groupRows, error: groupFetchError } = await supabase
+    .from("bookings")
+    .select("id, room_id, status")
+    .eq("group_id", booking.group_id);
+
+  if (groupFetchError || !groupRows || groupRows.length === 0) {
+    console.error("approveBookingById: failed to load reservation group", groupFetchError);
+    return { ok: false, error: "Something went wrong while loading this reservation. Please try again." };
+  }
+  if (groupRows.some((row) => row.status !== "pending")) {
     return { ok: false, error: "Only pending requests can be approved." };
   }
 
-  const conflicts = await fetchConflictingBookings(
-    supabase,
-    {
-      room_id: booking.room_id,
-      date: booking.date,
-      start_time: booking.start_time,
-      end_time: booking.end_time,
-      excludeBookingId: booking.id,
-    },
-    ["approved"]
+  const conflictResults = await Promise.all(
+    groupRows.map((row) =>
+      fetchConflictingBookings(
+        supabase,
+        {
+          room_id: row.room_id,
+          date: booking.date,
+          start_time: booking.start_time,
+          end_time: booking.end_time,
+          excludeBookingId: row.id,
+        },
+        ["approved"]
+      )
+    )
   );
 
-  if (conflicts.length > 0) {
+  if (conflictResults.some((conflicts) => conflicts.length > 0)) {
     return {
       ok: false,
       error: "This slot now conflicts with another approved booking.",
@@ -83,7 +100,7 @@ async function approveBookingById(
   const { error: updateError } = await supabase
     .from("bookings")
     .update({ status: "approved", reject_reason: null })
-    .eq("id", bookingId)
+    .eq("group_id", booking.group_id)
     .eq("status", "pending");
 
   if (updateError) {
@@ -92,7 +109,8 @@ async function approveBookingById(
     // overlapping slots can both pass the conflict check above before either
     // UPDATE lands, but only one UPDATE can satisfy the constraint. Same
     // message as the check above, since it's the same condition just caught
-    // one layer down.
+    // one layer down. A single UPDATE statement is atomic, so a conflict on
+    // any one room in the group rolls back the whole reservation's approval.
     if (updateError.code === "23P01") {
       return {
         ok: false,
@@ -107,10 +125,11 @@ async function approveBookingById(
   }
 
   const admin = createAdminClient();
+  const roomIds = groupRows.map((row) => row.room_id);
   await notifyBookingApproved(admin, {
     bookingId: booking.id,
     userId: booking.user_id,
-    roomId: booking.room_id,
+    roomIds,
     date: booking.date,
     startTime: booking.start_time,
     endTime: booking.end_time,
@@ -119,7 +138,7 @@ async function approveBookingById(
     bookingId: booking.id,
     status: "approved",
     requesterId: booking.user_id,
-    roomId: booking.room_id,
+    roomIds,
     date: booking.date,
     startTime: booking.start_time,
     endTime: booking.end_time,
@@ -141,21 +160,31 @@ async function rejectBookingById(
 
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
-    .select("id, user_id, room_id, date, start_time, end_time, status")
+    .select("id, user_id, room_id, date, start_time, end_time, status, group_id")
     .eq("id", bookingId)
     .single();
 
   if (fetchError || !booking) {
     return { ok: false, error: "Booking not found." };
   }
-  if (booking.status !== "pending") {
+
+  const { data: groupRows, error: groupFetchError } = await supabase
+    .from("bookings")
+    .select("room_id, status")
+    .eq("group_id", booking.group_id);
+
+  if (groupFetchError || !groupRows || groupRows.length === 0) {
+    console.error("rejectBookingById: failed to load reservation group", groupFetchError);
+    return { ok: false, error: "Something went wrong while loading this reservation. Please try again." };
+  }
+  if (groupRows.some((row) => row.status !== "pending")) {
     return { ok: false, error: "Only pending requests can be rejected." };
   }
 
   const { error: updateError } = await supabase
     .from("bookings")
     .update({ status: "rejected", reject_reason: trimmedReason })
-    .eq("id", bookingId)
+    .eq("group_id", booking.group_id)
     .eq("status", "pending");
 
   if (updateError) {
@@ -167,10 +196,11 @@ async function rejectBookingById(
   }
 
   const admin = createAdminClient();
+  const roomIds = groupRows.map((row) => row.room_id);
   await notifyBookingRejected(admin, {
     bookingId: booking.id,
     userId: booking.user_id,
-    roomId: booking.room_id,
+    roomIds,
     date: booking.date,
     startTime: booking.start_time,
     endTime: booking.end_time,
@@ -180,7 +210,7 @@ async function rejectBookingById(
     bookingId: booking.id,
     status: "rejected",
     requesterId: booking.user_id,
-    roomId: booking.room_id,
+    roomIds,
     date: booking.date,
     startTime: booking.start_time,
     endTime: booking.end_time,

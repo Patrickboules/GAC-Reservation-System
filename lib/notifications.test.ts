@@ -98,6 +98,14 @@ function createFakeAdmin(opts: FakeAdminOptions) {
                   single: async () => ({ data: opts.rooms?.[val] ?? null, error: null }),
                 };
               },
+              in(_col: string, vals: string[]) {
+                return Promise.resolve({
+                  data: vals
+                    .filter((id) => opts.rooms?.[id])
+                    .map((id) => ({ id, name: opts.rooms![id]!.name })),
+                  error: null,
+                });
+              },
             };
           },
         };
@@ -155,7 +163,7 @@ describe("notifyBookingApproved", () => {
     await notifyBookingApproved(admin, {
       bookingId: "booking-1",
       userId: "user-1",
-      roomId: "room-1",
+      roomIds: ["room-1"],
       date: "2026-08-01",
       startTime: "10:00",
       endTime: "11:00",
@@ -183,7 +191,7 @@ describe("notifyBookingRejected", () => {
     await notifyBookingRejected(admin, {
       bookingId: "booking-1",
       userId: "user-1",
-      roomId: "room-1",
+      roomIds: ["room-1"],
       date: "2026-08-01",
       startTime: "10:00",
       endTime: "11:00",
@@ -213,7 +221,7 @@ describe("notifyBookingCancelled", () => {
     await notifyBookingCancelled(admin, {
       bookingId: "booking-1",
       userId: "user-1",
-      roomId: "room-1",
+      roomIds: ["room-1"],
       date: "2026-08-01",
       startTime: "10:00",
       endTime: "11:00",
@@ -243,7 +251,7 @@ describe("notifyAdminsNewRequest", () => {
     await notifyAdminsNewRequest(admin, {
       bookingId: "booking-1",
       requesterId: "user-1",
-      roomId: "room-1",
+      roomIds: ["room-1"],
       date: "2026-08-01",
       startTime: "10:00",
       endTime: "11:00",
@@ -278,7 +286,7 @@ describe("notifyAdminsNewRequest", () => {
     await notifyAdminsNewRequest(admin, {
       bookingId: "booking-1",
       requesterId: "user-1",
-      roomId: "room-1",
+      roomIds: ["room-1"],
       date: "2026-08-01",
       startTime: "10:00",
       endTime: "11:00",

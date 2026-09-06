@@ -60,15 +60,12 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     today: "Today's availability",
     next7: "Next 7 days",
     reserve: "Reserve this room",
-    reserveSubroom: "Reserve",
     subrooms: "Subrooms",
     free: "Free",
     busy: "Busy",
     freeNow: "Free now",
     busyNow: "Busy now",
     notSpecified: "Not specified",
-    selectMultiple: "Select multiple",
-    cancelSelection: "Cancel",
     reserveSelectedOne: "Reserve 1 subroom",
     reserveSelectedMany: "Reserve {n} subrooms",
   },
@@ -78,15 +75,12 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     today: "التوفر اليوم",
     next7: "الأيام السبعة القادمة",
     reserve: "حجز هذه القاعة",
-    reserveSubroom: "حجز",
     subrooms: "الغرف الفرعية",
     free: "متاح",
     busy: "مشغول",
     freeNow: "متاح الآن",
     busyNow: "مشغول الآن",
     notSpecified: "غير محدد",
-    selectMultiple: "اختيار متعدد",
-    cancelSelection: "إلغاء",
     reserveSelectedOne: "حجز غرفة واحدة",
     reserveSelectedMany: "حجز {n} غرف",
   },
@@ -121,13 +115,7 @@ function RoomDetailView({
   const dir = isAr ? "rtl" : "ltr";
   const BackIcon = isAr ? ChevronRight : ChevronLeft;
 
-  const [selectionMode, setSelectionMode] = useState(false);
   const [selectedSubroomIds, setSelectedSubroomIds] = useState<Set<string>>(new Set());
-
-  function toggleSelectionMode() {
-    setSelectionMode((prev) => !prev);
-    setSelectedSubroomIds(new Set());
-  }
 
   function toggleSubroomSelected(id: string) {
     setSelectedSubroomIds((prev) => {
@@ -301,94 +289,73 @@ function RoomDetailView({
               </div>
             </div>
 
-            {/* subrooms — only the three subdivided halls have any */}
+            {/* subrooms — only the three subdivided halls have any. Every
+                subroom always has a checkbox; checking one or more is the
+                only way to reserve a subroom (standalone = check just one),
+                so there's no separate per-row "Reserve" action to keep in
+                sync with the checkbox state. */}
             {subrooms.length > 0 && (
               <div>
-                <div className="mb-3 flex items-baseline justify-between gap-2">
-                  <p className="text-caption font-bold uppercase tracking-wide text-ink-500">
-                    {t.subrooms}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={toggleSelectionMode}
-                    className="rounded-md px-1 text-caption font-semibold text-sky-600 outline-none transition-colors hover:text-sky-700 focus-visible:ring-2 focus-visible:ring-sky-300"
-                  >
-                    {selectionMode ? t.cancelSelection : t.selectMultiple}
-                  </button>
-                </div>
-                <div className="flex flex-col gap-2">
+                <p className="mb-3 text-caption font-bold uppercase tracking-wide text-ink-500">
+                  {t.subrooms}
+                </p>
+                <div className="grid grid-cols-3 gap-2">
                   {subrooms.map((subroom) => {
                     const checked = selectedSubroomIds.has(subroom.id);
                     return (
                       <div
                         key={subroom.id}
-                        role={selectionMode ? "button" : undefined}
-                        tabIndex={selectionMode ? 0 : undefined}
-                        onClick={selectionMode ? () => toggleSubroomSelected(subroom.id) : undefined}
-                        onKeyDown={
-                          selectionMode
-                            ? (e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                  toggleSubroomSelected(subroom.id);
-                                }
-                              }
-                            : undefined
-                        }
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => toggleSubroomSelected(subroom.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            toggleSubroomSelected(subroom.id);
+                          }
+                        }}
                         className={cn(
-                          "flex items-center justify-between gap-3 rounded-lg border px-4 py-3",
-                          selectionMode && checked
-                            ? "border-sky-600 bg-sky-50"
-                            : "border-line bg-canvas",
-                          selectionMode && "cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-sky-300"
+                          "flex cursor-pointer flex-col gap-1 rounded-lg border px-2.5 py-2 outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+                          checked ? "border-sky-600 bg-sky-50" : "border-line bg-canvas"
                         )}
                       >
-                        <div className="flex min-w-0 items-center gap-3">
-                          {selectionMode && (
-                            <input
-                              type="checkbox"
-                              checked={checked}
-                              onChange={() => toggleSubroomSelected(subroom.id)}
-                              onClick={(e) => e.stopPropagation()}
-                              aria-label={subroom.name}
-                              className="size-4 shrink-0 rounded border-line text-sky-600 focus-visible:ring-2 focus-visible:ring-sky-300"
-                            />
-                          )}
-                          <span lang="ar" dir="rtl" className="truncate text-small font-semibold text-ink-900">
+                        <div className="flex min-w-0 items-center gap-1">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleSubroomSelected(subroom.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={subroom.name}
+                            className="size-3.5 shrink-0 rounded border-line text-sky-600 focus-visible:ring-2 focus-visible:ring-sky-300"
+                          />
+                          <span lang="ar" dir="rtl" className="min-w-0 truncate text-small font-semibold text-ink-900">
                             {subroom.name}
                           </span>
-                          <span
-                            className={cn(
-                              "flex shrink-0 items-center gap-1.5 text-caption font-medium",
-                              subroom.availability === "free"
-                                ? "text-status-approved-fg"
-                                : "text-status-pending-fg"
-                            )}
-                          >
-                            <span
-                              aria-hidden="true"
-                              className={cn(
-                                "size-1.5 rounded-full",
-                                subroom.availability === "free"
-                                  ? "bg-status-approved-fg"
-                                  : "bg-status-pending-fg"
-                              )}
-                            />
-                            {subroom.availability === "free" ? t.freeNow : t.busyNow}
-                          </span>
                         </div>
-                        {!selectionMode && (
-                          <Button
-                            size="sm"
-                            variant="secondary"
-                            render={<Link href={`/bookings/new?room=${subroom.id}`}>{t.reserveSubroom}</Link>}
+                        <span
+                          className={cn(
+                            "flex items-center gap-1 text-[0.6875rem] font-medium leading-tight",
+                            subroom.availability === "free"
+                              ? "text-status-approved-fg"
+                              : "text-status-pending-fg"
+                          )}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={cn(
+                              "size-1 shrink-0 rounded-full",
+                              subroom.availability === "free"
+                                ? "bg-status-approved-fg"
+                                : "bg-status-pending-fg"
+                            )}
                           />
-                        )}
+                          {subroom.availability === "free" ? t.freeNow : t.busyNow}
+                        </span>
                       </div>
                     );
                   })}
                 </div>
-                {selectionMode && selectedSubroomIds.size > 0 && (
+                {selectedSubroomIds.size > 0 && (
                   <div className="mt-3">
                     <Button
                       className="w-full sm:w-auto"
