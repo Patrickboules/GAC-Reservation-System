@@ -2,8 +2,11 @@ import Link from "next/link";
 
 import { Button } from "@/components/kit/button";
 import { ScheduleContent } from "@/components/schedule/schedule-content";
+import type { DayBooking } from "@/components/schedule/timeline-grid";
+import { resolveDateOrToday } from "@/lib/dates";
 import type { ScheduleRoom } from "@/lib/rooms-filters";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/session";
 
 export default async function SchedulePage({
   searchParams,
@@ -11,18 +14,32 @@ export default async function SchedulePage({
   searchParams: Promise<{ room?: string; date?: string }>;
 }) {
   const { room, date } = await searchParams;
+  const initialDate = resolveDateOrToday(date);
   const supabase = await createClient();
-  const [{ data: rooms }, { data: userData }] = await Promise.all([
+  const [{ data: rooms }, user, { data: initialBookingsData }] = await Promise.all([
     supabase
       .from("rooms")
       .select("id, name, amenities, building, floor, room_type, category_color, parent_room_id")
       .order("name"),
-    supabase.auth.getUser(),
+    getCachedUser(),
+    // Seeds TimelineGrid's first render so the public schedule — the
+    // highest-traffic, unauthenticated-first-touch page — doesn't pay for an
+    // extra client-side round trip to Supabase after hydration just to show
+    // the day it's already displaying. Same view/columns/filter TimelineGrid
+    // itself uses for every later date change (see its own comment there for
+    // why bookings_schedule + status='approved' is filtered here).
+    supabase
+      .from("bookings_schedule")
+      .select("id, room_id, date, start_time, end_time, status, service")
+      .eq("date", initialDate)
+      .eq("status", "approved")
+      .order("start_time", { ascending: true }),
   ]);
 
   const scheduleRooms: ScheduleRoom[] = rooms ?? [];
+  const initialBookings = (initialBookingsData ?? []) as unknown as DayBooking[];
 
-  const authenticated = Boolean(userData.user);
+  const authenticated = Boolean(user);
 
   return (
     <div className="flex min-h-full w-full flex-col gap-4 p-4">
@@ -42,7 +59,12 @@ export default async function SchedulePage({
           <Button size="lg" render={<Link href="/login">Sign in to reserve</Link>} />
         )}
       </div>
-      <ScheduleContent rooms={scheduleRooms} initialDate={date} initialRoomId={room} />
+      <ScheduleContent
+        rooms={scheduleRooms}
+        initialDate={initialDate}
+        initialRoomId={room}
+        initialBookings={initialBookings}
+      />
     </div>
   );
 }

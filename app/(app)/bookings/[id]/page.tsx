@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/kit/status-badge";
 import { formatDateLabel, formatTimeLabel } from "@/lib/dates";
 import { isBookingModifiable } from "@/lib/bookings/status";
 import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/session";
 
 export default async function BookingDetailPage({
   params,
@@ -15,9 +16,7 @@ export default async function BookingDetailPage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedUser();
 
   if (!user) {
     redirect("/login");

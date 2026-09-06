@@ -24,6 +24,16 @@ export function todayDateString(): string {
   return toDateString(new Date());
 }
 
+const DATE_STRING_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Resolves a possibly-absent/invalid "YYYY-MM-DD" candidate (e.g. a ?date=
+ * search param) to itself if valid, else today. Used so a server-rendered
+ * initial fetch and a client component's initial date state agree on what
+ * "the first date shown" actually is. */
+export function resolveDateOrToday(candidate?: string): string {
+  return candidate && DATE_STRING_PATTERN.test(candidate) ? candidate : todayDateString();
+}
+
 /** Inclusive list of "YYYY-MM-DD" strings from start to end, capped at 366
  * days as a sanity guard against runaway ranges. */
 export function enumerateDates(start: string, end: string): string[] {

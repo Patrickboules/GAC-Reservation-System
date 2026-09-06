@@ -58,7 +58,7 @@ function categoryColorBarClassName(categoryColor: string | null): string {
   return "bg-line";
 }
 
-interface DayBooking {
+export interface DayBooking {
   id: string;
   room_id: string;
   date: string;
@@ -88,9 +88,19 @@ function roomRowHeight(laneCount: number): number {
 export function TimelineGrid({
   rooms,
   date,
+  initialBookings,
+  initialBookingsDate,
 }: {
   rooms: ScheduleRoom[];
   date: string;
+  /** Server-fetched bookings for `initialBookingsDate`, seeded to avoid an
+   * extra client round-trip on first paint — the public schedule is the
+   * highest-traffic, unauthenticated-first-touch page. Only consumed once, on
+   * this component's first render, and only when `date` still matches
+   * `initialBookingsDate`; every date change (including flipping back to this
+   * same date later) re-fetches client-side as before. */
+  initialBookings?: DayBooking[];
+  initialBookingsDate?: string;
 }) {
   const axisRef = useRef<HTMLDivElement>(null);
   const [axisWidth, setAxisWidth] = useState(0);
@@ -107,14 +117,29 @@ export function TimelineGrid({
   }, []);
 
   const supabase = useMemo(() => createClient(), []);
-  const [bookings, setBookings] = useState<DayBooking[]>([]);
-  const [loading, setLoading] = useState(true);
+  const hasSeededBookings = Boolean(initialBookings && date === initialBookingsDate);
+  const [bookings, setBookings] = useState<DayBooking[]>(() =>
+    hasSeededBookings ? initialBookings! : []
+  );
+  const [loading, setLoading] = useState(() => !hasSeededBookings);
   const [error, setError] = useState<string | null>(null);
+  const isFirstRun = useRef(true);
 
   useEffect(() => {
+    const firstRun = isFirstRun.current;
+    isFirstRun.current = false;
+
     if (rooms.length === 0) {
       setBookings([]);
       setLoading(false);
+      return;
+    }
+
+    // Already have server-fetched bookings for this exact date from the
+    // initial render — skip the redundant client round-trip. Only applies to
+    // the very first effect run: flipping back to this date later still
+    // re-fetches, so approvals made after page load aren't served stale.
+    if (firstRun && initialBookings && date === initialBookingsDate) {
       return;
     }
 
@@ -152,7 +177,7 @@ export function TimelineGrid({
     return () => {
       cancelled = true;
     };
-  }, [supabase, rooms.length, date]);
+  }, [supabase, rooms.length, date, initialBookings, initialBookingsDate]);
 
   const bookingsByRoom = useMemo(() => {
     const grouped = new Map<string, DayBooking[]>();
