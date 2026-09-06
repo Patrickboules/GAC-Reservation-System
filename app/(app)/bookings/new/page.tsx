@@ -28,12 +28,11 @@ export default async function NewBookingPage({
   }
 
   const supabase = await createClient();
-  const [{ data: selectedRoom }, user] = await Promise.all([
+  const [{ data: selectedRooms }, user] = await Promise.all([
     supabase
       .from("rooms")
-      .select("id, name, amenities, building, floor")
-      .eq("id", room)
-      .maybeSingle(),
+      .select("id, name, amenities, building, floor, parent_room_id")
+      .in("id", roomIds),
     getCachedUser(),
   ]);
 
