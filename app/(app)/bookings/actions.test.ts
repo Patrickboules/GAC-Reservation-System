@@ -20,17 +20,26 @@ vi.mock("@/lib/notifications", () => ({
   notifyBookingCancelled: mocks.notifyBookingCancelled,
 }));
 
-import { cancelBooking, requestBooking, updateBooking } from "./actions";
+import { cancelBooking, requestBooking, requestCollectiveBooking, updateBooking } from "./actions";
 import { FakeSupabaseClient } from "@/lib/testing/fake-supabase";
 
 const MEMBER_ID = "member-1";
 const ROOM_ID = "room-1";
+const HALL_ID = "hall-1";
+const SUBROOM_1_ID = "subroom-1";
+const SUBROOM_2_ID = "subroom-2";
 const FUTURE_DATE = "2999-01-01";
 const PAST_DATE = "2000-01-01";
 
-function formData(fields: Record<string, string>): FormData {
+function formData(fields: Record<string, string | string[]>): FormData {
   const fd = new FormData();
-  for (const [key, value] of Object.entries(fields)) fd.set(key, value);
+  for (const [key, value] of Object.entries(fields)) {
+    if (Array.isArray(value)) {
+      for (const v of value) fd.append(key, v);
+    } else {
+      fd.set(key, value);
+    }
+  }
   return fd;
 }
 
@@ -46,14 +55,19 @@ function validRequestFields(overrides: Record<string, string> = {}) {
 }
 
 function existingBooking(overrides: Record<string, unknown> = {}) {
+  const id = (overrides.id as string | undefined) ?? "booking-1";
   return {
-    id: "booking-1",
+    id,
     user_id: MEMBER_ID,
     room_id: ROOM_ID,
     date: FUTURE_DATE,
     start_time: "10:00:00",
     end_time: "11:00:00",
     status: "pending",
+    // Defaults to a group of one (its own id), matching the real DB's
+    // per-row-unique group_id default — pass group_id explicitly to test
+    // multi-room reservations.
+    group_id: id,
     ...overrides,
   };
 }
@@ -62,18 +76,25 @@ function setupClient(opts: {
   userId?: string | null;
   bookings?: Record<string, unknown>[];
   scheduleRows?: Record<string, unknown>[];
+  rooms?: Record<string, unknown>[];
 }) {
   const client = new FakeSupabaseClient({
     user: opts.userId ? { id: opts.userId } : null,
     tables: {
       bookings: opts.bookings ?? [],
       bookings_schedule: opts.scheduleRows ?? [],
+      rooms: opts.rooms ?? [],
     },
   });
   mocks.createClient.mockResolvedValue(client);
   mocks.createAdminClient.mockReturnValue(client);
   return client;
 }
+
+const SUBROOMS = [
+  { id: SUBROOM_1_ID, name: "401", parent_room_id: HALL_ID },
+  { id: SUBROOM_2_ID, name: "402", parent_room_id: HALL_ID },
+];
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -219,6 +240,144 @@ describe("requestBooking", () => {
   });
 });
 
+describe("requestCollectiveBooking", () => {
+  function collectiveFields(overrides: Record<string, string | string[]> = {}) {
+    return {
+      room_id: [SUBROOM_1_ID, SUBROOM_2_ID],
+      date: FUTURE_DATE,
+      start_time: "10:00",
+      end_time: "11:00",
+      service: "Liturgy",
+      ...overrides,
+    };
+  }
+
+  it("creates one independent pending booking per selected subroom sharing the same date/time/service/notes", async () => {
+    const client = setupClient({ userId: MEMBER_ID, rooms: SUBROOMS });
+    await expect(
+      requestCollectiveBooking({}, formData(collectiveFields({ notes: "Choir rehearsal" })))
+    ).rejects.toThrow("REDIRECT:/bookings?submitted=1&count=2");
+
+    const rows = client.table("bookings").rows;
+    expect(rows).toHaveLength(2);
+    expect(rows.map((r) => r.room_id).sort()).toEqual([SUBROOM_1_ID, SUBROOM_2_ID].sort());
+    for (const row of rows) {
+      expect(row).toMatchObject({
+        user_id: MEMBER_ID,
+        date: FUTURE_DATE,
+        start_time: "10:00:00",
+        end_time: "11:00:00",
+        service: "Liturgy",
+        notes: "Choir rehearsal",
+        status: "pending",
+      });
+    }
+    // Independent rows (each has its own primary key)...
+    expect(rows[0].id).not.toBe(rows[1].id);
+    // ...but one reservation: every row shares the same group_id, so they're
+    // approved/rejected/edited/cancelled together from here on.
+    expect(rows[0].group_id).toBe(rows[1].group_id);
+    expect(rows[0].group_id).toBeTruthy();
+    // One consolidated notification/email for the whole reservation, not one per room.
+    expect(mocks.notifyAdminsNewRequest).toHaveBeenCalledOnce();
+    expect(mocks.notifyAdminsNewRequest.mock.calls[0][1]).toMatchObject({
+      roomIds: [SUBROOM_1_ID, SUBROOM_2_ID],
+    });
+  });
+
+  it("is all-or-nothing: a blocking conflict on one selected subroom blocks the whole batch", async () => {
+    const client = setupClient({
+      userId: MEMBER_ID,
+      rooms: SUBROOMS,
+      scheduleRows: [
+        {
+          id: "s2-booking",
+          room_id: SUBROOM_2_ID,
+          date: FUTURE_DATE,
+          start_time: "10:30",
+          end_time: "11:30",
+          status: "approved",
+        },
+      ],
+    });
+    const result = await requestCollectiveBooking({}, formData(collectiveFields()));
+    expect(result.error).toContain("402");
+    expect(result.error).not.toContain("401");
+    expect(client.table("bookings").rows).toHaveLength(0);
+  });
+
+  it("a hall's approved booking blocks every one of its selected subrooms", async () => {
+    const client = setupClient({
+      userId: MEMBER_ID,
+      rooms: SUBROOMS,
+      scheduleRows: [
+        {
+          id: "hall-booking",
+          room_id: HALL_ID,
+          date: FUTURE_DATE,
+          start_time: "10:30",
+          end_time: "11:30",
+          status: "approved",
+        },
+      ],
+    });
+    const result = await requestCollectiveBooking({}, formData(collectiveFields()));
+    expect(result.error).toContain("401");
+    expect(result.error).toContain("402");
+    expect(client.table("bookings").rows).toHaveLength(0);
+  });
+
+  it("succeeds for two sibling subrooms that don't conflict with each other", async () => {
+    const client = setupClient({ userId: MEMBER_ID, rooms: SUBROOMS });
+    await expect(requestCollectiveBooking({}, formData(collectiveFields()))).rejects.toThrow(
+      "REDIRECT:/bookings?submitted=1&count=2"
+    );
+    expect(client.table("bookings").rows).toHaveLength(2);
+  });
+
+  it("enforces the pending cap across the whole batch, all-or-nothing", async () => {
+    const pending = Array.from({ length: 4 }, (_, i) =>
+      existingBooking({ id: `pending-${i}`, status: "pending" })
+    );
+    const client = setupClient({ userId: MEMBER_ID, rooms: SUBROOMS, bookings: pending });
+    const result = await requestCollectiveBooking({}, formData(collectiveFields()));
+    expect(result.error).toContain("4 pending request");
+    expect(client.table("bookings").rows).toHaveLength(4);
+  });
+
+  it("rejects selecting subrooms from different halls", async () => {
+    const client = setupClient({
+      userId: MEMBER_ID,
+      rooms: [...SUBROOMS, { id: "other-hall-subroom", name: "501", parent_room_id: "hall-2" }],
+    });
+    const result = await requestCollectiveBooking(
+      {},
+      formData(collectiveFields({ room_id: [SUBROOM_1_ID, "other-hall-subroom"] }))
+    );
+    expect(result.error).toBe("Selected rooms must all be subrooms of the same hall.");
+    expect(client.table("bookings").rows).toHaveLength(0);
+  });
+
+  it("selecting exactly one subroom behaves identically to the standalone single-room flow", async () => {
+    const client = setupClient({ userId: MEMBER_ID, rooms: SUBROOMS });
+    await expect(
+      requestCollectiveBooking({}, formData(collectiveFields({ room_id: [SUBROOM_1_ID] })))
+    ).rejects.toThrow("REDIRECT:/bookings?submitted=1");
+
+    const rows = client.table("bookings").rows;
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ room_id: SUBROOM_1_ID, status: "pending" });
+  });
+
+  it("maps a 23P01 insert race to the same overlap message", async () => {
+    const client = setupClient({ userId: MEMBER_ID, rooms: SUBROOMS });
+    client.table("bookings").failNextWriteWith({ message: "exclusion violation", code: "23P01" });
+
+    const result = await requestCollectiveBooking({}, formData(collectiveFields()));
+    expect(result.error).toBe("This slot overlaps an existing approved booking for that room.");
+  });
+});
+
 describe("updateBooking", () => {
   function updateFields(overrides: Record<string, string> = {}) {
     return {
@@ -313,6 +472,58 @@ describe("updateBooking", () => {
     );
     expect(result.error).toBe("This slot overlaps an existing approved booking for that room.");
   });
+
+  it("reschedules every room of a multi-room reservation atomically, from any one row's id", async () => {
+    const client = setupClient({
+      userId: MEMBER_ID,
+      rooms: SUBROOMS,
+      bookings: [
+        existingBooking({ id: "booking-1", room_id: SUBROOM_1_ID, group_id: "group-1" }),
+        existingBooking({ id: "booking-2", room_id: SUBROOM_2_ID, group_id: "group-1" }),
+      ],
+    });
+    await expect(
+      updateBooking(
+        {},
+        formData(updateFields({ booking_id: "booking-1", start_time: "12:00", end_time: "13:00" }))
+      )
+    ).rejects.toThrow("REDIRECT:/bookings?updated=1");
+
+    const rows = client.table("bookings").rows;
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row).toMatchObject({ start_time: "12:00:00", end_time: "13:00:00" });
+    }
+  });
+
+  it("fails a multi-room reservation's reschedule entirely when only one of its rooms conflicts, leaving every row unchanged", async () => {
+    const client = setupClient({
+      userId: MEMBER_ID,
+      rooms: SUBROOMS,
+      bookings: [
+        existingBooking({ id: "booking-1", room_id: SUBROOM_1_ID, group_id: "group-1" }),
+        existingBooking({ id: "booking-2", room_id: SUBROOM_2_ID, group_id: "group-1" }),
+      ],
+      scheduleRows: [
+        {
+          id: "other",
+          room_id: SUBROOM_2_ID,
+          date: FUTURE_DATE,
+          start_time: "12:30",
+          end_time: "13:30",
+          status: "approved",
+        },
+      ],
+    });
+    const result = await updateBooking(
+      {},
+      formData(updateFields({ booking_id: "booking-1", start_time: "12:00", end_time: "13:00" }))
+    );
+    expect(result.error).toBe("This slot overlaps an existing approved booking for that room.");
+    for (const row of client.table("bookings").rows) {
+      expect(row).toMatchObject({ start_time: "10:00:00", end_time: "11:00:00" });
+    }
+  });
 });
 
 describe("cancelBooking", () => {
@@ -351,5 +562,24 @@ describe("cancelBooking", () => {
 
     expect(client.table("bookings").rows[0].status).toBe("cancelled");
     expect(mocks.notifyBookingCancelled).toHaveBeenCalledOnce();
+  });
+
+  it("cancels every room of a multi-room reservation atomically, from any one row's id", async () => {
+    const client = setupClient({
+      userId: MEMBER_ID,
+      bookings: [
+        existingBooking({ id: "booking-1", room_id: SUBROOM_1_ID, group_id: "group-1" }),
+        existingBooking({ id: "booking-2", room_id: SUBROOM_2_ID, group_id: "group-1" }),
+      ],
+    });
+    await expect(
+      cancelBooking({}, formData({ booking_id: "booking-1" }))
+    ).rejects.toThrow("REDIRECT:/bookings?cancelled=1");
+
+    expect(client.table("bookings").rows.every((r) => r.status === "cancelled")).toBe(true);
+    expect(mocks.notifyBookingCancelled).toHaveBeenCalledOnce();
+    expect(mocks.notifyBookingCancelled.mock.calls[0][1]).toMatchObject({
+      roomIds: [SUBROOM_1_ID, SUBROOM_2_ID],
+    });
   });
 });

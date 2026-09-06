@@ -2,7 +2,7 @@ import { Resend } from "resend";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 import { formatDateLabel, formatTimeLabel } from "@/lib/dates";
-import { getRoomName } from "@/lib/notifications";
+import { getRoomNamesJoined } from "@/lib/notifications";
 
 export type BookingEmailStatus = "pending" | "approved" | "rejected" | "cancelled";
 
@@ -43,7 +43,7 @@ interface BookingStatusEmailParams {
   bookingId: string;
   status: BookingEmailStatus;
   requesterId: string;
-  roomId: string;
+  roomIds: string[];
   date: string;
   startTime: string;
   endTime: string;
@@ -166,7 +166,7 @@ export async function sendBookingStatusEmail(
     }
 
     const [roomName, requester] = await Promise.all([
-      getRoomName(admin, params.roomId),
+      getRoomNamesJoined(admin, params.roomIds),
       getRequesterInfo(admin, params.requesterId),
     ]);
 

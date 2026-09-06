@@ -200,9 +200,16 @@ export function TimelineGrid({
     return laidOut;
   }, [bookingsByRoom]);
 
+  // Subrooms only clutter the grid when idle; only surface one once it actually
+  // has a booking for the selected day. Halls and standalone rooms always show.
+  const visibleRooms = useMemo(
+    () => rooms.filter((room) => !room.parent_room_id || bookingsByRoom.has(room.id)),
+    [rooms, bookingsByRoom]
+  );
+
   // Group rooms into contiguous same-building runs so each building run stays
   // together for US-011's group headers.
-  const sortedRooms = useMemo(() => groupRoomsByBuilding(rooms), [rooms]);
+  const sortedRooms = useMemo(() => groupRoomsByBuilding(visibleRooms), [visibleRooms]);
 
   // Consecutive same-building rooms share one row-spanning group header (US-011);
   // startIndex keeps each room's global row index stable for keyboard nav.
@@ -234,6 +241,10 @@ export function TimelineGrid({
 
   if (rooms.length === 0) {
     return <EmptyState title="No rooms available" description="Rooms will appear here once they're added." />;
+  }
+
+  if (!loading && visibleRooms.length === 0) {
+    return <EmptyState title="No rooms available" description="No rooms match right now — subrooms only appear here once booked." />;
   }
 
   return (

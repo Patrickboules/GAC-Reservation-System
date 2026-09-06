@@ -31,6 +31,12 @@ interface DayStripEntry {
   busy: boolean;
 }
 
+interface SubroomEntry {
+  id: string;
+  name: string;
+  availability: RoomCardAvailability;
+}
+
 export interface RoomDetailViewProps {
   roomId: string;
   name: string;
@@ -40,6 +46,7 @@ export interface RoomDetailViewProps {
   availability: RoomCardAvailability;
   todayDate: string;
   todayBookings: TodayBooking[];
+  subrooms: SubroomEntry[];
   days: DayStripEntry[];
 }
 
@@ -53,11 +60,14 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     today: "Today's availability",
     next7: "Next 7 days",
     reserve: "Reserve this room",
+    subrooms: "Subrooms",
     free: "Free",
     busy: "Busy",
     freeNow: "Free now",
     busyNow: "Busy now",
     notSpecified: "Not specified",
+    reserveSelectedOne: "Reserve 1 subroom",
+    reserveSelectedMany: "Reserve {n} subrooms",
   },
   ar: {
     back: "عودة للغرف",
@@ -65,11 +75,14 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     today: "التوفر اليوم",
     next7: "الأيام السبعة القادمة",
     reserve: "حجز هذه القاعة",
+    subrooms: "الغرف الفرعية",
     free: "متاح",
     busy: "مشغول",
     freeNow: "متاح الآن",
     busyNow: "مشغول الآن",
     notSpecified: "غير محدد",
+    reserveSelectedOne: "حجز غرفة واحدة",
+    reserveSelectedMany: "حجز {n} غرف",
   },
 };
 
@@ -93,6 +106,7 @@ function RoomDetailView({
   availability,
   todayDate,
   todayBookings,
+  subrooms,
   days,
 }: RoomDetailViewProps) {
   const [lang, setLang] = useState<Lang>("en");
@@ -100,6 +114,20 @@ function RoomDetailView({
   const t = STRINGS[lang];
   const dir = isAr ? "rtl" : "ltr";
   const BackIcon = isAr ? ChevronRight : ChevronLeft;
+
+  const [selectedSubroomIds, setSelectedSubroomIds] = useState<Set<string>>(new Set());
+
+  function toggleSubroomSelected(id: string) {
+    setSelectedSubroomIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  }
 
   return (
     <div dir={dir} className="mx-auto flex min-h-full w-full max-w-4xl flex-col gap-4 p-4">
@@ -260,6 +288,89 @@ function RoomDetailView({
                 <span>{formatHourLabel(SCHEDULE_END_HOUR)}</span>
               </div>
             </div>
+
+            {/* subrooms — only the three subdivided halls have any. Every
+                subroom always has a checkbox; checking one or more is the
+                only way to reserve a subroom (standalone = check just one),
+                so there's no separate per-row "Reserve" action to keep in
+                sync with the checkbox state. */}
+            {subrooms.length > 0 && (
+              <div>
+                <p className="mb-3 text-caption font-bold uppercase tracking-wide text-ink-500">
+                  {t.subrooms}
+                </p>
+                <div className="grid grid-cols-3 gap-2">
+                  {subrooms.map((subroom) => {
+                    const checked = selectedSubroomIds.has(subroom.id);
+                    return (
+                      <div
+                        key={subroom.id}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => toggleSubroomSelected(subroom.id)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            toggleSubroomSelected(subroom.id);
+                          }
+                        }}
+                        className={cn(
+                          "flex cursor-pointer flex-col gap-1 rounded-lg border px-2.5 py-2 outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+                          checked ? "border-sky-600 bg-sky-50" : "border-line bg-canvas"
+                        )}
+                      >
+                        <div className="flex min-w-0 items-center gap-1">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleSubroomSelected(subroom.id)}
+                            onClick={(e) => e.stopPropagation()}
+                            aria-label={subroom.name}
+                            className="size-3.5 shrink-0 rounded border-line text-sky-600 focus-visible:ring-2 focus-visible:ring-sky-300"
+                          />
+                          <span lang="ar" dir="rtl" className="min-w-0 truncate text-small font-semibold text-ink-900">
+                            {subroom.name}
+                          </span>
+                        </div>
+                        <span
+                          className={cn(
+                            "flex items-center gap-1 text-[0.6875rem] font-medium leading-tight",
+                            subroom.availability === "free"
+                              ? "text-status-approved-fg"
+                              : "text-status-pending-fg"
+                          )}
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={cn(
+                              "size-1 shrink-0 rounded-full",
+                              subroom.availability === "free"
+                                ? "bg-status-approved-fg"
+                                : "bg-status-pending-fg"
+                            )}
+                          />
+                          {subroom.availability === "free" ? t.freeNow : t.busyNow}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                {selectedSubroomIds.size > 0 && (
+                  <div className="mt-3">
+                    <Button
+                      className="w-full sm:w-auto"
+                      render={
+                        <Link href={`/bookings/new?rooms=${Array.from(selectedSubroomIds).join(",")}`}>
+                          {selectedSubroomIds.size === 1
+                            ? t.reserveSelectedOne
+                            : t.reserveSelectedMany.replace("{n}", String(selectedSubroomIds.size))}
+                        </Link>
+                      }
+                    />
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* sidebar */}

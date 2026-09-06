@@ -130,7 +130,7 @@ export async function requestBooking(
   await notifyAdminsNewRequest(admin, {
     bookingId: inserted.id,
     requesterId: user.id,
-    roomId,
+    roomIds: [roomId],
     date,
     startTime,
     endTime,
@@ -139,7 +139,7 @@ export async function requestBooking(
     bookingId: inserted.id,
     status: "pending",
     requesterId: user.id,
-    roomId,
+    roomIds: [roomId],
     date,
     startTime,
     endTime,
@@ -147,6 +147,181 @@ export async function requestBooking(
 
   revalidatePath("/bookings");
   redirect("/bookings?submitted=1");
+}
+
+export interface RequestCollectiveBookingState {
+  error?: string;
+}
+
+/**
+ * Same as requestBooking, but creates one independent pending booking per
+ * selected subroom from a single shared date/time/service/notes submission.
+ * All-or-nothing: the whole batch is inserted in one `insert([...])` call, so
+ * a single INSERT statement either commits every row or (on a conflict caught
+ * by the DB's hall<->subroom exclusion trigger) rolls back all of them —
+ * matching the app-level all-or-nothing conflict/cap checks run first below.
+ */
+export async function requestCollectiveBooking(
+  _prevState: RequestCollectiveBookingState,
+  formData: FormData
+): Promise<RequestCollectiveBookingState> {
+  const roomIds = Array.from(new Set(formData.getAll("room_id").map(String).filter(Boolean)));
+  const date = (formData.get("date") as string | null) ?? "";
+  const rawStartTime = (formData.get("start_time") as string | null) ?? "";
+  const rawEndTime = (formData.get("end_time") as string | null) ?? "";
+  const service = (formData.get("service") as string | null) ?? "";
+  const notes = ((formData.get("notes") as string | null) ?? "").trim() || null;
+
+  if (roomIds.length === 0 || !date || !rawStartTime || !rawEndTime || !service) {
+    return { error: "Room, date, start time, end time, and service are required." };
+  }
+  if (!isBookingService(service)) {
+    return { error: "Select a valid service/purpose." };
+  }
+
+  const startTime = normalizeTimeString(rawStartTime);
+  const endTime = normalizeTimeString(rawEndTime);
+
+  if (startTime >= endTime) {
+    return { error: "End time must be after start time." };
+  }
+  if (timeToMinutes(endTime) > LATEST_BOOKING_END_MINUTES) {
+    return { error: "Bookings can't run later than 10:30 PM." };
+  }
+  if (isBookingStartInPast(date, startTime)) {
+    return { error: "Can't request a booking in the past." };
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const { data: selectedRooms, error: roomsError } = await supabase
+    .from("rooms")
+    .select("id, name, parent_room_id")
+    .in("id", roomIds);
+
+  if (roomsError) {
+    console.error("requestCollectiveBooking: failed to load selected rooms", roomsError);
+    return { error: "Something went wrong while checking the selected rooms. Please try again." };
+  }
+  const roomsById = new Map((selectedRooms ?? []).map((r) => [r.id as string, r]));
+  if (roomsById.size !== roomIds.length) {
+    return { error: "One or more selected rooms no longer exist." };
+  }
+  // Selection is scoped to one hall per request — every selected room must be
+  // a subroom (non-null parent_room_id) sharing the same parent hall.
+  const parentIds = new Set(roomIds.map((id) => roomsById.get(id)!.parent_room_id));
+  if (parentIds.size !== 1 || parentIds.has(null)) {
+    return { error: "Selected rooms must all be subrooms of the same hall." };
+  }
+
+  // Only an already-approved booking blocks a request (see requestBooking) —
+  // checked independently per selected subroom so the response can name which
+  // one(s) caused the failure.
+  const conflictResults = await Promise.all(
+    roomIds.map((roomId) =>
+      fetchConflictingBookings(supabase, { room_id: roomId, date, start_time: startTime, end_time: endTime }, BLOCKING_STATUSES)
+    )
+  );
+  const conflictingRoomIds = roomIds.filter((_, i) => conflictResults[i].length > 0);
+  if (conflictingRoomIds.length > 0) {
+    if (roomIds.length === 1) {
+      return { error: "This slot overlaps an existing approved booking for that room." };
+    }
+    const names = conflictingRoomIds.map((id) => roomsById.get(id)!.name as string);
+    return {
+      error: `This slot overlaps an existing approved booking for: ${names.join(", ")}.`,
+    };
+  }
+
+  const { count, error: countError } = await supabase
+    .from("bookings")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", user.id)
+    .eq("status", "pending");
+
+  if (countError) {
+    console.error("requestCollectiveBooking: failed to count pending bookings", countError);
+    return { error: "Something went wrong while checking your pending requests. Please try again." };
+  }
+  if ((count ?? 0) + roomIds.length > MAX_OPEN_PENDING_BOOKINGS) {
+    if (roomIds.length === 1) {
+      return {
+        error: `You already have ${MAX_OPEN_PENDING_BOOKINGS} pending requests awaiting a decision. Cancel one or wait for a response before requesting more.`,
+      };
+    }
+    return {
+      error: `You have ${count ?? 0} pending request(s); selecting ${roomIds.length} subrooms would put you at ${
+        (count ?? 0) + roomIds.length
+      }, over the ${MAX_OPEN_PENDING_BOOKINGS} limit. Select fewer subrooms or cancel a pending request first.`,
+    };
+  }
+
+  // Every row created by this submission shares one group_id, so the whole
+  // selection is treated as a single reservation from here on: one status,
+  // approved/rejected/edited/cancelled together (see app/(app)/admin/actions.ts
+  // and the update/cancel actions below, which resolve and act on the full
+  // group rather than a single row).
+  const groupId = crypto.randomUUID();
+
+  const { data: inserted, error: insertError } = await supabase
+    .from("bookings")
+    .insert(
+      roomIds.map((roomId) => ({
+        room_id: roomId,
+        user_id: user.id,
+        date,
+        start_time: startTime,
+        end_time: endTime,
+        service,
+        notes,
+        status: "pending",
+        group_id: groupId,
+      }))
+    )
+    .select("id, room_id");
+
+  if (insertError) {
+    // 23P01 = exclusion_violation: see the matching comment in requestBooking
+    // — one insert statement for the whole batch means this rolls back every
+    // row in the selection, not just the offending one.
+    if (insertError.code === "23P01") {
+      return {
+        error: "This slot overlaps an existing approved booking for that room.",
+      };
+    }
+    console.error("requestCollectiveBooking: failed to insert bookings", insertError);
+    return { error: "Something went wrong while submitting your request. Please try again." };
+  }
+
+  const admin = createAdminClient();
+  const representativeId = (inserted ?? [])[0]?.id ?? roomIds[0];
+  await notifyAdminsNewRequest(admin, {
+    bookingId: representativeId,
+    requesterId: user.id,
+    roomIds,
+    date,
+    startTime,
+    endTime,
+  });
+  await sendBookingStatusEmail(admin, {
+    bookingId: representativeId,
+    status: "pending",
+    requesterId: user.id,
+    roomIds,
+    date,
+    startTime,
+    endTime,
+  });
+
+  revalidatePath("/bookings");
+  redirect(`/bookings?submitted=1${roomIds.length > 1 ? `&count=${roomIds.length}` : ""}`);
 }
 
 export interface UpdateBookingState {
@@ -158,14 +333,13 @@ export async function updateBooking(
   formData: FormData
 ): Promise<UpdateBookingState> {
   const bookingId = (formData.get("booking_id") as string | null) ?? "";
-  const roomId = (formData.get("room_id") as string | null) ?? "";
   const date = (formData.get("date") as string | null) ?? "";
   const rawStartTime = (formData.get("start_time") as string | null) ?? "";
   const rawEndTime = (formData.get("end_time") as string | null) ?? "";
   const service = (formData.get("service") as string | null) ?? "";
   const notes = ((formData.get("notes") as string | null) ?? "").trim() || null;
 
-  if (!bookingId || !roomId || !date || !rawStartTime || !rawEndTime || !service) {
+  if (!bookingId || !date || !rawStartTime || !rawEndTime || !service) {
     return { error: "Room, date, start time, end time, and service are required." };
   }
   if (!isBookingService(service)) {
@@ -196,7 +370,7 @@ export async function updateBooking(
 
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
-    .select("id, user_id, room_id, date, start_time, end_time, status")
+    .select("id, user_id, room_id, date, start_time, end_time, status, group_id")
     .eq("id", bookingId)
     .single();
 
@@ -207,34 +381,41 @@ export async function updateBooking(
     return { error: "This booking can no longer be edited." };
   }
 
-  const conflicts = await fetchConflictingBookings(
-    supabase,
-    {
-      room_id: roomId,
-      date,
-      start_time: startTime,
-      end_time: endTime,
-      excludeBookingId: bookingId,
-    },
-    BLOCKING_STATUSES
+  // A booking is never edited alone — every row sharing its group_id (the
+  // rooms of one collective reservation, or just itself for a standalone
+  // booking) moves to the new date/time/service/notes together.
+  const { data: groupRows, error: groupFetchError } = await supabase
+    .from("bookings")
+    .select("id, room_id")
+    .eq("group_id", booking.group_id);
+
+  if (groupFetchError || !groupRows || groupRows.length === 0) {
+    console.error("updateBooking: failed to load reservation group", groupFetchError);
+    return { error: "Something went wrong while loading this reservation. Please try again." };
+  }
+
+  const conflictResults = await Promise.all(
+    groupRows.map((row) =>
+      fetchConflictingBookings(
+        supabase,
+        { room_id: row.room_id, date, start_time: startTime, end_time: endTime, excludeBookingId: row.id },
+        BLOCKING_STATUSES
+      )
+    )
   );
-  if (conflicts.length > 0) {
+  if (conflictResults.some((conflicts) => conflicts.length > 0)) {
     return {
       error: "This slot overlaps an existing approved booking for that room.",
     };
   }
 
   const rescheduled =
-    roomId !== booking.room_id ||
-    date !== booking.date ||
-    startTime !== booking.start_time ||
-    endTime !== booking.end_time;
+    date !== booking.date || startTime !== booking.start_time || endTime !== booking.end_time;
   const newStatus = rescheduled ? "pending" : booking.status;
 
   const { error: updateError } = await supabase
     .from("bookings")
     .update({
-      room_id: roomId,
       date,
       start_time: startTime,
       end_time: endTime,
@@ -242,7 +423,7 @@ export async function updateBooking(
       notes,
       status: newStatus,
     })
-    .eq("id", bookingId)
+    .eq("group_id", booking.group_id)
     .eq("user_id", user.id);
 
   if (updateError) {
@@ -285,7 +466,7 @@ export async function cancelBooking(
 
   const { data: booking, error: fetchError } = await supabase
     .from("bookings")
-    .select("id, user_id, room_id, date, start_time, end_time, status")
+    .select("id, user_id, room_id, date, start_time, end_time, status, group_id")
     .eq("id", bookingId)
     .single();
 
@@ -299,10 +480,18 @@ export async function cancelBooking(
     return { error: "Past bookings can't be cancelled." };
   }
 
+  // Cancelling any room of a reservation cancels the whole thing — every row
+  // sharing this group_id frees up together.
+  const { data: groupRows } = await supabase
+    .from("bookings")
+    .select("room_id")
+    .eq("group_id", booking.group_id);
+  const roomIds = (groupRows ?? [booking]).map((row) => row.room_id);
+
   const { error: updateError } = await supabase
     .from("bookings")
     .update({ status: "cancelled" })
-    .eq("id", bookingId)
+    .eq("group_id", booking.group_id)
     .eq("user_id", user.id);
 
   if (updateError) {
@@ -314,7 +503,7 @@ export async function cancelBooking(
   await notifyBookingCancelled(admin, {
     bookingId: booking.id,
     userId: booking.user_id,
-    roomId: booking.room_id,
+    roomIds,
     date: booking.date,
     startTime: booking.start_time,
     endTime: booking.end_time,
@@ -323,7 +512,7 @@ export async function cancelBooking(
     bookingId: booking.id,
     status: "cancelled",
     requesterId: booking.user_id,
-    roomId: booking.room_id,
+    roomIds,
     date: booking.date,
     startTime: booking.start_time,
     endTime: booking.end_time,

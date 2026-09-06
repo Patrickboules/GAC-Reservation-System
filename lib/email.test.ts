@@ -27,7 +27,7 @@ function baseParams(overrides: Record<string, unknown> = {}) {
     bookingId: BOOKING_ID,
     status: "pending" as const,
     requesterId: REQUESTER_ID,
-    roomId: ROOM_ID,
+    roomIds: [ROOM_ID],
     date: BOOKING_DATE,
     startTime: "10:00:00",
     endTime: "11:00:00",

@@ -30,6 +30,8 @@ export interface AdminRoomRow {
   floor: string | null;
   amenities: string[];
   categoryColor: string | null;
+  /** Name of the hall this room is a subroom of, or null for a top-level room. */
+  parentName: string | null;
 }
 
 interface RoomCardRowProps {
@@ -53,6 +55,11 @@ function RoomCardRow({ row, onEdit, onDelete }: RoomCardRowProps) {
         <p lang="ar" dir="rtl" className="truncate text-small font-semibold text-ink-900">
           {row.name}
         </p>
+        {row.parentName && (
+          <p className="truncate text-caption text-ink-500">
+            Parent: <span lang="ar" dir="rtl">{row.parentName}</span>
+          </p>
+        )}
         {location && (
           <p lang="ar" dir="rtl" className="truncate text-caption text-ink-500">
             {location}
@@ -144,9 +151,16 @@ export function RoomsTable({ rooms }: { rooms: AdminRoomRow[] }) {
       header: "Room",
       sortable: true,
       render: (row) => (
-        <span lang="ar" dir="rtl" className="font-medium text-ink-900">
-          {row.name}
-        </span>
+        <div className="flex flex-col">
+          <span lang="ar" dir="rtl" className="font-medium text-ink-900">
+            {row.name}
+          </span>
+          {row.parentName && (
+            <span className="text-caption text-ink-500">
+              Parent: <span lang="ar" dir="rtl">{row.parentName}</span>
+            </span>
+          )}
+        </div>
       ),
     },
     {

@@ -12,6 +12,46 @@ values
   ('قاعة الدور السادس', 'المبنى الرئيسي', 'الدور السادس', 'قاعة', array['بروجيكتور'], 'rose')
 on conflict do nothing;
 
+-- Hall subrooms (US-002): 401-406, 501-506, 601-608, each linked back to
+-- its parent hall via parent_room_id, mirroring migration 20260904010000.
+insert into public.rooms (name, building, floor, room_type, amenities, category_color, parent_room_id)
+select
+  subroom.name,
+  hall.building,
+  hall.floor,
+  'قاعة',
+  array[]::text[],
+  hall.category_color,
+  hall.id
+from public.rooms hall
+join (
+  values
+    ('قاعة الدور الرابع', '401'),
+    ('قاعة الدور الرابع', '402'),
+    ('قاعة الدور الرابع', '403'),
+    ('قاعة الدور الرابع', '404'),
+    ('قاعة الدور الرابع', '405'),
+    ('قاعة الدور الرابع', '406'),
+    ('قاعة الدور الخامس', '501'),
+    ('قاعة الدور الخامس', '502'),
+    ('قاعة الدور الخامس', '503'),
+    ('قاعة الدور الخامس', '504'),
+    ('قاعة الدور الخامس', '505'),
+    ('قاعة الدور الخامس', '506'),
+    ('قاعة الدور السادس', '601'),
+    ('قاعة الدور السادس', '602'),
+    ('قاعة الدور السادس', '603'),
+    ('قاعة الدور السادس', '604'),
+    ('قاعة الدور السادس', '605'),
+    ('قاعة الدور السادس', '606'),
+    ('قاعة الدور السادس', '607'),
+    ('قاعة الدور السادس', '608')
+) as subroom (hall_name, name) on subroom.hall_name = hall.name
+where not exists (
+  select 1 from public.rooms existing
+  where existing.name = subroom.name and existing.parent_room_id = hall.id
+);
+
 -- Seed one admin user for local testing. Inserting directly into auth.users
 -- mirrors what Supabase Auth does on signup, so the on_auth_user_created
 -- trigger fires and creates the matching profiles row; we then promote it.

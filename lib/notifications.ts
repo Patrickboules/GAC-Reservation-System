@@ -87,7 +87,7 @@ export async function getRecentNotifications(
 interface NotifyBookingParams {
   bookingId: string;
   userId: string;
-  roomId: string;
+  roomIds: string[];
   date: string;
   startTime: string;
   endTime: string;
@@ -96,6 +96,13 @@ interface NotifyBookingParams {
 export async function getRoomName(admin: SupabaseClient, roomId: string): Promise<string> {
   const { data } = await admin.from("rooms").select("name").eq("id", roomId).single();
   return data?.name ?? "the room";
+}
+
+/** Resolves and joins room names for a reservation that may span several rooms (a collective subroom booking) — degrades to a single name for the common one-room case. */
+export async function getRoomNamesJoined(admin: SupabaseClient, roomIds: string[]): Promise<string> {
+  const { data } = await admin.from("rooms").select("id, name").in("id", roomIds);
+  const nameById = new Map((data ?? []).map((room) => [room.id as string, room.name as string]));
+  return roomIds.map((id) => nameById.get(id) ?? "a room").join(", ");
 }
 
 async function insertNotification(
@@ -113,7 +120,7 @@ export async function notifyBookingApproved(
   admin: SupabaseClient,
   params: NotifyBookingParams
 ): Promise<void> {
-  const roomName = await getRoomName(admin, params.roomId);
+  const roomName = await getRoomNamesJoined(admin, params.roomIds);
   const message = formatApprovedMessage({
     roomName,
     date: params.date,
@@ -133,7 +140,7 @@ export async function notifyBookingRejected(
   admin: SupabaseClient,
   params: NotifyBookingParams & { reason: string | null }
 ): Promise<void> {
-  const roomName = await getRoomName(admin, params.roomId);
+  const roomName = await getRoomNamesJoined(admin, params.roomIds);
   const message = formatRejectedMessage(
     { roomName, date: params.date, startTime: params.startTime, endTime: params.endTime },
     params.reason
@@ -151,7 +158,7 @@ export async function notifyBookingCancelled(
   admin: SupabaseClient,
   params: NotifyBookingParams
 ): Promise<void> {
-  const roomName = await getRoomName(admin, params.roomId);
+  const roomName = await getRoomNamesJoined(admin, params.roomIds);
   const message = formatCancelledMessage({
     roomName,
     date: params.date,
@@ -172,14 +179,14 @@ export async function notifyAdminsNewRequest(
   params: {
     bookingId: string;
     requesterId: string;
-    roomId: string;
+    roomIds: string[];
     date: string;
     startTime: string;
     endTime: string;
   }
 ): Promise<void> {
-  const [{ data: room }, { data: requester }, { data: admins }] = await Promise.all([
-    admin.from("rooms").select("name").eq("id", params.roomId).single(),
+  const [roomName, { data: requester }, { data: admins }] = await Promise.all([
+    getRoomNamesJoined(admin, params.roomIds),
     admin.from("profiles").select("display_name").eq("id", params.requesterId).single(),
     admin.from("profiles").select("id").eq("role", "admin"),
   ]);
@@ -188,7 +195,7 @@ export async function notifyAdminsNewRequest(
 
   const message = formatAdminNewRequestMessage(
     {
-      roomName: room?.name ?? "the room",
+      roomName,
       date: params.date,
       startTime: params.startTime,
       endTime: params.endTime,

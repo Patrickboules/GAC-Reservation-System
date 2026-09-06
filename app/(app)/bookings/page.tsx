@@ -17,12 +17,34 @@ interface MyBooking {
   service: string;
   status: BookingStatus;
   reject_reason: string | null;
+  group_id: string;
   rooms: { name: string } | { name: string }[] | null;
 }
 
+/** Joins every room name in the list — a plain single-room join from Supabase
+ * arrives as a 1-element array (or a bare object) and joins to just that
+ * name; a grouped multi-room reservation (see groupByReservation) arrives as
+ * several and joins to "401, 402, 403". */
 function roomName(rooms: MyBooking["rooms"]): string {
   if (!rooms) return "Unknown room";
-  return Array.isArray(rooms) ? (rooms[0]?.name ?? "Unknown room") : rooms.name;
+  if (!Array.isArray(rooms)) return rooms.name;
+  return rooms.map((room) => room.name).join(", ") || "Unknown room";
+}
+
+/** A collective reservation's N rooms share one group_id and always move
+ * through status/date/time together — collapse them into one card, keyed by
+ * a representative row's id (resolves the whole group in edit/cancel actions). */
+function groupByReservation(bookings: MyBooking[]): MyBooking[] {
+  const groups = new Map<string, MyBooking[]>();
+  for (const booking of bookings) {
+    const existing = groups.get(booking.group_id);
+    if (existing) existing.push(booking);
+    else groups.set(booking.group_id, [booking]);
+  }
+  return Array.from(groups.values()).map((rows) => ({
+    ...rows[0],
+    rooms: rows.map((row) => ({ name: roomName(row.rooms) })),
+  }));
 }
 
 const BUCKETS: BookingBucket[] = ["upcoming", "pending", "past", "rejected", "cancelled"];
@@ -48,7 +70,7 @@ export default async function MyBookingsPage({
 
   const { data: bookings, error: bookingsError } = await supabase
     .from("bookings")
-    .select("id, date, start_time, end_time, service, status, reject_reason, rooms(name)")
+    .select("id, date, start_time, end_time, service, status, reject_reason, group_id, rooms(name)")
     .eq("user_id", user?.id ?? "")
     .order("date", { ascending: false })
     .order("start_time", { ascending: false });
@@ -57,7 +79,7 @@ export default async function MyBookingsPage({
     throw new Error(bookingsError.message);
   }
 
-  const myBookings = (bookings ?? []) as MyBooking[];
+  const myBookings = groupByReservation((bookings ?? []) as MyBooking[]);
 
   const grouped: Record<BookingBucket, MyBooking[]> = {
     upcoming: [],
