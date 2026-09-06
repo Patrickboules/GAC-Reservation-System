@@ -41,20 +41,20 @@ function TimeStepper({
   return (
     <div
       data-slot="time-stepper"
-      className="flex flex-col items-center gap-1 rounded-md border border-line bg-white px-3 py-2"
+      className="flex flex-col items-stretch overflow-hidden rounded-lg border border-line bg-white"
     >
       <button
         type="button"
         aria-label={`Decrease ${label} by ${stepMinutes} minutes`}
         disabled={disabled || minutes <= minMinutes}
         onClick={() => step(-1)}
-        className="inline-flex size-6 items-center justify-center rounded-sm text-ink-500 outline-none transition-colors hover:bg-sky-50 hover:text-ink-700 focus-visible:ring-2 focus-visible:ring-sky-300 disabled:pointer-events-none disabled:opacity-40"
+        className="flex h-10 items-center justify-center border-b border-line bg-canvas text-ink-500 outline-none transition-colors hover:bg-sky-50 hover:text-sky-700 active:bg-sky-100 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-300 disabled:pointer-events-none disabled:opacity-40"
       >
-        <ChevronDown aria-hidden="true" className="size-4" />
+        <ChevronUp aria-hidden="true" className="size-4" />
       </button>
       <span
         aria-live="polite"
-        className="font-mono text-lg font-medium tabular-nums text-ink-900"
+        className="px-4 py-2.5 text-center font-mono text-lg font-medium tabular-nums text-ink-900"
       >
         {formatTimeLabel(time)}
       </span>
@@ -63,9 +63,9 @@ function TimeStepper({
         aria-label={`Increase ${label} by ${stepMinutes} minutes`}
         disabled={disabled || minutes >= maxMinutes}
         onClick={() => step(1)}
-        className="inline-flex size-6 items-center justify-center rounded-sm text-ink-500 outline-none transition-colors hover:bg-sky-50 hover:text-ink-700 focus-visible:ring-2 focus-visible:ring-sky-300 disabled:pointer-events-none disabled:opacity-40"
+        className="flex h-10 items-center justify-center border-t border-line bg-canvas text-ink-500 outline-none transition-colors hover:bg-sky-50 hover:text-sky-700 active:bg-sky-100 focus-visible:z-10 focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-sky-300 disabled:pointer-events-none disabled:opacity-40"
       >
-        <ChevronUp aria-hidden="true" className="size-4" />
+        <ChevronDown aria-hidden="true" className="size-4" />
       </button>
     </div>
   )

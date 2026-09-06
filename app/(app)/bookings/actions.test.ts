@@ -96,6 +96,11 @@ const SUBROOMS = [
   { id: SUBROOM_2_ID, name: "402", parent_room_id: HALL_ID },
 ];
 
+const HALL_AND_SUBROOMS = [
+  { id: HALL_ID, name: "Hall", parent_room_id: null },
+  ...SUBROOMS,
+];
+
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.redirect.mockImplementation((url: string) => {
@@ -200,6 +205,20 @@ describe("requestBooking", () => {
     setupClient({ userId: MEMBER_ID, bookings: pending });
     const result = await requestBooking({}, formData(validRequestFields()));
     expect(result.error).toContain("already have 5 pending requests");
+  });
+
+  it("counts an existing multi-room collective reservation once against the cap, not once per row", async () => {
+    // 4 existing collective reservations of 2 rows each (group_id shared
+    // within each pair) — 8 rows but only 4 reservations, so a 5th
+    // (this single-room request) still fits under the cap of 5.
+    const pending = Array.from({ length: 4 }, (_, i) => [
+      existingBooking({ id: `g${i}-a`, group_id: `group-${i}`, status: "pending" }),
+      existingBooking({ id: `g${i}-b`, group_id: `group-${i}`, status: "pending" }),
+    ]).flat();
+    setupClient({ userId: MEMBER_ID, bookings: pending });
+    await expect(requestBooking({}, formData(validRequestFields()))).rejects.toThrow(
+      "REDIRECT:/bookings?submitted=1"
+    );
   });
 
   it("inserts the booking, notifies admins, and redirects on success", async () => {
@@ -335,14 +354,55 @@ describe("requestCollectiveBooking", () => {
     expect(client.table("bookings").rows).toHaveLength(2);
   });
 
-  it("enforces the pending cap across the whole batch, all-or-nothing", async () => {
-    const pending = Array.from({ length: 4 }, (_, i) =>
+  it("enforces the pending cap by counting reservations (distinct group_id), not rows", async () => {
+    // 5 existing pending reservations, one row each (default group_id = own
+    // id) — already at the cap, regardless of how many rooms the new
+    // submission would touch.
+    const pending = Array.from({ length: 5 }, (_, i) =>
       existingBooking({ id: `pending-${i}`, status: "pending" })
     );
     const client = setupClient({ userId: MEMBER_ID, rooms: SUBROOMS, bookings: pending });
     const result = await requestCollectiveBooking({}, formData(collectiveFields()));
-    expect(result.error).toContain("4 pending request");
-    expect(client.table("bookings").rows).toHaveLength(4);
+    expect(result.error).toBe(
+      "You already have 5 pending requests awaiting a decision. Cancel one or wait for a response before requesting more."
+    );
+    expect(client.table("bookings").rows).toHaveLength(5);
+  });
+
+  it("a multi-room collective submission only costs 1 against the cap, not 1 per room", async () => {
+    // 4 existing single-row pending reservations (4 distinct group_ids) —
+    // one slot under the cap. Submitting a 2-room collective booking is one
+    // more reservation, landing exactly at the cap of 5, so it must succeed
+    // even though it inserts a 5th and 6th row.
+    const pending = Array.from({ length: 4 }, (_, i) =>
+      existingBooking({ id: `pending-${i}`, status: "pending" })
+    );
+    const client = setupClient({ userId: MEMBER_ID, rooms: SUBROOMS, bookings: pending });
+    await expect(requestCollectiveBooking({}, formData(collectiveFields()))).rejects.toThrow(
+      "REDIRECT:/bookings?submitted=1&count=2"
+    );
+    expect(client.table("bookings").rows).toHaveLength(6);
+  });
+
+  it("an existing multi-room collective reservation counts once against the cap, not once per row", async () => {
+    // 2 existing collective reservations, 2 rows each sharing one group_id —
+    // 4 rows total but only 2 reservations, so 3 more (including this one)
+    // fit under the cap of 5.
+    const existingGroups = [
+      [
+        existingBooking({ id: "g1-a", room_id: SUBROOM_1_ID, group_id: "group-1", status: "pending" }),
+        existingBooking({ id: "g1-b", room_id: SUBROOM_2_ID, group_id: "group-1", status: "pending" }),
+      ],
+      [
+        existingBooking({ id: "g2-a", room_id: SUBROOM_1_ID, group_id: "group-2", status: "pending" }),
+        existingBooking({ id: "g2-b", room_id: SUBROOM_2_ID, group_id: "group-2", status: "pending" }),
+      ],
+    ].flat();
+    const client = setupClient({ userId: MEMBER_ID, rooms: SUBROOMS, bookings: existingGroups });
+    await expect(requestCollectiveBooking({}, formData(collectiveFields()))).rejects.toThrow(
+      "REDIRECT:/bookings?submitted=1&count=2"
+    );
+    expect(client.table("bookings").rows).toHaveLength(6);
   });
 
   it("rejects selecting subrooms from different halls", async () => {
@@ -354,7 +414,56 @@ describe("requestCollectiveBooking", () => {
       {},
       formData(collectiveFields({ room_id: [SUBROOM_1_ID, "other-hall-subroom"] }))
     );
-    expect(result.error).toBe("Selected rooms must all be subrooms of the same hall.");
+    expect(result.error).toBe("Selected rooms must all belong to the same hall.");
+    expect(client.table("bookings").rows).toHaveLength(0);
+  });
+
+  it("allows mixing a hall with a subset of its own subrooms", async () => {
+    const client = setupClient({ userId: MEMBER_ID, rooms: HALL_AND_SUBROOMS });
+    await expect(
+      requestCollectiveBooking({}, formData(collectiveFields({ room_id: [HALL_ID, SUBROOM_1_ID] })))
+    ).rejects.toThrow("REDIRECT:/bookings?submitted=1&count=2");
+
+    const rows = client.table("bookings").rows;
+    expect(rows.map((r) => r.room_id).sort()).toEqual([HALL_ID, SUBROOM_1_ID].sort());
+    expect(rows[0].group_id).toBe(rows[1].group_id);
+  });
+
+  it("allows the hall plus every one of its subrooms (whole-floor booking)", async () => {
+    const client = setupClient({ userId: MEMBER_ID, rooms: HALL_AND_SUBROOMS });
+    await expect(
+      requestCollectiveBooking(
+        {},
+        formData(collectiveFields({ room_id: [HALL_ID, SUBROOM_1_ID, SUBROOM_2_ID] }))
+      )
+    ).rejects.toThrow("REDIRECT:/bookings?submitted=1&count=3");
+
+    expect(client.table("bookings").rows).toHaveLength(3);
+  });
+
+  it("rejects a hall mixed with a different hall's subroom", async () => {
+    const client = setupClient({
+      userId: MEMBER_ID,
+      rooms: [...HALL_AND_SUBROOMS, { id: "other-hall-subroom", name: "501", parent_room_id: "hall-2" }],
+    });
+    const result = await requestCollectiveBooking(
+      {},
+      formData(collectiveFields({ room_id: [HALL_ID, "other-hall-subroom"] }))
+    );
+    expect(result.error).toBe("Selected rooms must all belong to the same hall.");
+    expect(client.table("bookings").rows).toHaveLength(0);
+  });
+
+  it("rejects selecting two different halls with no subrooms", async () => {
+    const client = setupClient({
+      userId: MEMBER_ID,
+      rooms: [...HALL_AND_SUBROOMS, { id: "hall-2", name: "Hall 2", parent_room_id: null }],
+    });
+    const result = await requestCollectiveBooking(
+      {},
+      formData(collectiveFields({ room_id: [HALL_ID, "hall-2"] }))
+    );
+    expect(result.error).toBe("Selected rooms must all belong to the same hall.");
     expect(client.table("bookings").rows).toHaveLength(0);
   });
 

@@ -3,6 +3,7 @@ import Link from "next/link";
 import { StatusBadge } from "@/components/kit/status-badge";
 import { EmptyState } from "@/components/kit/empty-state";
 import type { BookingStatus } from "@/lib/bookings/conflict-check";
+import { countOpenPendingReservations } from "@/lib/bookings/pending-count";
 import { formatRelativeTime, timeToMinutes, todayDateString } from "@/lib/dates";
 import { SCHEDULE_END_HOUR, SCHEDULE_START_HOUR } from "@/lib/schedule/hours";
 import { createClient } from "@/lib/supabase/server";
@@ -33,10 +34,9 @@ export default async function AdminDashboardPage() {
       .from("bookings")
       .select("id, start_time, end_time, status")
       .eq("date", today),
-    supabase
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("status", "pending"),
+    // Reservations, not rows — a hall + subrooms submitted together is 1
+    // pending request, matching what /admin/requests renders as one card.
+    countOpenPendingReservations(supabase),
     supabase
       .from("bookings")
       .select("id, user_id, status, updated_at, date, start_time, end_time, rooms(name)")
@@ -82,7 +82,7 @@ export default async function AdminDashboardPage() {
         </div>
         <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
           <p className="text-caption text-ink-500">Pending requests</p>
-          <p className="font-mono text-display tabular-nums text-ink-900">{pendingCount.count ?? 0}</p>
+          <p className="font-mono text-display tabular-nums text-ink-900">{pendingCount}</p>
         </div>
         <div className="rounded-lg border border-line bg-surface p-4 shadow-sm">
           <p className="text-caption text-ink-500">Utilization today</p>

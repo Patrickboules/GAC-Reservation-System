@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 
 import { BLOCKING_STATUSES, fetchConflictingBookings } from "@/lib/bookings/conflict-check";
 import { LATEST_BOOKING_END_MINUTES, MAX_OPEN_PENDING_BOOKINGS } from "@/lib/bookings/limits";
+import { countOpenPendingReservations } from "@/lib/bookings/pending-count";
 import { isBookingService } from "@/lib/bookings/services";
 import { isBookingModifiable } from "@/lib/bookings/status";
 import {
@@ -81,17 +82,11 @@ export async function requestBooking(
     };
   }
 
-  const { count, error: countError } = await supabase
-    .from("bookings")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("status", "pending");
-
-  if (countError) {
-    console.error("requestBooking: failed to count pending bookings", countError);
-    return { error: "Something went wrong while checking your pending requests. Please try again." };
-  }
-  if ((count ?? 0) >= MAX_OPEN_PENDING_BOOKINGS) {
+  // Counts reservations (distinct group_id), not rows — a member who already
+  // holds a multi-room collective reservation shouldn't have it count as more
+  // than 1 against their cap here either.
+  const openReservationCount = await countOpenPendingReservations(supabase, user.id);
+  if (openReservationCount >= MAX_OPEN_PENDING_BOOKINGS) {
     return {
       error: `You already have ${MAX_OPEN_PENDING_BOOKINGS} pending requests awaiting a decision. Cancel one or wait for a response before requesting more.`,
     };
@@ -155,7 +150,8 @@ export interface RequestCollectiveBookingState {
 
 /**
  * Same as requestBooking, but creates one independent pending booking per
- * selected subroom from a single shared date/time/service/notes submission.
+ * selected room (a hall and/or any of its subrooms) from a single shared
+ * date/time/service/notes submission.
  * All-or-nothing: the whole batch is inserted in one `insert([...])` call, so
  * a single INSERT statement either commits every row or (on a conflict caught
  * by the DB's hall<->subroom exclusion trigger) rolls back all of them —
@@ -214,15 +210,25 @@ export async function requestCollectiveBooking(
   if (roomsById.size !== roomIds.length) {
     return { error: "One or more selected rooms no longer exist." };
   }
-  // Selection is scoped to one hall per request — every selected room must be
-  // a subroom (non-null parent_room_id) sharing the same parent hall.
-  const parentIds = new Set(roomIds.map((id) => roomsById.get(id)!.parent_room_id));
-  if (parentIds.size !== 1 || parentIds.has(null)) {
-    return { error: "Selected rooms must all be subrooms of the same hall." };
+  // Selection is scoped to one hall per request: every selected room must
+  // either *be* the hall (its own parent_room_id is null) or be one of that
+  // hall's subrooms (parent_room_id equal to the hall's id) — so a request
+  // can mix the hall with any subset of its subrooms, but never rooms from
+  // two different halls.
+  const topLevelIds = roomIds.filter((id) => roomsById.get(id)!.parent_room_id === null);
+  const parentIds = new Set(
+    roomIds.map((id) => roomsById.get(id)!.parent_room_id).filter((id): id is string => id !== null)
+  );
+  const validSelection =
+    topLevelIds.length <= 1 &&
+    parentIds.size <= 1 &&
+    (parentIds.size === 0 || topLevelIds.length === 0 || parentIds.has(topLevelIds[0]));
+  if (!validSelection) {
+    return { error: "Selected rooms must all belong to the same hall." };
   }
 
   // Only an already-approved booking blocks a request (see requestBooking) —
-  // checked independently per selected subroom so the response can name which
+  // checked independently per selected room so the response can name which
   // one(s) caused the failure.
   const conflictResults = await Promise.all(
     roomIds.map((roomId) =>
@@ -240,26 +246,13 @@ export async function requestCollectiveBooking(
     };
   }
 
-  const { count, error: countError } = await supabase
-    .from("bookings")
-    .select("id", { count: "exact", head: true })
-    .eq("user_id", user.id)
-    .eq("status", "pending");
-
-  if (countError) {
-    console.error("requestCollectiveBooking: failed to count pending bookings", countError);
-    return { error: "Something went wrong while checking your pending requests. Please try again." };
-  }
-  if ((count ?? 0) + roomIds.length > MAX_OPEN_PENDING_BOOKINGS) {
-    if (roomIds.length === 1) {
-      return {
-        error: `You already have ${MAX_OPEN_PENDING_BOOKINGS} pending requests awaiting a decision. Cancel one or wait for a response before requesting more.`,
-      };
-    }
+  // This whole submission becomes one reservation (one group_id) regardless
+  // of how many rooms it spans, so the cap counts reservations, not rows —
+  // a hall + N subrooms only ever costs 1 against the member's cap of 5.
+  const openReservationCount = await countOpenPendingReservations(supabase, user.id);
+  if (openReservationCount >= MAX_OPEN_PENDING_BOOKINGS) {
     return {
-      error: `You have ${count ?? 0} pending request(s); selecting ${roomIds.length} subrooms would put you at ${
-        (count ?? 0) + roomIds.length
-      }, over the ${MAX_OPEN_PENDING_BOOKINGS} limit. Select fewer subrooms or cancel a pending request first.`,
+      error: `You already have ${MAX_OPEN_PENDING_BOOKINGS} pending requests awaiting a decision. Cancel one or wait for a response before requesting more.`,
     };
   }
 

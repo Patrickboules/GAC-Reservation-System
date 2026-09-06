@@ -46,15 +46,15 @@ function clampToLatestEnd(time: string): string {
 // Chrome copy only — same convention as components/bookings/booking-screen.tsx.
 const STRINGS: Record<Lang, Record<string, string>> = {
   en: {
-    title: "Reserve subrooms",
+    title: "Reserve rooms",
     subtitle:
-      "One date and time will be applied to every selected subroom — each becomes its own pending request.",
+      "One date and time will be applied to every selected room — each becomes its own pending request.",
     cancel: "Cancel",
     pendingPre: "You have",
     of: "of",
     pendingPost: "pending requests in review.",
     pendingCapSuffix: " — cancel one before submitting another.",
-    selected: "Selected subrooms",
+    selected: "Selected rooms",
     dateTime: "Date & Time",
     date: "Date",
     timeRange: "Time range",
@@ -70,14 +70,14 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     submit: "Submit requests",
   },
   ar: {
-    title: "حجز الغرف الفرعية",
-    subtitle: "سيتم تطبيق تاريخ ووقت واحد على كل غرفة فرعية محددة — يصبح كل منها طلبًا مستقلًا قيد المراجعة.",
+    title: "حجز الغرف",
+    subtitle: "سيتم تطبيق تاريخ ووقت واحد على كل غرفة محددة — يصبح كل منها طلبًا مستقلًا قيد المراجعة.",
     cancel: "إلغاء",
     pendingPre: "لديك",
     of: "من",
     pendingPost: "طلبات قيد المراجعة.",
     pendingCapSuffix: " — يجب إلغاء أحدها قبل إرسال طلب آخر.",
-    selected: "الغرف الفرعية المحددة",
+    selected: "الغرف المحددة",
     dateTime: "التاريخ والوقت",
     date: "التاريخ",
     timeRange: "الفترة الزمنية",
@@ -95,7 +95,7 @@ const STRINGS: Record<Lang, Record<string, string>> = {
 };
 
 export interface CollectiveBookingScreenProps {
-  /** 2+ subrooms of the same hall, already chosen on the hall detail page. */
+  /** 2+ rooms of the same hall (the hall itself and/or its subrooms), already chosen on the hall detail page. */
   rooms: CollectiveBookingScreenRoom[];
   defaultDate?: string;
   defaultStartTime?: string;
@@ -105,10 +105,11 @@ export interface CollectiveBookingScreenProps {
 }
 
 /**
- * Collective booking step: N subrooms of one hall were already multi-selected
- * on the hall detail page, so they're fixed here (shown, never re-picked) and
- * only the shared date, time, and meeting details remain — mirrors
- * components/bookings/booking-screen.tsx's single-room flow.
+ * Collective booking step: N rooms of one hall (the hall itself and/or its
+ * subrooms) were already multi-selected on the hall detail page, so they're
+ * fixed here (shown, never re-picked) and only the shared date, time, and
+ * meeting details remain — mirrors components/bookings/booking-screen.tsx's
+ * single-room flow.
  */
 export function CollectiveBookingScreen({
   rooms,

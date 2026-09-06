@@ -4,6 +4,7 @@ import { BookingScreen } from "@/components/bookings/booking-screen";
 import { CollectiveBookingScreen } from "@/components/bookings/collective-booking-screen";
 import type { BookingTimeSlot } from "@/lib/bookings/conflict-check";
 import { findNextFreeSlot } from "@/lib/bookings/next-free-slot";
+import { countOpenPendingReservations } from "@/lib/bookings/pending-count";
 import { minutesToTime, todayDateString } from "@/lib/dates";
 import { createClient } from "@/lib/supabase/server";
 import { getCachedUser } from "@/lib/supabase/session";
@@ -44,22 +45,24 @@ export default async function NewBookingPage({
   const orderedRooms = roomIds.map((id) => roomsById.get(id)!);
 
   if (roomIds.length > 1) {
-    // Collective selection is scoped to one hall per request.
-    const parentIds = new Set(orderedRooms.map((r) => r.parent_room_id));
-    if (parentIds.size !== 1 || parentIds.has(null)) {
+    // Collective selection is scoped to one hall per request: every room must
+    // either be the hall itself (parent_room_id null) or a subroom of it —
+    // mirrors the same check in requestCollectiveBooking (app/(app)/bookings/actions.ts).
+    const topLevelIds = orderedRooms.filter((r) => r.parent_room_id === null).map((r) => r.id as string);
+    const parentIds = new Set(
+      orderedRooms.map((r) => r.parent_room_id).filter((id): id is string => id !== null)
+    );
+    const validSelection =
+      topLevelIds.length <= 1 &&
+      parentIds.size <= 1 &&
+      (parentIds.size === 0 || topLevelIds.length === 0 || parentIds.has(topLevelIds[0]));
+    if (!validSelection) {
       redirect("/rooms");
     }
   }
 
-  let openPendingCount = 0;
-  if (user) {
-    const { count } = await supabase
-      .from("bookings")
-      .select("id", { count: "exact", head: true })
-      .eq("user_id", user.id)
-      .eq("status", "pending");
-    openPendingCount = count ?? 0;
-  }
+  // Reservations, not rows — a hall + subrooms already on file counts as 1.
+  const openPendingCount = user ? await countOpenPendingReservations(supabase, user.id) : 0;
 
   // Default to the first selected room's next free slot rather than a blind
   // 9-10am that may already be taken — except on today, where scanning from

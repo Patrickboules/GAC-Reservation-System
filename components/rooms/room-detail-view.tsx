@@ -66,8 +66,10 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     freeNow: "Free now",
     busyNow: "Busy now",
     notSpecified: "Not specified",
-    reserveSelectedOne: "Reserve 1 subroom",
-    reserveSelectedMany: "Reserve {n} subrooms",
+    reserveSelectedOne: "Reserve 1 room",
+    reserveSelectedMany: "Reserve {n} rooms",
+    mainHall: "Main Hall",
+    wholeFloor: "Select whole floor",
   },
   ar: {
     back: "عودة للغرف",
@@ -83,6 +85,8 @@ const STRINGS: Record<Lang, Record<string, string>> = {
     notSpecified: "غير محدد",
     reserveSelectedOne: "حجز غرفة واحدة",
     reserveSelectedMany: "حجز {n} غرف",
+    mainHall: "القاعة الرئيسية",
+    wholeFloor: "تحديد الدور بالكامل",
   },
 };
 
@@ -115,10 +119,13 @@ function RoomDetailView({
   const dir = isAr ? "rtl" : "ltr";
   const BackIcon = isAr ? ChevronRight : ChevronLeft;
 
-  const [selectedSubroomIds, setSelectedSubroomIds] = useState<Set<string>>(new Set());
+  // Selection set covers this hall's own id and/or any of its subrooms —
+  // every combination (hall alone, one or more subrooms alone, or a mix)
+  // reserves as one collective request via /bookings/new?rooms=.
+  const [selectedRoomIds, setSelectedRoomIds] = useState<Set<string>>(new Set());
 
-  function toggleSubroomSelected(id: string) {
-    setSelectedSubroomIds((prev) => {
+  function toggleRoomSelected(id: string) {
+    setSelectedRoomIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) {
         next.delete(id);
@@ -127,6 +134,10 @@ function RoomDetailView({
       }
       return next;
     });
+  }
+
+  function selectWholeFloor() {
+    setSelectedRoomIds(new Set([roomId, ...subrooms.map((subroom) => subroom.id)]));
   }
 
   return (
@@ -289,29 +300,62 @@ function RoomDetailView({
               </div>
             </div>
 
-            {/* subrooms — only the three subdivided halls have any. Every
-                subroom always has a checkbox; checking one or more is the
-                only way to reserve a subroom (standalone = check just one),
-                so there's no separate per-row "Reserve" action to keep in
-                sync with the checkbox state. */}
+            {/* subrooms — only the three subdivided halls have any. The hall
+                checkbox below and these subroom checkboxes share one
+                selectedRoomIds set, so any combination (hall alone, one or
+                more subrooms alone, or a mix) reserves together below. */}
             {subrooms.length > 0 && (
               <div>
+                <div className="mb-3 flex flex-wrap items-center gap-3">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => toggleRoomSelected(roomId)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        toggleRoomSelected(roomId);
+                      }
+                    }}
+                    className={cn(
+                      "flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2.5 outline-none focus-visible:ring-2 focus-visible:ring-sky-300",
+                      selectedRoomIds.has(roomId) ? "border-sky-600 bg-sky-50" : "border-line bg-canvas"
+                    )}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedRoomIds.has(roomId)}
+                      onChange={() => toggleRoomSelected(roomId)}
+                      onClick={(e) => e.stopPropagation()}
+                      aria-label={t.mainHall}
+                      className="size-3.5 shrink-0 rounded border-line text-sky-600 focus-visible:ring-2 focus-visible:ring-sky-300"
+                    />
+                    <span className="text-small font-semibold text-ink-900">{t.mainHall}</span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={selectWholeFloor}
+                    className="text-caption font-semibold text-sky-600 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-sky-300"
+                  >
+                    {t.wholeFloor}
+                  </button>
+                </div>
                 <p className="mb-3 text-caption font-bold uppercase tracking-wide text-ink-500">
                   {t.subrooms}
                 </p>
                 <div className="grid grid-cols-3 gap-2">
                   {subrooms.map((subroom) => {
-                    const checked = selectedSubroomIds.has(subroom.id);
+                    const checked = selectedRoomIds.has(subroom.id);
                     return (
                       <div
                         key={subroom.id}
                         role="button"
                         tabIndex={0}
-                        onClick={() => toggleSubroomSelected(subroom.id)}
+                        onClick={() => toggleRoomSelected(subroom.id)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
-                            toggleSubroomSelected(subroom.id);
+                            toggleRoomSelected(subroom.id);
                           }
                         }}
                         className={cn(
@@ -323,7 +367,7 @@ function RoomDetailView({
                           <input
                             type="checkbox"
                             checked={checked}
-                            onChange={() => toggleSubroomSelected(subroom.id)}
+                            onChange={() => toggleRoomSelected(subroom.id)}
                             onClick={(e) => e.stopPropagation()}
                             aria-label={subroom.name}
                             className="size-3.5 shrink-0 rounded border-line text-sky-600 focus-visible:ring-2 focus-visible:ring-sky-300"
@@ -355,15 +399,15 @@ function RoomDetailView({
                     );
                   })}
                 </div>
-                {selectedSubroomIds.size > 0 && (
+                {selectedRoomIds.size > 0 && (
                   <div className="mt-3">
                     <Button
                       className="w-full sm:w-auto"
                       render={
-                        <Link href={`/bookings/new?rooms=${Array.from(selectedSubroomIds).join(",")}`}>
-                          {selectedSubroomIds.size === 1
+                        <Link href={`/bookings/new?rooms=${Array.from(selectedRoomIds).join(",")}`}>
+                          {selectedRoomIds.size === 1
                             ? t.reserveSelectedOne
-                            : t.reserveSelectedMany.replace("{n}", String(selectedSubroomIds.size))}
+                            : t.reserveSelectedMany.replace("{n}", String(selectedRoomIds.size))}
                         </Link>
                       }
                     />
@@ -375,7 +419,9 @@ function RoomDetailView({
 
           {/* sidebar */}
           <div className="flex min-w-0 flex-1 basis-[240px] flex-col gap-4">
-            <Button size="lg" render={<Link href={`/bookings/new?room=${roomId}`}>{t.reserve}</Link>} />
+            {subrooms.length === 0 && (
+              <Button size="lg" render={<Link href={`/bookings/new?room=${roomId}`}>{t.reserve}</Link>} />
+            )}
 
             <div className="rounded-xl border border-line bg-canvas p-4">
               <p className="mb-2.5 text-caption font-bold uppercase tracking-wide text-ink-500">{t.next7}</p>
