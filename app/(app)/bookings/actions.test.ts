@@ -55,14 +55,19 @@ function validRequestFields(overrides: Record<string, string> = {}) {
 }
 
 function existingBooking(overrides: Record<string, unknown> = {}) {
+  const id = (overrides.id as string | undefined) ?? "booking-1";
   return {
-    id: "booking-1",
+    id,
     user_id: MEMBER_ID,
     room_id: ROOM_ID,
     date: FUTURE_DATE,
     start_time: "10:00:00",
     end_time: "11:00:00",
     status: "pending",
+    // Defaults to a group of one (its own id), matching the real DB's
+    // per-row-unique group_id default — pass group_id explicitly to test
+    // multi-room reservations.
+    group_id: id,
     ...overrides,
   };
 }
@@ -267,9 +272,17 @@ describe("requestCollectiveBooking", () => {
         status: "pending",
       });
     }
-    // Independent rows — no shared batch/linkage id between them.
+    // Independent rows (each has its own primary key)...
     expect(rows[0].id).not.toBe(rows[1].id);
-    expect(mocks.notifyAdminsNewRequest).toHaveBeenCalledTimes(2);
+    // ...but one reservation: every row shares the same group_id, so they're
+    // approved/rejected/edited/cancelled together from here on.
+    expect(rows[0].group_id).toBe(rows[1].group_id);
+    expect(rows[0].group_id).toBeTruthy();
+    // One consolidated notification/email for the whole reservation, not one per room.
+    expect(mocks.notifyAdminsNewRequest).toHaveBeenCalledOnce();
+    expect(mocks.notifyAdminsNewRequest.mock.calls[0][1]).toMatchObject({
+      roomIds: [SUBROOM_1_ID, SUBROOM_2_ID],
+    });
   });
 
   it("is all-or-nothing: a blocking conflict on one selected subroom blocks the whole batch", async () => {
@@ -459,6 +472,58 @@ describe("updateBooking", () => {
     );
     expect(result.error).toBe("This slot overlaps an existing approved booking for that room.");
   });
+
+  it("reschedules every room of a multi-room reservation atomically, from any one row's id", async () => {
+    const client = setupClient({
+      userId: MEMBER_ID,
+      rooms: SUBROOMS,
+      bookings: [
+        existingBooking({ id: "booking-1", room_id: SUBROOM_1_ID, group_id: "group-1" }),
+        existingBooking({ id: "booking-2", room_id: SUBROOM_2_ID, group_id: "group-1" }),
+      ],
+    });
+    await expect(
+      updateBooking(
+        {},
+        formData(updateFields({ booking_id: "booking-1", start_time: "12:00", end_time: "13:00" }))
+      )
+    ).rejects.toThrow("REDIRECT:/bookings?updated=1");
+
+    const rows = client.table("bookings").rows;
+    expect(rows).toHaveLength(2);
+    for (const row of rows) {
+      expect(row).toMatchObject({ start_time: "12:00:00", end_time: "13:00:00" });
+    }
+  });
+
+  it("fails a multi-room reservation's reschedule entirely when only one of its rooms conflicts, leaving every row unchanged", async () => {
+    const client = setupClient({
+      userId: MEMBER_ID,
+      rooms: SUBROOMS,
+      bookings: [
+        existingBooking({ id: "booking-1", room_id: SUBROOM_1_ID, group_id: "group-1" }),
+        existingBooking({ id: "booking-2", room_id: SUBROOM_2_ID, group_id: "group-1" }),
+      ],
+      scheduleRows: [
+        {
+          id: "other",
+          room_id: SUBROOM_2_ID,
+          date: FUTURE_DATE,
+          start_time: "12:30",
+          end_time: "13:30",
+          status: "approved",
+        },
+      ],
+    });
+    const result = await updateBooking(
+      {},
+      formData(updateFields({ booking_id: "booking-1", start_time: "12:00", end_time: "13:00" }))
+    );
+    expect(result.error).toBe("This slot overlaps an existing approved booking for that room.");
+    for (const row of client.table("bookings").rows) {
+      expect(row).toMatchObject({ start_time: "10:00:00", end_time: "11:00:00" });
+    }
+  });
 });
 
 describe("cancelBooking", () => {
@@ -497,5 +562,24 @@ describe("cancelBooking", () => {
 
     expect(client.table("bookings").rows[0].status).toBe("cancelled");
     expect(mocks.notifyBookingCancelled).toHaveBeenCalledOnce();
+  });
+
+  it("cancels every room of a multi-room reservation atomically, from any one row's id", async () => {
+    const client = setupClient({
+      userId: MEMBER_ID,
+      bookings: [
+        existingBooking({ id: "booking-1", room_id: SUBROOM_1_ID, group_id: "group-1" }),
+        existingBooking({ id: "booking-2", room_id: SUBROOM_2_ID, group_id: "group-1" }),
+      ],
+    });
+    await expect(
+      cancelBooking({}, formData({ booking_id: "booking-1" }))
+    ).rejects.toThrow("REDIRECT:/bookings?cancelled=1");
+
+    expect(client.table("bookings").rows.every((r) => r.status === "cancelled")).toBe(true);
+    expect(mocks.notifyBookingCancelled).toHaveBeenCalledOnce();
+    expect(mocks.notifyBookingCancelled.mock.calls[0][1]).toMatchObject({
+      roomIds: [SUBROOM_1_ID, SUBROOM_2_ID],
+    });
   });
 });

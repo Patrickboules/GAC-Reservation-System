@@ -14,6 +14,7 @@ interface PendingBookingRow {
   service: string;
   notes: string | null;
   created_at: string;
+  group_id: string;
   rooms: { name: string } | { name: string }[] | null;
 }
 
@@ -28,7 +29,7 @@ export default async function AdminRequestsPage() {
   const { data: bookings, error: bookingsError } = await supabase
     .from("bookings")
     .select(
-      "id, room_id, user_id, date, start_time, end_time, service, notes, created_at, rooms(name)"
+      "id, room_id, user_id, date, start_time, end_time, service, notes, created_at, group_id, rooms(name)"
     )
     .eq("status", "pending")
     .order("date", { ascending: true })
@@ -53,18 +54,33 @@ export default async function AdminRequestsPage() {
     (profiles ?? []).map((profile) => [profile.id, profile.display_name ?? "Unknown member"])
   );
 
-  const requests: AdminRequestRow[] = pending.map((booking) => ({
-    id: booking.id,
-    roomId: booking.room_id,
-    roomName: roomName(booking.rooms),
-    requesterName: requesterNameById.get(booking.user_id) ?? "Unknown member",
-    date: booking.date,
-    startTime: booking.start_time,
-    endTime: booking.end_time,
-    service: booking.service,
-    notes: booking.notes,
-    createdAt: booking.created_at,
-  }));
+  // A collective submission's N rooms share one group_id and are one
+  // reservation for approval purposes — collapse them into a single queue
+  // entry, keyed by a representative row's id (any row's id resolves the
+  // whole group in the approve/reject actions).
+  const groupedByGroupId = new Map<string, PendingBookingRow[]>();
+  for (const booking of pending) {
+    const existing = groupedByGroupId.get(booking.group_id);
+    if (existing) existing.push(booking);
+    else groupedByGroupId.set(booking.group_id, [booking]);
+  }
+
+  const requests: AdminRequestRow[] = Array.from(groupedByGroupId.values()).map((rows) => {
+    const first = rows[0];
+    return {
+      id: first.id,
+      roomId: first.room_id,
+      roomName: rows.map((row) => roomName(row.rooms)).join(", "),
+      requesterName: requesterNameById.get(first.user_id) ?? "Unknown member",
+      date: first.date,
+      startTime: first.start_time,
+      endTime: first.end_time,
+      service: first.service,
+      notes: first.notes,
+      createdAt: first.created_at,
+    };
+  });
+  requests.sort((a, b) => `${a.date}${a.startTime}`.localeCompare(`${b.date}${b.startTime}`));
 
   return (
     <div className="mx-auto flex min-h-full w-full max-w-5xl flex-col gap-4 p-4">

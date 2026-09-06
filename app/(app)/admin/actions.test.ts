@@ -34,8 +34,9 @@ const MEMBER_ID = "member-1";
 const ROOM_ID = "room-1";
 
 function pendingBooking(overrides: Record<string, unknown> = {}) {
+  const id = (overrides.id as string | undefined) ?? "booking-1";
   return {
-    id: "booking-1",
+    id,
     user_id: MEMBER_ID,
     room_id: ROOM_ID,
     date: "2026-08-01",
@@ -43,6 +44,10 @@ function pendingBooking(overrides: Record<string, unknown> = {}) {
     end_time: "11:00",
     status: "pending",
     reject_reason: null,
+    // Defaults to a group of one (its own id), matching the real DB's
+    // per-row-unique group_id default — pass group_id explicitly to test
+    // multi-room reservations.
+    group_id: id,
     ...overrides,
   };
 }
@@ -172,6 +177,73 @@ describe("approveBookingAction", () => {
       error: "Something went wrong while approving this request. Please try again.",
     });
   });
+
+  it("approves every room of a multi-room reservation atomically, from any one row's id", async () => {
+    const client = setupClient({
+      userId: ADMIN_ID,
+      bookings: [
+        pendingBooking({ id: "booking-1", room_id: "room-1", group_id: "group-1" }),
+        pendingBooking({ id: "booking-2", room_id: "room-2", group_id: "group-1" }),
+      ],
+    });
+
+    const result = await approveBookingAction("booking-2");
+
+    expect(result).toEqual({ id: "booking-2", ok: true });
+    expect(client.table("bookings").rows.every((r) => r.status === "approved")).toBe(true);
+    expect(mocks.notifyBookingApproved).toHaveBeenCalledOnce();
+    expect(mocks.notifyBookingApproved.mock.calls[0][1]).toMatchObject({
+      roomIds: ["room-1", "room-2"],
+    });
+  });
+
+  it("fails a multi-room reservation's approval entirely when only one of its rooms conflicts, leaving every row pending", async () => {
+    const client = setupClient({
+      userId: ADMIN_ID,
+      bookings: [
+        pendingBooking({ id: "booking-1", room_id: "room-1", group_id: "group-1" }),
+        pendingBooking({ id: "booking-2", room_id: "room-2", group_id: "group-1" }),
+      ],
+      scheduleRows: [
+        {
+          id: "other-booking",
+          room_id: "room-2",
+          date: "2026-08-01",
+          start_time: "10:30",
+          end_time: "11:30",
+          status: "approved",
+        },
+      ],
+    });
+
+    const result = await approveBookingAction("booking-1");
+
+    expect(result).toEqual({
+      id: "booking-1",
+      ok: false,
+      error: "This slot now conflicts with another approved booking.",
+    });
+    expect(client.table("bookings").rows.every((r) => r.status === "pending")).toBe(true);
+    expect(mocks.notifyBookingApproved).not.toHaveBeenCalled();
+  });
+
+  it("fails a multi-room reservation's approval when any one of its rooms is no longer pending", async () => {
+    setupClient({
+      userId: ADMIN_ID,
+      bookings: [
+        pendingBooking({ id: "booking-1", room_id: "room-1", group_id: "group-1" }),
+        pendingBooking({ id: "booking-2", room_id: "room-2", group_id: "group-1", status: "rejected" }),
+      ],
+    });
+
+    const result = await approveBookingAction("booking-1");
+
+    expect(result).toEqual({
+      id: "booking-1",
+      ok: false,
+      error: "Only pending requests can be approved.",
+    });
+  });
 });
 
 describe("rejectBookingAction", () => {
@@ -207,6 +279,27 @@ describe("rejectBookingAction", () => {
       id: "booking-1",
       ok: false,
       error: "Only pending requests can be rejected.",
+    });
+  });
+
+  it("rejects every room of a multi-room reservation atomically, from any one row's id", async () => {
+    const client = setupClient({
+      userId: ADMIN_ID,
+      bookings: [
+        pendingBooking({ id: "booking-1", room_id: "room-1", group_id: "group-1" }),
+        pendingBooking({ id: "booking-2", room_id: "room-2", group_id: "group-1" }),
+      ],
+    });
+
+    const result = await rejectBookingAction("booking-2", "Conflict");
+
+    expect(result).toEqual({ id: "booking-2", ok: true });
+    expect(
+      client.table("bookings").rows.every((r) => r.status === "rejected" && r.reject_reason === "Conflict")
+    ).toBe(true);
+    expect(mocks.notifyBookingRejected).toHaveBeenCalledOnce();
+    expect(mocks.notifyBookingRejected.mock.calls[0][1]).toMatchObject({
+      roomIds: ["room-1", "room-2"],
     });
   });
 });

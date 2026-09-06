@@ -25,7 +25,7 @@ export default async function BookingDetailPage({
   const { data: booking } = await supabase
     .from("bookings")
     .select(
-      "id, date, start_time, end_time, service, notes, status, reject_reason, user_id, rooms(name)"
+      "id, date, start_time, end_time, service, notes, status, reject_reason, user_id, group_id, rooms(name)"
     )
     .eq("id", id)
     .single();
@@ -34,7 +34,17 @@ export default async function BookingDetailPage({
     redirect("/bookings?error=" + encodeURIComponent("Booking not found."));
   }
 
-  const room = Array.isArray(booking.rooms) ? booking.rooms[0] : booking.rooms;
+  // A collective reservation's rooms all share this group_id — show every
+  // room in the reservation, not just the one this row happens to be.
+  const { data: groupRows } = await supabase
+    .from("bookings")
+    .select("rooms(name)")
+    .eq("group_id", booking.group_id);
+
+  const roomName = ((groupRows ?? []) as { rooms: { name: string } | { name: string }[] | null }[])
+    .map((row) => (Array.isArray(row.rooms) ? row.rooms[0]?.name : row.rooms?.name))
+    .filter((name): name is string => Boolean(name))
+    .join(", ");
   const modifiable = isBookingModifiable(booking.status, booking.date, booking.end_time);
 
   return (
@@ -47,7 +57,7 @@ export default async function BookingDetailPage({
       <div className="overflow-hidden rounded-lg border border-line bg-surface shadow-sm">
         <div className="flex flex-row items-center justify-between gap-2 p-4 pb-0">
           <span lang="ar" dir="rtl" className="font-display text-h3 text-ink-900">
-            {room?.name ?? "Unknown room"}
+            {roomName || "Unknown room"}
           </span>
           <StatusBadge status={booking.status} />
         </div>

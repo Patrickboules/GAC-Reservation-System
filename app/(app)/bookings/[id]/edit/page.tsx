@@ -20,7 +20,7 @@ export default async function EditBookingPage({
 
   const { data: booking } = await supabase
     .from("bookings")
-    .select("id, room_id, date, start_time, end_time, service, notes, status, user_id")
+    .select("id, room_id, date, start_time, end_time, service, notes, status, user_id, group_id")
     .eq("id", id)
     .single();
 
@@ -42,5 +42,20 @@ export default async function EditBookingPage({
     redirect("/bookings?error=" + encodeURIComponent("This booking's room no longer exists."));
   }
 
-  return <BookingScreen room={room} booking={booking} />;
+  // A collective reservation's rooms all share this group_id and are edited
+  // together (date/time/service/notes only — room composition doesn't
+  // change here). Only the name shown needs to reflect every room; the rest
+  // of the displayed room (building/floor/amenities) comes from this row's
+  // own room, which is representative since every subroom in a group shares
+  // the same parent hall's building/floor.
+  const { data: groupRows } = await supabase
+    .from("bookings")
+    .select("rooms(name)")
+    .eq("group_id", booking.group_id);
+  const roomNames = ((groupRows ?? []) as { rooms: { name: string } | { name: string }[] | null }[])
+    .map((row) => (Array.isArray(row.rooms) ? row.rooms[0]?.name : row.rooms?.name))
+    .filter((name): name is string => Boolean(name));
+  const displayRoom = roomNames.length > 1 ? { ...room, name: roomNames.join(", ") } : room;
+
+  return <BookingScreen room={displayRoom} booking={booking} />;
 }
